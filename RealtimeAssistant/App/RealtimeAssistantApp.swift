@@ -6,7 +6,7 @@ struct RealtimeAssistantApp: App {
     
     var body: some Scene {
         WindowGroup {
-            MainWindowView()
+            MainWindowView(coordinator: appDelegate.sessionCoordinator)
         }
     }
 }
