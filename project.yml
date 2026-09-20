@@ -16,3 +16,25 @@ targets:
       DEVELOPMENT_TEAM: ""
       ENABLE_USER_SCRIPT_SANDBOXING: false
       SWIFT_OBJC_BRIDGING_HEADER: "RealtimeAssistant/Speech/WhisperBridge/BridgingHeader.h"
+      HEADER_SEARCH_PATHS:
+        - "$(SRCROOT)/Vendor/whisper.cpp/include"
+        - "$(SRCROOT)/Vendor/llama.cpp/include"
+        - "$(SRCROOT)/Vendor/llama.cpp/ggml/include"
+      LIBRARY_SEARCH_PATHS:
+        - "$(SRCROOT)/Vendor/whisper.cpp/build/src"
+        - "$(SRCROOT)/Vendor/llama.cpp/build/src"
+        - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src"
+        - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-metal"
+        - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-blas"
+      OTHER_LDFLAGS:
+        - "-lwhisper"
+        - "-lllama"
+        - "-lggml"
+        - "-lggml-base"
+        - "-lggml-cpu"
+        - "-lggml-metal"
+        - "-lggml-blas"
+        - "-framework Accelerate"
+        - "-framework Foundation"
+        - "-framework Metal"
+        - "-framework MetalKit"

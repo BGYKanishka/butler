@@ -563,12 +563,37 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/whisper.cpp/include",
+					"$(SRCROOT)/Vendor/llama.cpp/include",
+					"$(SRCROOT)/Vendor/llama.cpp/ggml/include",
+				);
 				INFOPLIST_FILE = RealtimeAssistant/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/whisper.cpp/build/src",
+					"$(SRCROOT)/Vendor/llama.cpp/build/src",
+					"$(SRCROOT)/Vendor/llama.cpp/build/ggml/src",
+					"$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-metal",
+					"$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-blas",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_LDFLAGS = (
+					"-lwhisper",
+					"-lllama",
+					"-lggml",
+					"-lggml-base",
+					"-lggml-cpu",
+					"-lggml-metal",
+					"-lggml-blas",
+					"-framework Accelerate",
+					"-framework Foundation",
+					"-framework Metal",
+					"-framework MetalKit",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.RealtimeAssistant;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = RealtimeAssistant/Speech/WhisperBridge/BridgingHeader.h;
@@ -584,12 +609,37 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/whisper.cpp/include",
+					"$(SRCROOT)/Vendor/llama.cpp/include",
+					"$(SRCROOT)/Vendor/llama.cpp/ggml/include",
+				);
 				INFOPLIST_FILE = RealtimeAssistant/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/whisper.cpp/build/src",
+					"$(SRCROOT)/Vendor/llama.cpp/build/src",
+					"$(SRCROOT)/Vendor/llama.cpp/build/ggml/src",
+					"$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-metal",
+					"$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-blas",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_LDFLAGS = (
+					"-lwhisper",
+					"-lllama",
+					"-lggml",
+					"-lggml-base",
+					"-lggml-cpu",
+					"-lggml-metal",
+					"-lggml-blas",
+					"-framework Accelerate",
+					"-framework Foundation",
+					"-framework Metal",
+					"-framework MetalKit",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.RealtimeAssistant;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = RealtimeAssistant/Speech/WhisperBridge/BridgingHeader.h;

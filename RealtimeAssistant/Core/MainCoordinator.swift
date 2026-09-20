@@ -48,6 +48,33 @@ class MainCoordinator: ObservableObject {
         sysAudioService.onSamplesCaptured = { [weak self] samples in
             self?.handleSysSamples(samples)
         }
+        
+        whisperEngine.onTranscriptionCompleted = { [weak self] segment in
+            self?.handleTranscription(segment: segment)
+        }
+    }
+    
+    private func handleTranscription(segment: TranscriptSegment) {
+        transcriptAssembler.addSegment(segment)
+        
+        let turn = ConversationTurn(id: UUID(), source: segment.source, text: segment.text, timestamp: Date())
+        contextManager.addTurn(turn)
+        
+        DispatchQueue.main.async {
+            self.overlayViewModel.appendSubtitle(segment.text)
+        }
+        
+        let result = questionDetector.detect(transcript: segment.text, source: segment.source)
+        if result == .strongQuestion {
+            DispatchQueue.main.async {
+                self.state = .answering
+            }
+            responseGenerator.handleQuestionDetected(segment.text)
+        } else {
+            DispatchQueue.main.async {
+                self.state = .listening
+            }
+        }
     }
     
     private func handleMicSamples(_ samples: [Float]) {

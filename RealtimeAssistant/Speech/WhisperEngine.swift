@@ -25,19 +25,22 @@ class WhisperEngine: SpeechToTextEngine {
         isLoaded = false
     }
     
+    var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
+    
     func transcribe(samples: [Float], sampleRate: Int) async throws {
         let result = wrapper.transcribeSamples(samples, count: samples.count)
         
-        if let text = result {
-            // let segment = TranscriptSegment(
-            //     id: UUID(),
-            //     source: .microphone, // Simplified
-            //     startTime: 0,
-            //     endTime: 0,
-            //     text: text,
-            //     isFinal: true,
-            //     confidence: 1.0
-            // )
+        if let text = result, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let segment = TranscriptSegment(
+                id: UUID(),
+                source: .microphone, // Simplified for now
+                startTime: Date().timeIntervalSince1970, // Approximated
+                endTime: Date().timeIntervalSince1970 + Double(samples.count) / Double(sampleRate),
+                text: text,
+                isFinal: true,
+                confidence: 1.0
+            )
+            onTranscriptionCompleted?(segment)
             print("Whisper transcribed: \(text)")
         }
     }
