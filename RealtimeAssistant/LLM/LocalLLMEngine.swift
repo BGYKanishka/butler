@@ -25,8 +25,11 @@ class LocalLLMEngine: LLMEngine {
     }
     
     func generateStreaming(prompt: String, onToken: @escaping (String) -> Void) async throws {
-        wrapper.generateStreaming(prompt, temperature: config.temperature, maxTokens: Int32(config.maxTokens)) { token in
-            onToken(token)
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            self.wrapper.generateStreaming(prompt, temperature: self.config.temperature, maxTokens: Int32(self.config.maxTokens)) { token in
+                onToken(token)
+            }
         }
     }
     

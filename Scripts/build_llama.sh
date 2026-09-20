@@ -4,20 +4,20 @@ set -e
 echo "Building llama.cpp with Metal support..."
 cd "$(dirname "$0")/../Vendor/llama.cpp"
 
-export MACOSX_DEPLOYMENT_TARGET=14.0
-export SDKROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 
-# Create a build directory
-mkdir -p build
-cd build
+# Configure with CMake
+cmake -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DGGML_METAL=ON \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DLLAMA_BUILD_EXAMPLES=OFF \
+  -DLLAMA_BUILD_TESTS=OFF \
+  -DGGML_LTO=OFF \
+  -DLLAMA_NATIVE=OFF
 
-# Configure CMake for Apple Silicon with Metal
-/opt/homebrew/bin/cmake -DGGML_METAL=1 \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DBUILD_SHARED_LIBS=OFF \
-      ..
+# Build using available cores
+cmake --build build --config Release -j$(sysctl -n hw.ncpu)
 
-# Build the static library
-/opt/homebrew/bin/cmake --build . --config Release -j $(sysctl -n hw.ncpu)
-
-echo "llama.cpp built successfully!"
+echo "llama.cpp build complete."

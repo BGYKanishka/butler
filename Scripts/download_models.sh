@@ -1,45 +1,32 @@
 #!/bin/bash
 set -e
 
-# Download Whisper model
-WHISPER_MODEL="ggml-base.en.bin"
-WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$WHISPER_MODEL"
+# Download Qwen2.5-VL-7B-Instruct GGUF model
+# The model will be placed in the Application Support directory
 
-# Download LLaMA model (Qwen2.5-VL-7B for Multimodal)
-LLAMA_MODEL="Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
-LLAMA_URL="https://huggingface.co/bartowski/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+APP_SUPPORT_DIR="$HOME/Library/Application Support/RealtimeAssistant/Models/llm"
+MODEL_URL="https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/qwen2.5-vl-7b-instruct-q4_k_m.gguf"
+MODEL_NAME="Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
 
-# Download Multimodal projector for vision support (Future-proofing)
-MMPROJ_MODEL="mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf"
-MMPROJ_URL="https://huggingface.co/bartowski/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf"
+MMPROJ_URL="https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-qwen2.5-vl-7b-instruct-f16.gguf"
+MMPROJ_NAME="mmproj-qwen2.5-vl-7b-instruct-f16.gguf"
 
-# Directories
-APP_SUPPORT_DIR="$HOME/Library/Application Support/RealtimeAssistant/Models"
-WHISPER_DIR="$APP_SUPPORT_DIR/whisper"
-LLAMA_DIR="$APP_SUPPORT_DIR/llama"
+mkdir -p "$APP_SUPPORT_DIR"
 
-mkdir -p "$WHISPER_DIR"
-mkdir -p "$LLAMA_DIR"
+echo "Downloading LLM Model to $APP_SUPPORT_DIR..."
 
-echo "Downloading Whisper model..."
-if [ ! -f "$WHISPER_DIR/$WHISPER_MODEL" ]; then
-    curl -L -o "$WHISPER_DIR/$WHISPER_MODEL" "$WHISPER_URL"
+if [ ! -f "$APP_SUPPORT_DIR/$MODEL_NAME" ]; then
+    echo "Downloading $MODEL_NAME..."
+    curl -L -o "$APP_SUPPORT_DIR/$MODEL_NAME" "$MODEL_URL"
 else
-    echo "Whisper model already exists."
+    echo "$MODEL_NAME already exists."
 fi
 
-echo "Downloading LLaMA model..."
-if [ ! -f "$LLAMA_DIR/$LLAMA_MODEL" ]; then
-    curl -L -o "$LLAMA_DIR/$LLAMA_MODEL" "$LLAMA_URL"
+if [ ! -f "$APP_SUPPORT_DIR/$MMPROJ_NAME" ]; then
+    echo "Downloading $MMPROJ_NAME (Vision Projector)..."
+    curl -L -o "$APP_SUPPORT_DIR/$MMPROJ_NAME" "$MMPROJ_URL"
 else
-    echo "LLaMA model already exists."
+    echo "$MMPROJ_NAME already exists."
 fi
 
-echo "Downloading Multimodal Projector (vision support)..."
-if [ ! -f "$LLAMA_DIR/$MMPROJ_MODEL" ]; then
-    curl -L -o "$LLAMA_DIR/$MMPROJ_MODEL" "$MMPROJ_URL"
-else
-    echo "Multimodal Projector already exists."
-fi
-
-echo "Models downloaded successfully!"
+echo "All LLM models downloaded."
