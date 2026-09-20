@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		039C34B571331B9253B45E30 /* RealtimeAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A77A0709A48FCD43981BE8E /* RealtimeAssistantTests.swift */; };
 		04E4C457824808B804D2FA91 /* WhisperConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5323EEF171DCF2452BA58866 /* WhisperConfiguration.swift */; };
+		0CC0CC03CD1F69E4AAB65227 /* PerformanceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6386A64AEF87CB3203B90396 /* PerformanceMonitor.swift */; };
 		0F304706082C325ABB901AF8 /* AssistantEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E03776563C29189F27A605B /* AssistantEvent.swift */; };
 		1209174980B962AA0FFA155B /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79D24A6F3688B9FD74618F24 /* SessionState.swift */; };
 		1AD12EFA3AA677EE010A9223 /* OverlayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2327B15DD136FCE9495700 /* OverlayViewModel.swift */; };
@@ -49,6 +51,16 @@
 		F49E54FD6767FCFECFA82C02 /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8965657E6925474088B47219 /* SystemAudioCaptureService.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		5DC3724A9EE999991F8FF9D0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8CF4741BF4E7AD6ED39247F0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D8A75F4CB8800A021C35592A;
+			remoteInfo = RealtimeAssistant;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		00A0438892D65903995AB955 /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
 		08759DE2D32C1C43437BA06B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -58,6 +70,7 @@
 		1A679A2C6591F20C73753A3F /* MainCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainCoordinator.swift; sourceTree = "<group>"; };
 		1BE4C03DB91BF6C3198A2009 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
 		268E5AF88DE4A871EFA7CCE5 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
+		3A77A0709A48FCD43981BE8E /* RealtimeAssistantTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeAssistantTests.swift; sourceTree = "<group>"; };
 		3E03776563C29189F27A605B /* AssistantEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantEvent.swift; sourceTree = "<group>"; };
 		3E98499277A59FA2EC89E483 /* RealtimeAssistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RealtimeAssistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A7D7740EA641CAA49755BC4 /* AudioRingBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRingBuffer.swift; sourceTree = "<group>"; };
@@ -65,6 +78,7 @@
 		5323EEF171DCF2452BA58866 /* WhisperConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperConfiguration.swift; sourceTree = "<group>"; };
 		5C9BE4B1A46FC1C2BCCE5BCA /* WhisperWrapper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = WhisperWrapper.mm; sourceTree = "<group>"; };
 		62B20A3DFEAA7B065FE959A2 /* AudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCaptureService.swift; sourceTree = "<group>"; };
+		6386A64AEF87CB3203B90396 /* PerformanceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMonitor.swift; sourceTree = "<group>"; };
 		6B187BED54B3DB712F6D1266 /* BridgingHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BridgingHeader.h; sourceTree = "<group>"; };
 		6C22157B9B278ADB02ECE160 /* AssistantError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantError.swift; sourceTree = "<group>"; };
 		6ED6C111E1271818AB2BBC00 /* BridgingHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BridgingHeader.h; sourceTree = "<group>"; };
@@ -82,6 +96,7 @@
 		BD445A2C16DD89F72BC1FCBB /* QuestionDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionDetector.swift; sourceTree = "<group>"; };
 		C12A8401860628309104D66F /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		CDDCAE1009E612B2947AA99D /* LLMEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMEngine.swift; sourceTree = "<group>"; };
+		CED5B41A6E13B129F96D5C9C /* RealtimeAssistantTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RealtimeAssistantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D35D166EACE4A708365AB300 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		DAD9937CA051CC7CD5A71B2A /* LocalLLMEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMEngine.swift; sourceTree = "<group>"; };
 		DB9476342E7590A1344C6F2A /* AudioSessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionCoordinator.swift; sourceTree = "<group>"; };
@@ -110,6 +125,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1D59BADAB2AD413392F98C32 /* RealtimeAssistantTests */ = {
+			isa = PBXGroup;
+			children = (
+				3A77A0709A48FCD43981BE8E /* RealtimeAssistantTests.swift */,
+			);
+			path = RealtimeAssistantTests;
+			sourceTree = "<group>";
+		};
 		1E521D06E641DD9571120112 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -133,6 +156,7 @@
 			isa = PBXGroup;
 			children = (
 				F7BCC5F804223816FC8A3D8E /* RealtimeAssistant */,
+				1D59BADAB2AD413392F98C32 /* RealtimeAssistantTests */,
 				F8D7049963A2CFE4FB8C0CA1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -191,6 +215,14 @@
 				79D24A6F3688B9FD74618F24 /* SessionState.swift */,
 			);
 			path = Session;
+			sourceTree = "<group>";
+		};
+		70514C97904EB0FD1C3554BA /* Performance */ = {
+			isa = PBXGroup;
+			children = (
+				6386A64AEF87CB3203B90396 /* PerformanceMonitor.swift */,
+			);
+			path = Performance;
 			sourceTree = "<group>";
 		};
 		7C525110B8F1591DCB74E8B9 /* WhisperBridge */ = {
@@ -337,6 +369,7 @@
 				A749D8DD944AC2A075E5635E /* FutureVision */,
 				2D06B6E9B2AA302971BF575E /* Intelligence */,
 				40F80CBB63168DFB2A61E764 /* LLM */,
+				70514C97904EB0FD1C3554BA /* Performance */,
 				8EEE2B88904C1C2CFD13C083 /* Permissions */,
 				A38E536FD5DD3EE474B828F2 /* Resources */,
 				58C9ECC52896106A938AEBC3 /* Session */,
@@ -350,6 +383,7 @@
 			isa = PBXGroup;
 			children = (
 				3E98499277A59FA2EC89E483 /* RealtimeAssistant.app */,
+				CED5B41A6E13B129F96D5C9C /* RealtimeAssistantTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -365,6 +399,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0B81BE99292EA3461AA0A33E /* RealtimeAssistantTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B10019212A07A8E110E1C5D /* Build configuration list for PBXNativeTarget "RealtimeAssistantTests" */;
+			buildPhases = (
+				B055E3454A074E06F919A28B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1344B72365E48F61A228C67E /* PBXTargetDependency */,
+			);
+			name = RealtimeAssistantTests;
+			packageProductDependencies = (
+			);
+			productName = RealtimeAssistantTests;
+			productReference = CED5B41A6E13B129F96D5C9C /* RealtimeAssistantTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		D8A75F4CB8800A021C35592A /* RealtimeAssistant */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3630D95669B12CCD5F81E158 /* Build configuration list for PBXNativeTarget "RealtimeAssistant" */;
@@ -416,11 +468,20 @@
 			projectRoot = "";
 			targets = (
 				D8A75F4CB8800A021C35592A /* RealtimeAssistant */,
+				0B81BE99292EA3461AA0A33E /* RealtimeAssistantTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		B055E3454A074E06F919A28B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				039C34B571331B9253B45E30 /* RealtimeAssistantTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DCE54504F0D8D1BA8CA8E86B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -447,6 +508,7 @@
 				BA90247219580335BD6E75DC /* OverlayContentView.swift in Sources */,
 				A223B4F994221A0FEA87EB73 /* OverlayPanel.swift in Sources */,
 				1AD12EFA3AA677EE010A9223 /* OverlayViewModel.swift in Sources */,
+				0CC0CC03CD1F69E4AAB65227 /* PerformanceMonitor.swift in Sources */,
 				79D2B5D858FC7A7AEBC38EC8 /* PermissionOnboardingView.swift in Sources */,
 				E85E63672DB9790262D8636A /* PromptBuilder.swift in Sources */,
 				666BE7AA7045A4223EB3CC8D /* QuestionDetector.swift in Sources */,
@@ -468,6 +530,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1344B72365E48F61A228C67E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D8A75F4CB8800A021C35592A /* RealtimeAssistant */;
+			targetProxy = 5DC3724A9EE999991F8FF9D0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		435D12999B945467B56F648D /* Debug */ = {
@@ -633,6 +703,24 @@
 			};
 			name = Release;
 		};
+		C7DD7C2733DDF5B530ABB4F3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.RealtimeAssistantTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RealtimeAssistant.app/Contents/MacOS/RealtimeAssistant";
+			};
+			name = Release;
+		};
 		D9AF76BF8AECEF9354ADD5AE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -679,9 +767,36 @@
 			};
 			name = Debug;
 		};
+		FBBE31E7A7B7F8F1E0504150 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.RealtimeAssistantTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RealtimeAssistant.app/Contents/MacOS/RealtimeAssistant";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2B10019212A07A8E110E1C5D /* Build configuration list for PBXNativeTarget "RealtimeAssistantTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FBBE31E7A7B7F8F1E0504150 /* Debug */,
+				C7DD7C2733DDF5B530ABB4F3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		3630D95669B12CCD5F81E158 /* Build configuration list for PBXNativeTarget "RealtimeAssistant" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

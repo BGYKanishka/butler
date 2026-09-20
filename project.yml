@@ -44,3 +44,13 @@ targets:
         - "-framework Foundation"
         - "-framework Metal"
         - "-framework MetalKit"
+
+  RealtimeAssistantTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources: [RealtimeAssistantTests]
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: RealtimeAssistant
