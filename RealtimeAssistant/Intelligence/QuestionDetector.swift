@@ -11,10 +11,32 @@ class QuestionDetector {
     private let questionPhrases = [
         "can you", "could you", "explain", "describe", 
         "tell me about", "walk me through", "what would you do if", 
-        "how would you handle"
+        "how would you handle", "is there", "are there", "do you", 
+        "did you", "will you", "would you", "should we", "can we", 
+        "could we", "is it possible"
     ]
     
-    func detect(transcript: String, source: AudioSource) -> QuestionDetectionResult {
+    var onQuestionConfirmed: ((String) -> Void)?
+    
+    private var debounceWorkItem: DispatchWorkItem?
+    
+    func process(transcript: String, source: AudioSource) {
+        // Cancel any pending debounce
+        debounceWorkItem?.cancel()
+        
+        let result = detect(transcript: transcript, source: source)
+        
+        if result == .strongQuestion {
+            // Schedule the trigger for 500ms from now
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.onQuestionConfirmed?(transcript)
+            }
+            debounceWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+        }
+    }
+    
+    private func detect(transcript: String, source: AudioSource) -> QuestionDetectionResult {
         // Only process REMOTE transcripts
         guard source == .system else { return .none }
         

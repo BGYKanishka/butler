@@ -52,6 +52,13 @@ class SessionCoordinator: ObservableObject {
         whisperEngine.onTranscriptionCompleted = { [weak self] segment in
             self?.handleTranscription(segment: segment)
         }
+        
+        questionDetector.onQuestionConfirmed = { [weak self] question in
+            DispatchQueue.main.async {
+                self?.state = .answering
+            }
+            self?.responseGenerator.handleQuestionDetected(question)
+        }
     }
     
     private func handleTranscription(segment: TranscriptSegment) {
@@ -64,17 +71,8 @@ class SessionCoordinator: ObservableObject {
             self.overlayViewModel.appendSubtitle(segment.text)
         }
         
-        let result = questionDetector.detect(transcript: segment.text, source: segment.source)
-        if result == .strongQuestion {
-            DispatchQueue.main.async {
-                self.state = .answering
-            }
-            responseGenerator.handleQuestionDetected(segment.text)
-        } else {
-            DispatchQueue.main.async {
-                self.state = .listening
-            }
-        }
+        // Feed it to the question detector. If it triggers, it will call onQuestionConfirmed after a debounce.
+        questionDetector.process(transcript: segment.text, source: segment.source)
     }
     
     private func handleMicSamples(_ samples: [Float]) {
@@ -162,10 +160,6 @@ class SessionCoordinator: ObservableObject {
             self.overlayViewModel.appendSubtitle(text)
         }
         
-        let result = questionDetector.detect(transcript: text, source: source)
-        if result == .strongQuestion {
-            self.state = .answering
-            responseGenerator.handleQuestionDetected(text)
-        }
+        questionDetector.process(transcript: text, source: source)
     }
 }
