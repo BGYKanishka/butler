@@ -4,4 +4,4 @@ build/
 DerivedData/
 *.gguf
 *.bin
-Models/
+

@@ -1,39 +1,56 @@
 import Foundation
-import os
 
 class AudioRingBuffer {
     private var buffer: [Float]
+    private var head: Int = 0
+    private var tail: Int = 0
     private let capacity: Int
-    private var writeIndex: Int = 0
-    private var lock = os_unfair_lock_s()
+    private let lock = NSLock() // A simple lock for now. In a strictly real-time C++ audio engine, we'd use atomics.
     
-    init(capacity: Int = 320_000) { // 20 seconds at 16kHz
+    init(capacity: Int) {
         self.capacity = capacity
-        self.buffer = Array(repeating: 0.0, count: capacity)
+        self.buffer = [Float](repeating: 0.0, count: capacity)
     }
     
-    func push(_ samples: [Float]) {
-        os_unfair_lock_lock(&lock)
-        defer { os_unfair_lock_unlock(&lock) }
+    func push(_ samples: [Float], timestamp: UInt64) {
+        lock.lock()
+        defer { lock.unlock() }
         
         for sample in samples {
-            buffer[writeIndex] = sample
-            writeIndex = (writeIndex + 1) % capacity
+            buffer[head] = sample
+            head = (head + 1) % capacity
+            if head == tail {
+                // Buffer full, advance tail to overwrite oldest data
+                tail = (tail + 1) % capacity
+            }
         }
     }
     
-    func readRecent(count: Int) -> [Float] {
-        os_unfair_lock_lock(&lock)
-        defer { os_unfair_lock_unlock(&lock) }
+    func getRecent(samplesCount: Int) -> [Float] {
+        lock.lock()
+        defer { lock.unlock() }
         
-        let readCount = min(count, capacity)
-        var result = [Float](repeating: 0.0, count: readCount)
+        let countToRead = min(samplesCount, availableItems())
+        if countToRead == 0 { return [] }
         
-        var readIdx = (writeIndex - readCount + capacity) % capacity
-        for i in 0..<readCount {
-            result[i] = buffer[readIdx]
-            readIdx = (readIdx + 1) % capacity
+        var result = [Float](repeating: 0.0, count: countToRead)
+        
+        // We read backwards from head
+        var readIndex = (head - countToRead + capacity) % capacity
+        
+        for i in 0..<countToRead {
+            result[i] = buffer[readIndex]
+            readIndex = (readIndex + 1) % capacity
         }
+        
         return result
+    }
+    
+    private func availableItems() -> Int {
+        if head >= tail {
+            return head - tail
+        } else {
+            return capacity - tail + head
+        }
     }
 }

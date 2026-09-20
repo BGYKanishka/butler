@@ -9,8 +9,8 @@ class SessionCoordinator: ObservableObject {
     
     let micVAD = VoiceActivityDetector()
     let sysVAD = VoiceActivityDetector()
-    let micRingBuffer = AudioRingBuffer()
-    let sysRingBuffer = AudioRingBuffer()
+    let micRingBuffer = AudioRingBuffer(capacity: 16000 * 60)
+    let sysRingBuffer = AudioRingBuffer(capacity: 16000 * 60)
     
     let contextManager = ContextManager()
     let promptBuilder = PromptBuilder()
@@ -78,7 +78,7 @@ class SessionCoordinator: ObservableObject {
     }
     
     private func handleMicSamples(_ samples: [Float]) {
-        micRingBuffer.push(samples)
+        micRingBuffer.push(samples, timestamp: 0)
         
         // Calculate RMS
         let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count))
@@ -99,7 +99,7 @@ class SessionCoordinator: ObservableObject {
             if duration > 0.5 { // Only transcribe if > 0.5s
                 // Pull samples from ring buffer (e.g. last 'duration' + buffer seconds)
                 let sampleCount = Int(duration * 16000)
-                let pulledSamples = micRingBuffer.readRecent(count: sampleCount)
+                let pulledSamples = micRingBuffer.getRecent(samplesCount: sampleCount)
                 
                 Task {
                     DispatchQueue.main.async {
@@ -112,7 +112,7 @@ class SessionCoordinator: ObservableObject {
     }
     
     private func handleSysSamples(_ samples: [Float]) {
-        sysRingBuffer.push(samples)
+        sysRingBuffer.push(samples, timestamp: 0)
         // Similar VAD logic could go here for system audio
     }
     

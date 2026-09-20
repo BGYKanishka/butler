@@ -45,8 +45,13 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         }
     }
     
+    private let converter = AudioConverter()!
+    
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio else { return }
+        
+        guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
+        let audioFormat = AVAudioFormat(cmAudioFormatDescription: formatDescription)
         
         var audioBufferList = AudioBufferList()
         var blockBuffer: CMBlockBuffer?
@@ -61,28 +66,37 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
             blockBufferOut: &blockBuffer
         )
         
-        let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
+        guard let pcmBuffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: AVAudioFrameCount(sampleBuffer.numSamples)) else { return }
         
-        for buffer in buffers {
-            guard let data = buffer.mData else { continue }
-            let pointer = data.assumingMemoryBound(to: Float.self)
-            let frameLength = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
-            
-            var samples = [Float](repeating: 0.0, count: frameLength)
-            var rms: Float = 0
-            for i in 0..<frameLength {
-                let sample = pointer[i]
-                samples[i] = sample
-                rms += sample * sample
+        // Copy data to pcmBuffer
+        for channel in 0..<Int(audioFormat.channelCount) {
+            if let dest = pcmBuffer.floatChannelData?[channel], let src = audioBufferList.mBuffers.mData {
+                // Warning: this assumes the SCStream is giving us Float32. 
+                // A robust solution uses vDSP or checks the bit depth, but SCK audio is Float32 by default.
+                memcpy(dest, src, Int(audioBufferList.mBuffers.mDataByteSize))
             }
+        }
+        pcmBuffer.frameLength = AVAudioFrameCount(sampleBuffer.numSamples)
+        
+        guard let convertedBuffer = converter.convert(buffer: pcmBuffer),
+              let channelData = convertedBuffer.floatChannelData?[0] else { return }
+        
+        let frameLength = Int(convertedBuffer.frameLength)
+        var samples = [Float](repeating: 0.0, count: frameLength)
+        var rms: Float = 0
+        
+        for i in 0..<frameLength {
+            let sample = channelData[i]
+            samples[i] = sample
+            rms += sample * sample
+        }
+        
+        if frameLength > 0 {
+            self.onSamplesCaptured?(samples)
             
-            if frameLength > 0 {
-                self.onSamplesCaptured?(samples)
-                
-                rms = sqrt(rms / Float(frameLength))
-                DispatchQueue.main.async {
-                    self.audioLevel = rms
-                }
+            rms = sqrt(rms / Float(frameLength))
+            DispatchQueue.main.async {
+                self.audioLevel = rms
             }
         }
     }

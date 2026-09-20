@@ -3,23 +3,36 @@ import AVFoundation
 
 class AudioConverter {
     private var converter: AVAudioConverter?
-    private let outputFormat: AVAudioFormat
+    private var sourceFormat: AVAudioFormat?
+    private let targetFormat: AVAudioFormat
     
-    init() {
-        self.outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
+    init?() {
+        guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                         sampleRate: 16000,
+                                         channels: 1,
+                                         interleaved: false) else {
+            return nil
+        }
+        self.targetFormat = format
+    }
+    
+    func setupConverter(from format: AVAudioFormat) {
+        if sourceFormat == format { return }
+        self.sourceFormat = format
+        self.converter = AVAudioConverter(from: format, to: targetFormat)
     }
     
     func convert(buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        guard let inputFormat = buffer.format as AVAudioFormat? else { return nil }
-        
-        if converter == nil || converter?.inputFormat != inputFormat {
-            converter = AVAudioConverter(from: inputFormat, to: outputFormat)
+        guard let format = sourceFormat else {
+            setupConverter(from: buffer.format)
+            guard sourceFormat != nil else { return nil }
+            return convert(buffer: buffer)
         }
         
         guard let converter = converter else { return nil }
         
-        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * outputFormat.sampleRate / inputFormat.sampleRate)
-        guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else { return nil }
+        let capacity = AVAudioFrameCount(ceil(converter.outputFormat.sampleRate / converter.inputFormat.sampleRate * Double(buffer.frameLength)))
+        guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return nil }
         
         var error: NSError?
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
@@ -27,11 +40,13 @@ class AudioConverter {
             return buffer
         }
         
-        let status = converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
+        let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
         
         if status == .error || error != nil {
+            print("Audio conversion error: \(error?.localizedDescription ?? "Unknown error")")
             return nil
         }
-        return convertedBuffer
+        
+        return outputBuffer
     }
 }
