@@ -3,9 +3,12 @@ import Combine
 
 class OverlayViewModel: ObservableObject {
     @Published var subtitles: [String] = []
+    @Published var detectedQuestion: String? = nil
     @Published var llmResponse: String? = nil
-    @Published var isListening: Bool = false
-    @Published var isAnswering: Bool = false
+    @Published var latency: TimeInterval? = nil
+    @Published var statusText: String = "Listening"
+    
+    private var questionDetectedTime: Date? = nil
     
     func appendSubtitle(_ text: String) {
         subtitles.append(text)
@@ -20,16 +23,29 @@ class OverlayViewModel: ObservableObject {
         }
     }
     
+    func setQuestion(_ question: String) {
+        detectedQuestion = question
+        llmResponse = nil
+        latency = nil
+        statusText = "Processing"
+        questionDetectedTime = Date()
+    }
+    
     func appendLLMToken(_ token: String) {
         if llmResponse == nil {
             llmResponse = ""
-            isAnswering = true
+            if let startTime = questionDetectedTime {
+                latency = Date().timeIntervalSince(startTime)
+            }
+            statusText = "Answering"
         }
         llmResponse? += token
     }
     
     func clearLLMResponse() {
         llmResponse = nil
-        isAnswering = false
+        detectedQuestion = nil
+        latency = nil
+        statusText = "Listening"
     }
 }

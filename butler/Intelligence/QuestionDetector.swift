@@ -36,7 +36,7 @@ class QuestionDetector {
         }
     }
     
-    private func detect(transcript: String, source: AudioSource) -> QuestionDetectionResult {
+    func detect(transcript: String, source: AudioSource) -> QuestionDetectionResult {
         // Only process REMOTE transcripts
         guard source == .system else { return .none }
         

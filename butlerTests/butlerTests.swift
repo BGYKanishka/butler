@@ -7,9 +7,9 @@ final class butlerTests: XCTestCase {
         let buffer = AudioRingBuffer(capacity: 100)
         
         let samples: [Float] = [0.1, 0.2, 0.3]
-        buffer.push(samples)
+        buffer.push(samples, timestamp: 0)
         
-        let recent = buffer.readRecent(count: 3)
+        let recent = buffer.getRecent(samplesCount: 3)
         XCTAssertEqual(recent, samples)
     }
     

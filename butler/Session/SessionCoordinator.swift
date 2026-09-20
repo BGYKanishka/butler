@@ -37,9 +37,15 @@ class SessionCoordinator: ObservableObject {
         }
         
         responseGenerator.onResponseCompleted = { [weak self] in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                self?.overlayViewModel.clearLLMResponse()
-                self?.state = .listening
+            DispatchQueue.main.async {
+                self?.overlayViewModel.statusText = "Completed"
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+                // Clear the UI if a new question hasn't started
+                if self?.overlayViewModel.statusText == "Completed" {
+                    self?.overlayViewModel.clearLLMResponse()
+                }
             }
         }
         
@@ -57,6 +63,7 @@ class SessionCoordinator: ObservableObject {
         
         questionDetector.onQuestionConfirmed = { [weak self] question in
             DispatchQueue.main.async {
+                self?.overlayViewModel.setQuestion(question)
                 self?.state = .answering
             }
             self?.responseGenerator.handleQuestionDetected(question)
