@@ -16,7 +16,6 @@ class OverlayPanel: NSPanel {
         self.sharingType = .none
         self.isOpaque = false
         self.backgroundColor = .clear
-        self.ignoresMouseEvents = true
         
         let visualEffect = NSVisualEffectView()
         visualEffect.material = .hudWindow

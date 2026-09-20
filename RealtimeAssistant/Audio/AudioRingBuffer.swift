@@ -1,11 +1,12 @@
 import Foundation
+import os
 
 class AudioRingBuffer {
     private var buffer: [Float]
     private var head: Int = 0
     private var tail: Int = 0
     private let capacity: Int
-    private let lock = NSLock() // A simple lock for now. In a strictly real-time C++ audio engine, we'd use atomics.
+    private var lock = os_unfair_lock_s() // Real-time safe lock
     
     init(capacity: Int) {
         self.capacity = capacity
@@ -13,8 +14,8 @@ class AudioRingBuffer {
     }
     
     func push(_ samples: [Float], timestamp: UInt64) {
-        lock.lock()
-        defer { lock.unlock() }
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
         
         for sample in samples {
             buffer[head] = sample
@@ -27,8 +28,8 @@ class AudioRingBuffer {
     }
     
     func getRecent(samplesCount: Int) -> [Float] {
-        lock.lock()
-        defer { lock.unlock() }
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
         
         let countToRead = min(samplesCount, availableItems())
         if countToRead == 0 { return [] }

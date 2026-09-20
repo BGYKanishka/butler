@@ -22,6 +22,7 @@ class SessionCoordinator: ObservableObject {
     @Published var state: SessionState = .idle
     
     private var speechStartTimestamp: TimeInterval?
+    private var sysSpeechStartTimestamp: TimeInterval?
     
     init() {
         setupBindings()
@@ -99,11 +100,12 @@ class SessionCoordinator: ObservableObject {
                 let sampleCount = Int(duration * 16000)
                 let pulledSamples = micRingBuffer.getRecent(samplesCount: sampleCount)
                 
-                Task {
-                    DispatchQueue.main.async {
+                Task.detached { [weak self] in
+                    guard let self = self else { return }
+                    await MainActor.run {
                         self.state = .processing
                     }
-                    try? await self.whisperEngine.transcribe(samples: pulledSamples, sampleRate: 16000)
+                    try? await self.whisperEngine.transcribe(samples: pulledSamples, sampleRate: 16000, source: .microphone)
                 }
             }
         }
@@ -111,7 +113,32 @@ class SessionCoordinator: ObservableObject {
     
     private func handleSysSamples(_ samples: [Float]) {
         sysRingBuffer.push(samples, timestamp: 0)
-        // Similar VAD logic could go here for system audio
+        
+        let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count))
+        let timestamp = Date().timeIntervalSince1970
+        
+        let wasSpeaking = sysVAD.process(rms: rms, timestamp: timestamp)
+        
+        if wasSpeaking {
+            if sysSpeechStartTimestamp == nil {
+                sysSpeechStartTimestamp = timestamp
+            }
+        } else if !wasSpeaking && sysSpeechStartTimestamp != nil {
+            let duration = timestamp - sysSpeechStartTimestamp!
+            sysSpeechStartTimestamp = nil
+            
+            if duration > 0.5 {
+                let sampleCount = Int(duration * 16000)
+                let pulledSamples = sysRingBuffer.getRecent(samplesCount: sampleCount)
+                
+                Task.detached { [weak self] in
+                    guard let self = self else { return }
+                    // We don't set state = .processing for system audio so it doesn't block assistant UI state unnecessarily, 
+                    // or we could, but let's just transcribe.
+                    try? await self.whisperEngine.transcribe(samples: pulledSamples, sampleRate: 16000, source: .system)
+                }
+            }
+        }
     }
     
     func startSession() {

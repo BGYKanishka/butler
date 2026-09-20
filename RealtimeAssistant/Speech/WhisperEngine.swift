@@ -31,7 +31,7 @@ class WhisperEngine: SpeechToTextEngine {
     
     var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
     
-    func transcribe(samples: [Float], sampleRate: Int) async throws {
+    func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
         guard let wrapper = wrapper else { return }
         
         // Convert Float array to NSNumber array for Obj-C++ bridging
@@ -42,7 +42,7 @@ class WhisperEngine: SpeechToTextEngine {
         if let text = result, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let segment = TranscriptSegment(
                 id: UUID(),
-                source: .microphone, // Simplified for now
+                source: source,
                 startTime: Date().timeIntervalSince1970, // Approximated
                 endTime: Date().timeIntervalSince1970 + Double(samples.count) / Double(sampleRate),
                 text: text,
