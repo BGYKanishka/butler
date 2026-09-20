@@ -9,15 +9,3 @@ enum AssistantEvent {
     case llmResponseCompleted
     case error(AssistantError)
 }
-
-struct QuestionEvent {
-    let transcript: TranscriptSegment
-    let confidence: Float
-}
-
-struct ConversationTurn {
-    let id: UUID
-    let source: AudioSource
-    let text: String
-    let timestamp: Date
-}
