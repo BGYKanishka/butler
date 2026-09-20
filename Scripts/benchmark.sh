@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Running Benchmarks for RealtimeAssistant..."
+echo "Running Benchmarks for butler..."
 
 echo "1. llama.cpp bench:"
 Vendor/llama.cpp/build/bin/llama-bench -p 512 -n 128

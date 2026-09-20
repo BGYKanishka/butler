@@ -9,7 +9,7 @@ class WhisperEngine: SpeechToTextEngine {
         
         let fileManager = FileManager.default
         let appSupportURL = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let modelURL = appSupportURL.appendingPathComponent("RealtimeAssistant/Models/whisper/ggml-base.en.bin")
+        let modelURL = appSupportURL.appendingPathComponent("butler/Models/whisper/ggml-base.en.bin")
         
         // Ensure path exists before initializing C++ context
         guard fileManager.fileExists(atPath: modelURL.path) else {

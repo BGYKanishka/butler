@@ -9,7 +9,7 @@ struct LLMConfiguration {
     func getModelPath() -> String {
         let fileManager = FileManager.default
         let appSupportURL = try! fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let dirURL = appSupportURL.appendingPathComponent("RealtimeAssistant/Models/llm")
+        let dirURL = appSupportURL.appendingPathComponent("butler/Models/llm")
         return dirURL.appendingPathComponent(modelFileName).path
     }
 }

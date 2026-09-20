@@ -14,7 +14,7 @@ class MenuBarManager {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "RealtimeAssistant")
+            button.image = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "butler")
             button.action = #selector(menuClicked)
             button.target = self
         }

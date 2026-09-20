@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Bootstrapping RealtimeAssistant..."
+echo "Bootstrapping butler..."
 
 git submodule update --init --recursive --depth 1
 
@@ -17,4 +17,4 @@ Scripts/download_models.sh
 echo "Generating Xcode project..."
 xcodegen
 
-echo "Bootstrap complete! Open RealtimeAssistant.xcodeproj"
+echo "Bootstrap complete! Open butler.xcodeproj"

@@ -6,7 +6,7 @@ class SignpostLogger {
     let log: OSLog
     
     private init() {
-        self.log = OSLog(subsystem: "com.example.RealtimeAssistant", category: "Performance")
+        self.log = OSLog(subsystem: "com.example.butler", category: "Performance")
     }
     
     func begin(name: StaticString) -> OSSignpostID {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct RealtimeAssistantApp: App {
+struct butlerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {

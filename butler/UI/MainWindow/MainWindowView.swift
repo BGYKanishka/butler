@@ -7,7 +7,7 @@ struct MainWindowView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("RealtimeAssistant Session Control")
+            Text("butler Session Control")
                 .font(.headline)
             
             if !micPermission.isGranted || !screenPermission.isGranted {

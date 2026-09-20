@@ -1,4 +1,4 @@
-name: RealtimeAssistant
+name: butler
 options:
   bundleIdPrefix: com.example
 packages:
@@ -6,22 +6,22 @@ packages:
     url: https://github.com/soffes/HotKey
     exactVersion: 0.1.3
 targets:
-  RealtimeAssistant:
+  butler:
     type: application
     platform: macOS
     deploymentTarget: "14.0"
-    sources: [RealtimeAssistant]
+    sources: [butler]
     dependencies:
       - package: HotKey
     info:
-      path: RealtimeAssistant/Resources/Info.plist
+      path: butler/Resources/Info.plist
     entitlements:
-      path: RealtimeAssistant/Resources/RealtimeAssistant.entitlements
+      path: butler/Resources/butler.entitlements
     settings:
       CODE_SIGN_IDENTITY: "-"
       DEVELOPMENT_TEAM: ""
       ENABLE_USER_SCRIPT_SANDBOXING: false
-      SWIFT_OBJC_BRIDGING_HEADER: "RealtimeAssistant/Speech/WhisperBridge/BridgingHeader.h"
+      SWIFT_OBJC_BRIDGING_HEADER: "butler/Speech/WhisperBridge/BridgingHeader.h"
       HEADER_SEARCH_PATHS:
         - "$(SRCROOT)/Vendor/whisper.cpp/include"
         - "$(SRCROOT)/Vendor/llama.cpp/include"
@@ -45,12 +45,12 @@ targets:
         - "-framework Metal"
         - "-framework MetalKit"
 
-  RealtimeAssistantTests:
+  butlerTests:
     type: bundle.unit-test
     platform: macOS
     deploymentTarget: "14.0"
-    sources: [RealtimeAssistantTests]
+    sources: [butlerTests]
     settings:
       GENERATE_INFOPLIST_FILE: YES
     dependencies:
-      - target: RealtimeAssistant
+      - target: butler

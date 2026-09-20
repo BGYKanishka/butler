@@ -6,7 +6,7 @@ struct PermissionOnboardingView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Welcome to RealtimeAssistant")
+            Text("Welcome to butler")
                 .font(.largeTitle)
             
             Text("We need microphone access to hear your speech, and screen recording access to capture system audio.")

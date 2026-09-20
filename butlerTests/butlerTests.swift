@@ -1,7 +1,7 @@
 import XCTest
-@testable import RealtimeAssistant
+@testable import butler
 
-final class RealtimeAssistantTests: XCTestCase {
+final class butlerTests: XCTestCase {
     
     func testAudioRingBuffer() throws {
         let buffer = AudioRingBuffer(capacity: 100)

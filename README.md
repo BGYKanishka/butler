@@ -1,4 +1,4 @@
-# Butler (RealtimeAssistant)
+# Butler (butler)
 
 Butler is a native macOS real-time AI meeting assistant that leverages local, on-device AI models to listen to your meetings and provide real-time, streaming answers.
 
@@ -12,7 +12,7 @@ Butler is a native macOS real-time AI meeting assistant that leverages local, on
 ## Setup Instructions
 1. Install prerequisites: `brew install cmake`
 2. Run the model download script: `./Scripts/download_models.sh`
-3. Open `RealtimeAssistant.xcodeproj` in Xcode.
+3. Open `butler.xcodeproj` in Xcode.
 4. Ensure the target is set to your Mac.
 5. Build and run (Cmd + R).
 

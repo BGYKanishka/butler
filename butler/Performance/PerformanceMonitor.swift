@@ -4,7 +4,7 @@ import os
 class PerformanceMonitor {
     static let shared = PerformanceMonitor()
     
-    private let logger = Logger(subsystem: "com.example.RealtimeAssistant", category: "Performance")
+    private let logger = Logger(subsystem: "com.example.butler", category: "Performance")
     private var marks: [String: CFAbsoluteTime] = [:]
     
     private init() {}
