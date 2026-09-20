@@ -1,7 +1,25 @@
+# macOS
 .DS_Store
-*.xcuserdata
+
+# Xcode
 build/
 DerivedData/
+*.xcuserdata
+*.xcworkspace
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# XcodeGen
+butler.xcodeproj/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.pins
+
+# AI Models
 *.gguf
 *.bin
-
+Models/
