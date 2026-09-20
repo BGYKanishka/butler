@@ -1,37 +1,42 @@
 import SwiftUI
 
 struct OverlayContentView: View {
-    @ObservedObject var viewModel = OverlayViewModel()
+    @StateObject var viewModel = OverlayViewModel()
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let question = viewModel.currentQuestion {
-                Text("Q: \(question)")
-                    .font(.headline)
-                    .foregroundColor(.white)
+        VStack(spacing: 16) {
+            if !viewModel.subtitles.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(viewModel.subtitles, id: \.self) { subtitle in
+                        Text(subtitle)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
+                            .transition(.opacity)
+                    }
+                }
             }
             
-            if let answer = viewModel.currentAnswer {
-                Text("A: \(answer)")
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.9))
+            if let response = viewModel.llmResponse {
+                Text(response)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.yellow)
+                    .padding()
+                    .background(Color.blue.opacity(0.8))
+                    .cornerRadius(16)
+                    .shadow(color: .blue.opacity(0.6), radius: 6, x: 0, y: 3)
+                    .transition(.slide)
             }
             
             Spacer()
-            
-            HStack {
-                Text("Latency: \(String(format: "%.1f", viewModel.latency))s | \(viewModel.status)")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
         }
         .padding()
+        .animation(.easeInOut, value: viewModel.subtitles)
+        .animation(.spring(), value: viewModel.llmResponse)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
-}
-
-class OverlayViewModel: ObservableObject {
-    @Published var currentQuestion: String? = "Ready to assist"
-    @Published var currentAnswer: String? = "..."
-    @Published var latency: Double = 0.0
-    @Published var status: String = "Idle"
 }
