@@ -16,7 +16,9 @@
 		28B6DCBA44BD8787D4FC1716 /* TranscriptAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37E853DE6C7929B05749068 /* TranscriptAssembler.swift */; };
 		2F550F7AE5AC8743B8B657DE /* AudioConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98655E11907E0A1BE72AA2A /* AudioConverter.swift */; };
 		3064DB63A0C97445A0342E45 /* ScreenCaptureServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0CC0B2F53DCD403ABC164E /* ScreenCaptureServiceProtocol.swift */; };
+		367974479B61DC646442EB2B /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12A8401860628309104D66F /* VisualEffectView.swift */; };
 		441EBF21B4BF5A56E6260D63 /* LLMEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDCAE1009E612B2947AA99D /* LLMEngine.swift */; };
+		611E22B535D90FFF40563E81 /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = A4FCF1102FED2BF497B51A88 /* HotKey */; };
 		6552745A038CEAE0AA4D52F8 /* MicrophonePermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75EB5553D6BFA01234D56B3C /* MicrophonePermission.swift */; };
 		666BE7AA7045A4223EB3CC8D /* QuestionDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD445A2C16DD89F72BC1FCBB /* QuestionDetector.swift */; };
 		6EF447E1DDAF264C2FC128D4 /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35D166EACE4A708365AB300 /* MenuBarManager.swift */; };
@@ -27,6 +29,7 @@
 		8D7531242D0A57A9902E242C /* MicrophoneCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC83E2862CC39A703333E87 /* MicrophoneCaptureService.swift */; };
 		920B1848ABE208284CEC2D9D /* ScreenRecordingPermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8579947ABDAD2AE4BA72896 /* ScreenRecordingPermission.swift */; };
 		96E6644E1D2BBB27C92D4E7A /* AudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B20A3DFEAA7B065FE959A2 /* AudioCaptureService.swift */; };
+		9A009D73D11A708585CE61DB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90682F396B134151793F5C8 /* SettingsView.swift */; };
 		9EDE79A0E243FBF7651E0C41 /* LocalLLMEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD9937CA051CC7CD5A71B2A /* LocalLLMEngine.swift */; };
 		A223B4F994221A0FEA87EB73 /* OverlayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BF87103880C30C38F7358D /* OverlayPanel.swift */; };
 		A98696EC44E1630D1DECF92F /* VoiceActivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5248C8BC3B80646981CCB44D /* VoiceActivityDetector.swift */; };
@@ -77,6 +80,7 @@
 		B907C825E1711DC911EC1BD4 /* OverlayContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayContentView.swift; sourceTree = "<group>"; };
 		B98655E11907E0A1BE72AA2A /* AudioConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioConverter.swift; sourceTree = "<group>"; };
 		BD445A2C16DD89F72BC1FCBB /* QuestionDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionDetector.swift; sourceTree = "<group>"; };
+		C12A8401860628309104D66F /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		CDDCAE1009E612B2947AA99D /* LLMEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMEngine.swift; sourceTree = "<group>"; };
 		D35D166EACE4A708365AB300 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		DAD9937CA051CC7CD5A71B2A /* LocalLLMEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMEngine.swift; sourceTree = "<group>"; };
@@ -88,10 +92,22 @@
 		ED4189B0A33EE65DFA95972F /* RealtimeAssistantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeAssistantApp.swift; sourceTree = "<group>"; };
 		F11DF45CEE7EA49A6B98BE59 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F8579947ABDAD2AE4BA72896 /* ScreenRecordingPermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordingPermission.swift; sourceTree = "<group>"; };
+		F90682F396B134151793F5C8 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FAC83E2862CC39A703333E87 /* MicrophoneCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneCaptureService.swift; sourceTree = "<group>"; };
 		FC12849E09722B27FAB71FF9 /* WhisperWrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WhisperWrapper.h; sourceTree = "<group>"; };
 		FE833D021E405D153AA7C863 /* RealtimeAssistant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RealtimeAssistant.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		59E03747AAB125BE913CF687 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				611E22B535D90FFF40563E81 /* HotKey in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1E521D06E641DD9571120112 /* App */ = {
@@ -218,6 +234,7 @@
 			isa = PBXGroup;
 			children = (
 				913D7CE13A5A3D9EA48F886C /* AudioLevelView.swift */,
+				C12A8401860628309104D66F /* VisualEffectView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -244,6 +261,14 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		A39D5678941CCA708890ABFB /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				F90682F396B134151793F5C8 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		A5F8D712B8FBDD64F5645739 /* Errors */ = {
 			isa = PBXGroup;
 			children = (
@@ -268,6 +293,7 @@
 				D88CCCA9D3CDEF82CC2EFDCD /* MenuBar */,
 				3BC64519DFAEFE79BA380E59 /* Onboarding */,
 				DF6E3377984938D39E58FF3A /* Overlay */,
+				A39D5678941CCA708890ABFB /* Settings */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -344,6 +370,7 @@
 			buildConfigurationList = 3630D95669B12CCD5F81E158 /* Build configuration list for PBXNativeTarget "RealtimeAssistant" */;
 			buildPhases = (
 				DCE54504F0D8D1BA8CA8E86B /* Sources */,
+				59E03747AAB125BE913CF687 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -351,6 +378,7 @@
 			);
 			name = RealtimeAssistant;
 			packageProductDependencies = (
+				A4FCF1102FED2BF497B51A88 /* HotKey */,
 			);
 			productName = RealtimeAssistant;
 			productReference = 3E98499277A59FA2EC89E483 /* RealtimeAssistant.app */;
@@ -379,6 +407,9 @@
 			);
 			mainGroup = 344BA3A37E639F68ED8EB6F3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A688CA26E375880EE90BDA53 /* XCRemoteSwiftPackageReference "HotKey" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F8D7049963A2CFE4FB8C0CA1 /* Products */;
 			projectDirPath = "";
@@ -424,9 +455,11 @@
 				3064DB63A0C97445A0342E45 /* ScreenCaptureServiceProtocol.swift in Sources */,
 				920B1848ABE208284CEC2D9D /* ScreenRecordingPermission.swift in Sources */,
 				1209174980B962AA0FFA155B /* SessionState.swift in Sources */,
+				9A009D73D11A708585CE61DB /* SettingsView.swift in Sources */,
 				76FA4F1B6CA9E7F9D13141C4 /* SpeechToTextEngine.swift in Sources */,
 				F49E54FD6767FCFECFA82C02 /* SystemAudioCaptureService.swift in Sources */,
 				28B6DCBA44BD8787D4FC1716 /* TranscriptAssembler.swift in Sources */,
+				367974479B61DC646442EB2B /* VisualEffectView.swift in Sources */,
 				A98696EC44E1630D1DECF92F /* VoiceActivityDetector.swift in Sources */,
 				04E4C457824808B804D2FA91 /* WhisperConfiguration.swift in Sources */,
 				A9F17D3A95E85DB44C660733 /* WhisperEngine.swift in Sources */,
@@ -668,6 +701,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A688CA26E375880EE90BDA53 /* XCRemoteSwiftPackageReference "HotKey" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/soffes/HotKey";
+			requirement = {
+				kind = exactVersion;
+				version = 0.1.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A4FCF1102FED2BF497B51A88 /* HotKey */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A688CA26E375880EE90BDA53 /* XCRemoteSwiftPackageReference "HotKey" */;
+			productName = HotKey;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8CF4741BF4E7AD6ED39247F0 /* Project object */;
 }

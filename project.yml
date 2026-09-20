@@ -1,12 +1,18 @@
 name: RealtimeAssistant
 options:
   bundleIdPrefix: com.example
+packages:
+  HotKey:
+    url: https://github.com/soffes/HotKey
+    exactVersion: 0.1.3
 targets:
   RealtimeAssistant:
     type: application
     platform: macOS
     deploymentTarget: "14.0"
     sources: [RealtimeAssistant]
+    dependencies:
+      - package: HotKey
     info:
       path: RealtimeAssistant/Resources/Info.plist
     entitlements:
