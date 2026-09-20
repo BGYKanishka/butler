@@ -5,9 +5,13 @@ set -e
 WHISPER_MODEL="ggml-base.en.bin"
 WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$WHISPER_MODEL"
 
-# Download LLaMA model (tinyllama for quick testing)
-LLAMA_MODEL="tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
-LLAMA_URL="https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+# Download LLaMA model (Qwen2.5-VL-7B for Multimodal)
+LLAMA_MODEL="Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+LLAMA_URL="https://huggingface.co/bartowski/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+
+# Download Multimodal projector for vision support (Future-proofing)
+MMPROJ_MODEL="mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf"
+MMPROJ_URL="https://huggingface.co/bartowski/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf"
 
 # Directories
 APP_SUPPORT_DIR="$HOME/Library/Application Support/RealtimeAssistant/Models"
@@ -29,6 +33,13 @@ if [ ! -f "$LLAMA_DIR/$LLAMA_MODEL" ]; then
     curl -L -o "$LLAMA_DIR/$LLAMA_MODEL" "$LLAMA_URL"
 else
     echo "LLaMA model already exists."
+fi
+
+echo "Downloading Multimodal Projector (vision support)..."
+if [ ! -f "$LLAMA_DIR/$MMPROJ_MODEL" ]; then
+    curl -L -o "$LLAMA_DIR/$MMPROJ_MODEL" "$MMPROJ_URL"
+else
+    echo "Multimodal Projector already exists."
 fi
 
 echo "Models downloaded successfully!"
