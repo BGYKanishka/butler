@@ -1,0 +1,17 @@
+name: RealtimeAssistant
+options:
+  bundleIdPrefix: com.example
+targets:
+  RealtimeAssistant:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources: [RealtimeAssistant]
+    info:
+      path: RealtimeAssistant/Resources/Info.plist
+    entitlements:
+      path: RealtimeAssistant/Resources/RealtimeAssistant.entitlements
+    settings:
+      CODE_SIGN_IDENTITY: "-"
+      DEVELOPMENT_TEAM: ""
+      ENABLE_USER_SCRIPT_SANDBOXING: false
