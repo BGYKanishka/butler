@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-class MainCoordinator: ObservableObject {
+class SessionCoordinator: ObservableObject {
     let micService = MicrophoneCaptureService()
     let sysAudioService = SystemAudioCaptureService()
     let whisperEngine = WhisperEngine()

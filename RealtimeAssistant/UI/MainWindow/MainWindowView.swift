@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainWindowView: View {
-    @ObservedObject var coordinator: MainCoordinator
+    @ObservedObject var coordinator: SessionCoordinator
     @StateObject private var micPermission = MicrophonePermission()
     @StateObject private var screenPermission = ScreenRecordingPermission()
     

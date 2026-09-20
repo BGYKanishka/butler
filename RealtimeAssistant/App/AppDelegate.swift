@@ -6,7 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindow: NSWindow!
     var overlayPanel: OverlayPanel!
     var menuBarManager: MenuBarManager!
-    let coordinator = MainCoordinator()
+    let coordinator = SessionCoordinator()
     var toggleListeningHotKey: HotKey?
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
