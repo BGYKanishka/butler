@@ -17,6 +17,7 @@
 		79D2B5D858FC7A7AEBC38EC8 /* PermissionOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 756C0A59C8A722D9362F53D5 /* PermissionOnboardingView.swift */; };
 		887831F82FADC75B193CCAEC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11DF45CEE7EA49A6B98BE59 /* AppDelegate.swift */; };
 		8D7531242D0A57A9902E242C /* MicrophoneCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC83E2862CC39A703333E87 /* MicrophoneCaptureService.swift */; };
+		920B1848ABE208284CEC2D9D /* ScreenRecordingPermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8579947ABDAD2AE4BA72896 /* ScreenRecordingPermission.swift */; };
 		96E6644E1D2BBB27C92D4E7A /* AudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B20A3DFEAA7B065FE959A2 /* AudioCaptureService.swift */; };
 		A223B4F994221A0FEA87EB73 /* OverlayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BF87103880C30C38F7358D /* OverlayPanel.swift */; };
 		BA90247219580335BD6E75DC /* OverlayContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B907C825E1711DC911EC1BD4 /* OverlayContentView.swift */; };
@@ -24,6 +25,7 @@
 		C6A5ECE56FF03EBCE54C25C9 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE4C03DB91BF6C3198A2009 /* MainWindowView.swift */; };
 		CF3FB27B56E553427DFC73FD /* AudioLevelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 913D7CE13A5A3D9EA48F886C /* AudioLevelView.swift */; };
 		D7A46E8B0668A466883B8034 /* AssistantError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C22157B9B278ADB02ECE160 /* AssistantError.swift */; };
+		F49E54FD6767FCFECFA82C02 /* SystemAudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8965657E6925474088B47219 /* SystemAudioCaptureService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +39,7 @@
 		756C0A59C8A722D9362F53D5 /* PermissionOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingView.swift; sourceTree = "<group>"; };
 		75EB5553D6BFA01234D56B3C /* MicrophonePermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermission.swift; sourceTree = "<group>"; };
 		79D24A6F3688B9FD74618F24 /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionState.swift; sourceTree = "<group>"; };
+		8965657E6925474088B47219 /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 		913D7CE13A5A3D9EA48F886C /* AudioLevelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelView.swift; sourceTree = "<group>"; };
 		ADECBED5BCE08DC729B5FE92 /* SpeechToTextEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechToTextEngine.swift; sourceTree = "<group>"; };
 		B8BF87103880C30C38F7358D /* OverlayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayPanel.swift; sourceTree = "<group>"; };
@@ -45,6 +48,7 @@
 		D35D166EACE4A708365AB300 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		ED4189B0A33EE65DFA95972F /* RealtimeAssistantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeAssistantApp.swift; sourceTree = "<group>"; };
 		F11DF45CEE7EA49A6B98BE59 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F8579947ABDAD2AE4BA72896 /* ScreenRecordingPermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordingPermission.swift; sourceTree = "<group>"; };
 		FAC83E2862CC39A703333E87 /* MicrophoneCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneCaptureService.swift; sourceTree = "<group>"; };
 		FE833D021E405D153AA7C863 /* RealtimeAssistant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RealtimeAssistant.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -115,6 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				75EB5553D6BFA01234D56B3C /* MicrophonePermission.swift */,
+				F8579947ABDAD2AE4BA72896 /* ScreenRecordingPermission.swift */,
 			);
 			path = Permissions;
 			sourceTree = "<group>";
@@ -131,6 +136,7 @@
 			isa = PBXGroup;
 			children = (
 				FAC83E2862CC39A703333E87 /* MicrophoneCaptureService.swift */,
+				8965657E6925474088B47219 /* SystemAudioCaptureService.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -220,18 +226,18 @@
 			path = Events;
 			sourceTree = "<group>";
 		};
-		"TEMP_5EF35F5C-7B57-435C-BE01-E4744BA535A6" /* LLM */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = LLM;
-			sourceTree = "<group>";
-		};
-		"TEMP_DAAE27D1-2B0E-4CC2-9958-D953BDAD9783" /* Speech */ = {
+		"TEMP_2C88D5DA-566B-4DA3-9C14-1E7A468143E5" /* Speech */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = Speech;
+			sourceTree = "<group>";
+		};
+		"TEMP_7F1F8233-F5D5-4D13-B312-7BDD58F28F6D" /* LLM */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = LLM;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -307,8 +313,10 @@
 				79D2B5D858FC7A7AEBC38EC8 /* PermissionOnboardingView.swift in Sources */,
 				BE0B37BDDCC6F1C3D66445E8 /* RealtimeAssistantApp.swift in Sources */,
 				3064DB63A0C97445A0342E45 /* ScreenCaptureServiceProtocol.swift in Sources */,
+				920B1848ABE208284CEC2D9D /* ScreenRecordingPermission.swift in Sources */,
 				1209174980B962AA0FFA155B /* SessionState.swift in Sources */,
 				76FA4F1B6CA9E7F9D13141C4 /* SpeechToTextEngine.swift in Sources */,
+				F49E54FD6767FCFECFA82C02 /* SystemAudioCaptureService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
