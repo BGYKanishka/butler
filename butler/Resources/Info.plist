@@ -18,5 +18,9 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Butler needs access to your microphone to transcribe your speech.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Butler needs screen capture access to transcribe system and meeting audio.</string>
 </dict>
 </plist>
