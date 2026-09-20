@@ -8,17 +8,25 @@ class WhisperEngine: SpeechToTextEngine {
         guard !isLoaded else { return }
         
         let fileManager = FileManager.default
-        let appSupportURL = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let modelURL = appSupportURL.appendingPathComponent("butler/Models/whisper/ggml-base.en.bin")
         
-        // Ensure path exists before initializing C++ context
-        guard fileManager.fileExists(atPath: modelURL.path) else {
-            throw AssistantError.modelNotFound("Model not found at \(modelURL.path)")
+        let modelPath: String
+        let customPath = UserDefaults.standard.string(forKey: "whisperModelPath") ?? ""
+        
+        if !customPath.isEmpty {
+            modelPath = customPath
+        } else {
+            let appSupportURL = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            modelPath = appSupportURL.appendingPathComponent("butler/Models/whisper/ggml-base.en.bin").path
         }
         
-        wrapper = WhisperWrapper(modelPath: modelURL.path)
+        // Ensure path exists before initializing C++ context
+        guard fileManager.fileExists(atPath: modelPath) else {
+            throw AssistantError.modelNotFound("Model not found at \(modelPath)")
+        }
+        
+        wrapper = WhisperWrapper(modelPath: modelPath)
         guard wrapper != nil else {
-            throw AssistantError.modelNotFound("Failed to initialize whisper context with model: \(modelURL.path)")
+            throw AssistantError.modelNotFound("Failed to initialize whisper context with model: \(modelPath)")
         }
         
         isLoaded = true

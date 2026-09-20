@@ -1,13 +1,38 @@
-# Architecture Overview
+# Architecture
 
-## Data Pipeline
-1. **Audio Capture**: `AVAudioEngine` for microphone and system audio via ScreenCaptureKit.
-2. **Buffering**: `AudioRingBuffer` holds the last 15-30 seconds of audio.
-3. **VAD**: `VoiceActivityDetector` monitors RMS audio energy to chunk sentences.
-4. **Transcription**: `WhisperWrapper` runs whisper.cpp on chunks.
-5. **Context**: `ContextManager` maintains the conversation transcript.
-6. **Intelligence**: `QuestionDetector` triggers the `LocalLLMEngine` to stream answers.
+Butler is built with a strictly unidirectional, asynchronous pipeline designed for ultra-low latency inference on Apple Silicon.
 
-## Modularity
-- **UI**: SwiftUI views hooked to a central `MainCoordinator`.
-- **C++/Swift**: Objective-C++ wrappers expose C structs as Swift APIs.
+## The Pipeline
+
+1. **Audio Capture** (`MicrophoneCaptureService`, `SystemAudioCaptureService`)
+   - Captures raw audio via `AVAudioEngine` and `ScreenCaptureKit`.
+   - Normalizes audio to 16kHz Float32 mono.
+   - Pushes samples to the lock-free `AudioRingBuffer`.
+
+2. **Voice Activity Detection (VAD)**
+   - Monitors the RMS level of the audio stream.
+   - Gating mechanism prevents sending background noise to the speech engine.
+   - Triggers `WhisperEngine` transcription only when sustained speech is detected.
+
+3. **Transcription** (`WhisperEngine`)
+   - Uses `whisper.cpp` with Metal acceleration.
+   - Assembles text segments using `TranscriptAssembler` to handle stutters and mid-sentence corrections.
+
+4. **Question Detection** (`QuestionDetector`)
+   - Fast, heuristics-based NLP checks if the final transcript segment ends in a question mark, contains interrogative keywords ("what", "how", "why"), or has rising intonation markers.
+   - If a question is detected from a REMOTE source, it triggers the LLM.
+
+5. **Inference** (`LocalLLMEngine`)
+   - Uses `llama.cpp` with a local GGUF model (e.g. Qwen2.5).
+   - Injected with conversation history via `ContextManager`.
+   - Streams tokens via callbacks to the UI thread.
+
+6. **UI Rendering**
+   - Built with SwiftUI.
+   - Follows `@MainActor` isolation.
+   - Uses `NSWindow.SharingType.none` to remain invisible to screen recording tools.
+
+## Threading Rules
+- **Audio Thread:** Real-time priority. Never block. Use `os_unfair_lock` for ring buffers. No `DispatchQueue.sync`.
+- **Inference Threads:** Managed by `ggml`. Heavy work is dispatched to background `Task.detached`.
+- **UI Thread:** Only accepts lightweight `@Published` updates.

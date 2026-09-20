@@ -2,22 +2,19 @@ import SwiftUI
 import AVFoundation
 
 class SettingsViewModel: ObservableObject {
-    @Published var selectedMicrophoneID: String = ""
-    @Published var whisperModelPath: String = ""
-    @Published var llamaModelPath: String = ""
-    
     @Published var availableMicrophones: [AVCaptureDevice] = []
     
     init() {
         fetchMicrophones()
-        // Load settings from UserDefaults in future
     }
     
     func fetchMicrophones() {
         let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
         availableMicrophones = discoverySession.devices
-        if selectedMicrophoneID.isEmpty, let first = availableMicrophones.first {
-            selectedMicrophoneID = first.uniqueID
+        
+        let selectedMic = UserDefaults.standard.string(forKey: "selectedMicrophoneID") ?? ""
+        if selectedMic.isEmpty, let first = availableMicrophones.first {
+            UserDefaults.standard.set(first.uniqueID, forKey: "selectedMicrophoneID")
         }
     }
     
@@ -27,8 +24,7 @@ class SettingsViewModel: ObservableObject {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
-            whisperModelPath = url.path
-            // Save to UserDefaults
+            UserDefaults.standard.set(url.path, forKey: "whisperModelPath")
         }
     }
     
@@ -38,8 +34,7 @@ class SettingsViewModel: ObservableObject {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
-            llamaModelPath = url.path
-            // Save to UserDefaults
+            UserDefaults.standard.set(url.path, forKey: "llamaModelPath")
         }
     }
 }
@@ -47,39 +42,94 @@ class SettingsViewModel: ObservableObject {
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     
+    @AppStorage("selectedMicrophoneID") private var selectedMicrophoneID: String = ""
+    @AppStorage("whisperModelPath") private var whisperModelPath: String = ""
+    @AppStorage("llamaModelPath") private var llamaModelPath: String = ""
+    
+    @AppStorage("llmTemperature") private var llmTemperature: Double = 0.3
+    @AppStorage("llmMaxTokens") private var llmMaxTokens: Int = 200
+    @AppStorage("saveTranscripts") private var saveTranscripts: Bool = false
+    
     var body: some View {
-        Form {
-            Section(header: Text("Audio").font(.headline)) {
-                Picker("Microphone", selection: $viewModel.selectedMicrophoneID) {
-                    ForEach(viewModel.availableMicrophones, id: \.uniqueID) { mic in
-                        Text(mic.localizedName).tag(mic.uniqueID)
-                    }
-                }
-            }
-            
-            Divider().padding(.vertical)
-            
-            Section(header: Text("Models").font(.headline)) {
-                HStack {
-                    Text("Whisper Model:")
-                    TextField("Select .bin model", text: $viewModel.whisperModelPath)
-                        .disabled(true)
-                    Button("Browse...") {
-                        viewModel.selectWhisperModel()
+        TabView {
+            // MARK: - General Settings
+            Form {
+                Section(header: Text("Audio").font(.headline)) {
+                    Picker("Microphone:", selection: $selectedMicrophoneID) {
+                        ForEach(viewModel.availableMicrophones, id: \.uniqueID) { mic in
+                            Text(mic.localizedName).tag(mic.uniqueID)
+                        }
                     }
                 }
                 
-                HStack {
-                    Text("Llama Model:")
-                    TextField("Select .gguf model", text: $viewModel.llamaModelPath)
-                        .disabled(true)
-                    Button("Browse...") {
-                        viewModel.selectLlamaModel()
+                Divider().padding(.vertical)
+                
+                Section(header: Text("Models").font(.headline)) {
+                    HStack {
+                        Text("Whisper:")
+                        TextField("Select .bin model", text: $whisperModelPath)
+                            .disabled(true)
+                        Button("Browse...") {
+                            viewModel.selectWhisperModel()
+                        }
+                    }
+                    
+                    HStack {
+                        Text("LLM:")
+                        TextField("Select .gguf model", text: $llamaModelPath)
+                            .disabled(true)
+                        Button("Browse...") {
+                            viewModel.selectLlamaModel()
+                        }
                     }
                 }
             }
+            .padding()
+            .tabItem {
+                Label("General", systemImage: "gearshape")
+            }
+            
+            // MARK: - AI Settings
+            Form {
+                Section(header: Text("Generation").font(.headline)) {
+                    HStack {
+                        Text("Temperature:")
+                        Slider(value: $llmTemperature, in: 0.0...1.0, step: 0.1)
+                        Text(String(format: "%.1f", llmTemperature))
+                            .frame(width: 40)
+                    }
+                    
+                    HStack {
+                        Text("Max Tokens:")
+                        Slider(value: Binding(get: {
+                            Double(llmMaxTokens)
+                        }, set: {
+                            llmMaxTokens = Int($0)
+                        }), in: 50...1000, step: 10)
+                        Text("\(llmMaxTokens)")
+                            .frame(width: 40)
+                    }
+                }
+            }
+            .padding()
+            .tabItem {
+                Label("AI Tuning", systemImage: "brain.head.profile")
+            }
+            
+            // MARK: - Privacy Settings
+            Form {
+                Section(header: Text("Data").font(.headline)) {
+                    Toggle("Save Transcripts to Disk", isOn: $saveTranscripts)
+                    Text("If enabled, conversation transcripts will be saved locally. By default, Butler processes everything in memory and discards it.")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding()
+            .tabItem {
+                Label("Privacy", systemImage: "hand.raised")
+            }
         }
-        .padding()
-        .frame(width: 500, height: 300)
+        .frame(width: 550, height: 350)
     }
 }

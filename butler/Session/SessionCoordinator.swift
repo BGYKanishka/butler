@@ -162,6 +162,8 @@ class SessionCoordinator: ObservableObject {
                 try await micService.start()
                 try await sysAudioService.start()
                 
+                MemoryMonitor.shared.startMonitoring()
+                
                 print("Session started.")
             } catch {
                 print("Failed to start session: \(error)")
@@ -179,6 +181,7 @@ class SessionCoordinator: ObservableObject {
         sysAudioService.stop()
         whisperEngine.cancel()
         llmEngine.cancel()
+        MemoryMonitor.shared.stopMonitoring()
         
         state = .idle
         print("Session stopped.")

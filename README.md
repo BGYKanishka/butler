@@ -1,23 +1,38 @@
-# Butler (butler)
+# Butler
 
-Butler is a native macOS real-time AI meeting assistant that leverages local, on-device AI models to listen to your meetings and provide real-time, streaming answers.
+Butler is a real-time, privacy-first meeting assistant for macOS that runs entirely locally. It uses Apple's native APIs (`AVFoundation`, `ScreenCaptureKit`) alongside state-of-the-art quantized C++ engines (`whisper.cpp`, `llama.cpp`) to listen to your meetings, transcribe speech, detect questions in real-time, and provide instantaneous AI answers directly on your screen.
 
-## Features
-- **Local Audio Capture**: Captures microphone (local) and system/meeting audio (remote) separately.
-- **On-Device STT**: Uses `whisper.cpp` (Metal GPU accelerated) for real-time transcription.
-- **Local LLM**: Uses `llama.cpp` (Metal GPU accelerated) with multimodal support (Qwen2.5-VL-7B).
-- **Invisible Overlay**: The streaming answers appear in a floating window that is completely invisible to screen-sharing software (Zoom, Teams, Meet).
-- **Privacy First**: Completely offline after the initial model download. Audio is processed locally and never leaves your machine.
+**Zero data leaves your machine.**
 
-## Setup Instructions
-1. Install prerequisites: `brew install cmake`
-2. Run the model download script: `./Scripts/download_models.sh`
-3. Open `butler.xcodeproj` in Xcode.
-4. Ensure the target is set to your Mac.
-5. Build and run (Cmd + R).
+## Requirements
+- Apple Silicon Mac (M1/M2/M3/M4)
+- macOS 14.0 (Sonoma) or newer
+- Xcode 15+ 
 
-## Architecture
-- Swift & SwiftUI for the macOS app layer.
-- C++ / Objective-C++ bridging for AI engine integration.
-- `AVAudioEngine` & `ScreenCaptureKit` for audio pipelines.
-- Circular ring buffers and energy-based VAD (Voice Activity Detection).
+## Setup
+1. Clone the repository and initialize submodules:
+   ```bash
+   git clone --recursive https://github.com/BGYKanishka/butler.git
+   ```
+2. Run the bootstrap script to compile `whisper.cpp` and `llama.cpp` for Metal acceleration:
+   ```bash
+   cd butler
+   ./Scripts/bootstrap.sh
+   ```
+3. Download the necessary LLM and Whisper models:
+   ```bash
+   ./Scripts/download_models.sh
+   ```
+4. Open the project and build:
+   ```bash
+   xcodegen generate
+   open butler.xcodeproj
+   ```
+
+## Usage
+- Press `Option + Command + Space` anywhere to start/stop listening.
+- Press `Option + Command + A` to toggle the AI floating overlay.
+- Navigate to the Menu Bar icon to access Preferences, where you can select your microphone, tune the AI temperature, and manage privacy settings.
+
+## Permissions
+On the first run, Butler will request Microphone and Screen Recording permissions. These are required to capture your voice and the system audio (from Zoom/Teams/Meet). No audio is saved to disk unless explicitly enabled in Preferences.
