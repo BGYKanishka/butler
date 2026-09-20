@@ -20,6 +20,7 @@ class SessionCoordinator: ObservableObject {
     
     @Published var overlayViewModel = OverlayViewModel()
     @Published var state: SessionState = .idle
+    @Published var transcripts: [TranscriptSegment] = []
     
     private var speechStartTimestamp: TimeInterval?
     private var sysSpeechStartTimestamp: TimeInterval?
@@ -70,6 +71,7 @@ class SessionCoordinator: ObservableObject {
         
         DispatchQueue.main.async {
             self.overlayViewModel.appendSubtitle(segment.text)
+            self.transcripts.append(segment)
         }
         
         // Feed it to the question detector. If it triggers, it will call onQuestionConfirmed after a debounce.

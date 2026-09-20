@@ -28,6 +28,10 @@ struct MainWindowView: View {
                 }
                 .padding()
                 
+                PerformanceView(coordinator: coordinator)
+                
+                TranscriptView(transcripts: coordinator.transcripts)
+                
                 HStack {
                     Button(coordinator.state != .idle ? "Stop Session" : "Start Session") {
                         if coordinator.state != .idle {
