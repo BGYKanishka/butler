@@ -1,23 +1,37 @@
 import SwiftUI
 
 struct MainWindowView: View {
+    @StateObject private var micService = MicrophoneCaptureService()
+    @StateObject private var micPermission = MicrophonePermission()
+    
     var body: some View {
-        VStack {
+        VStack(spacing: 20) {
             Text("RealtimeAssistant Session Control")
-                .font(.largeTitle)
-                .padding()
+                .font(.headline)
             
-            HStack {
-                Button("Start Session") {
-                    // Start session logic here
-                }
+            if !micPermission.isGranted {
+                PermissionOnboardingView()
+            } else {
+                AudioLevelView(level: micService.audioLevel)
+                    .frame(width: 200)
+                    .padding()
                 
-                Button("Stop Session") {
-                    // Stop session logic here
+                HStack {
+                    Button(micService.isRunning ? "Stop Session" : "Start Session") {
+                        if micService.isRunning {
+                            micService.stop()
+                        } else {
+                            Task {
+                                try? await micService.start()
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(micService.isRunning ? .red : .blue)
                 }
             }
-            .padding()
         }
+        .padding()
         .frame(minWidth: 400, minHeight: 300)
     }
 }
