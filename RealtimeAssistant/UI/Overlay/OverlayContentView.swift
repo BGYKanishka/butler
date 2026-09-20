@@ -13,10 +13,16 @@ struct OverlayContentView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(12)
-                            .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
-                            .transition(.opacity)
+                            .background(
+                                VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                                    .cornerRadius(12)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
             }
@@ -24,12 +30,18 @@ struct OverlayContentView: View {
             if let response = viewModel.llmResponse {
                 Text(response)
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.yellow)
+                    .foregroundColor(.white)
                     .padding()
-                    .background(Color.blue.opacity(0.8))
-                    .cornerRadius(16)
-                    .shadow(color: .blue.opacity(0.6), radius: 6, x: 0, y: 3)
-                    .transition(.slide)
+                    .background(
+                        VisualEffectView(material: .menu, blendingMode: .behindWindow)
+                            .cornerRadius(16)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.blue.opacity(0.5), lineWidth: 1.5)
+                    )
+                    .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             
             Spacer()

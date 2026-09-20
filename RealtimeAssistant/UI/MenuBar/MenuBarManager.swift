@@ -47,6 +47,15 @@ class MenuBarManager {
     }
     
     @objc func showSettings() {
-        // Implement settings window display later
+        let settingsWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 300),
+            styleMask: [.titled, .closable],
+            backing: .buffered, defer: false)
+        settingsWindow.center()
+        settingsWindow.setFrameAutosaveName("Settings")
+        settingsWindow.title = "Settings"
+        settingsWindow.contentView = NSHostingView(rootView: SettingsView())
+        settingsWindow.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
