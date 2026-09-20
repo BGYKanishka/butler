@@ -6,6 +6,7 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
     @Published var isRunning: Bool = false
     @Published var audioLevel: Float = 0.0
     
+    var onSamplesCaptured: (([Float]) -> Void)?
     private var stream: SCStream?
     
     func start() async throws {
@@ -19,6 +20,8 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         let config = SCStreamConfiguration()
         config.capturesAudio = true
         config.excludesCurrentProcessAudio = true
+        config.sampleRate = 16000
+        config.channelCount = 1
         
         stream = SCStream(filter: filter, configuration: config, delegate: nil)
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "SystemAudioCaptureQueue"))
@@ -65,12 +68,17 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
             let pointer = data.assumingMemoryBound(to: Float.self)
             let frameLength = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
             
+            var samples = [Float](repeating: 0.0, count: frameLength)
             var rms: Float = 0
             for i in 0..<frameLength {
                 let sample = pointer[i]
+                samples[i] = sample
                 rms += sample * sample
             }
+            
             if frameLength > 0 {
+                self.onSamplesCaptured?(samples)
+                
                 rms = sqrt(rms / Float(frameLength))
                 DispatchQueue.main.async {
                     self.audioLevel = rms

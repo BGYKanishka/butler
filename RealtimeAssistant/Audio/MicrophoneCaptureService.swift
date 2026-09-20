@@ -7,6 +7,9 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject {
     
     private let engine = AVAudioEngine()
     
+    var onSamplesCaptured: (([Float]) -> Void)?
+    private let converter = AudioConverter()
+    
     init() {}
     
     func start() async throws {
@@ -18,18 +21,24 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject {
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, time in
             guard let self = self else { return }
             
-            if let channelData = buffer.floatChannelData?[0] {
-                let frameLength = Int(buffer.frameLength)
-                var rms: Float = 0
-                for i in 0..<frameLength {
-                    let sample = channelData[i]
-                    rms += sample * sample
-                }
-                rms = sqrt(rms / Float(frameLength))
-                
-                DispatchQueue.main.async {
-                    self.audioLevel = rms
-                }
+            guard let convertedBuffer = self.converter.convert(buffer: buffer),
+                  let channelData = convertedBuffer.floatChannelData?[0] else { return }
+            
+            let frameLength = Int(convertedBuffer.frameLength)
+            var samples = [Float](repeating: 0.0, count: frameLength)
+            
+            var rms: Float = 0
+            for i in 0..<frameLength {
+                let sample = channelData[i]
+                samples[i] = sample
+                rms += sample * sample
+            }
+            rms = sqrt(rms / Float(frameLength))
+            
+            self.onSamplesCaptured?(samples)
+            
+            DispatchQueue.main.async {
+                self.audioLevel = rms
             }
         }
         

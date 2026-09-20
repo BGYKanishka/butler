@@ -29,15 +29,15 @@ struct MainWindowView: View {
                 .padding()
                 
                 HStack {
-                    Button(coordinator.isRunning ? "Stop Session" : "Start Session") {
-                        if coordinator.isRunning {
+                    Button(coordinator.state != .idle ? "Stop Session" : "Start Session") {
+                        if coordinator.state != .idle {
                             coordinator.stopSession()
                         } else {
                             coordinator.startSession()
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(coordinator.isRunning ? .red : .blue)
+                    .tint(coordinator.state != .idle ? .red : .blue)
                     
                     Button("Simulate Question") {
                         coordinator.simulateSpeechDetected(text: "What would you do if the server crashes?", source: .system)

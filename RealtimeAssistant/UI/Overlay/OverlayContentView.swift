@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct OverlayContentView: View {
-    @StateObject var viewModel = OverlayViewModel()
+    @ObservedObject var viewModel: OverlayViewModel
     
     var body: some View {
         VStack(spacing: 16) {

@@ -19,7 +19,9 @@ class MainCoordinator: ObservableObject {
     let transcriptAssembler = TranscriptAssembler()
     
     @Published var overlayViewModel = OverlayViewModel()
-    @Published var isRunning = false
+    @Published var state: SessionState = .idle
+    
+    private var speechStartTimestamp: TimeInterval?
     
     init() {
         setupBindings()
@@ -35,13 +37,61 @@ class MainCoordinator: ObservableObject {
         responseGenerator.onResponseCompleted = { [weak self] in
             DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                 self?.overlayViewModel.clearLLMResponse()
+                self?.state = .listening
+            }
+        }
+        
+        micService.onSamplesCaptured = { [weak self] samples in
+            self?.handleMicSamples(samples)
+        }
+        
+        sysAudioService.onSamplesCaptured = { [weak self] samples in
+            self?.handleSysSamples(samples)
+        }
+    }
+    
+    private func handleMicSamples(_ samples: [Float]) {
+        micRingBuffer.push(samples)
+        
+        // Calculate RMS
+        let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count))
+        let timestamp = Date().timeIntervalSince1970
+        
+        let wasSpeaking = micVAD.process(rms: rms, timestamp: timestamp)
+        
+        // Trigger Whisper when speech ends
+        if wasSpeaking && state == .listening {
+            if speechStartTimestamp == nil {
+                speechStartTimestamp = timestamp
+            }
+        } else if !wasSpeaking && speechStartTimestamp != nil {
+            // Speech ended
+            let duration = timestamp - speechStartTimestamp!
+            speechStartTimestamp = nil
+            
+            if duration > 0.5 { // Only transcribe if > 0.5s
+                // Pull samples from ring buffer (e.g. last 'duration' + buffer seconds)
+                let sampleCount = Int(duration * 16000)
+                let pulledSamples = micRingBuffer.readRecent(count: sampleCount)
+                
+                Task {
+                    DispatchQueue.main.async {
+                        self.state = .processing
+                    }
+                    try? await self.whisperEngine.transcribe(samples: pulledSamples, sampleRate: 16000)
+                }
             }
         }
     }
     
+    private func handleSysSamples(_ samples: [Float]) {
+        sysRingBuffer.push(samples)
+        // Similar VAD logic could go here for system audio
+    }
+    
     func startSession() {
-        guard !isRunning else { return }
-        isRunning = true
+        guard state == .idle else { return }
+        state = .listening
         
         Task {
             do {
@@ -55,21 +105,21 @@ class MainCoordinator: ObservableObject {
             } catch {
                 print("Failed to start session: \(error)")
                 DispatchQueue.main.async {
-                    self.isRunning = false
+                    self.state = .idle
                 }
             }
         }
     }
     
     func stopSession() {
-        guard isRunning else { return }
+        guard state != .idle else { return }
         
         micService.stop()
         sysAudioService.stop()
         whisperEngine.cancel()
         llmEngine.cancel()
         
-        isRunning = false
+        state = .idle
         print("Session stopped.")
     }
     
@@ -87,6 +137,7 @@ class MainCoordinator: ObservableObject {
         
         let result = questionDetector.detect(transcript: text, source: source)
         if result == .strongQuestion {
+            self.state = .answering
             responseGenerator.handleQuestionDetected(text)
         }
     }
