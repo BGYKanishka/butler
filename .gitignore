@@ -5,5 +5,3 @@ DerivedData/
 *.gguf
 *.bin
 Models/
-Vendor/whisper.cpp
-Vendor/llama.cpp
