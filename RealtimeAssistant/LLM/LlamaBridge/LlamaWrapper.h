@@ -4,9 +4,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface LlamaWrapper : NSObject
 
-- (BOOL)loadModel:(NSString *)modelPath contextSize:(int)contextSize error:(NSError **)error;
+- (void)loadModel:(NSString *)path contextSize:(int32_t)contextSize;
 - (void)unload;
-- (void)generateStreaming:(NSString *)prompt temperature:(float)temperature maxTokens:(int)maxTokens onToken:(void (^)(NSString *token))onToken;
+- (void)generateStreaming:(NSString *)prompt temperature:(float)temperature maxTokens:(int32_t)maxTokens callback:(void (^)(NSString *))callback;
 - (void)cancel;
 
 @end

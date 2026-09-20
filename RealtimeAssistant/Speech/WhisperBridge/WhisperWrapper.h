@@ -4,10 +4,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface WhisperWrapper : NSObject
 
-- (BOOL)loadModel:(NSString *)modelPath error:(NSError **)error;
-- (void)unload;
-- (NSString * _Nullable)transcribeSamples:(const float *)samples count:(NSInteger)count;
-- (void)cancel;
+/// Initializes the Whisper engine with a specific model path.
+- (nullable instancetype)initWithModelPath:(NSString *)modelPath;
+
+/// Transcribes the provided audio samples. Samples must be 16kHz mono Float32.
+/// Returns the transcribed text.
+- (nullable NSString *)transcribeAudio:(NSArray<NSNumber *> *)samples;
+
+/// Signals the engine to cancel any ongoing transcription.
+- (void)cancelTranscription;
 
 @end
 

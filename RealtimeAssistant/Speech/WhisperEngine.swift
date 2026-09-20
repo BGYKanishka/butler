@@ -1,7 +1,7 @@
 import Foundation
 
 class WhisperEngine: SpeechToTextEngine {
-    private let wrapper = WhisperWrapper()
+    private var wrapper: WhisperWrapper?
     private var isLoaded = false
     
     func load() async throws {
@@ -11,24 +11,33 @@ class WhisperEngine: SpeechToTextEngine {
         let appSupportURL = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let modelURL = appSupportURL.appendingPathComponent("RealtimeAssistant/Models/whisper/ggml-base.en.bin")
         
-        do {
-            try wrapper.loadModel(modelURL.path)
-        } catch {
+        // Ensure path exists before initializing C++ context
+        guard fileManager.fileExists(atPath: modelURL.path) else {
             throw AssistantError.modelNotFound("Model not found at \(modelURL.path)")
+        }
+        
+        wrapper = WhisperWrapper(modelPath: modelURL.path)
+        guard wrapper != nil else {
+            throw AssistantError.modelNotFound("Failed to initialize whisper context with model: \(modelURL.path)")
         }
         
         isLoaded = true
     }
     
     func unload() {
-        wrapper.unload()
+        wrapper = nil // ARC will call dealloc which calls whisper_free()
         isLoaded = false
     }
     
     var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
     
     func transcribe(samples: [Float], sampleRate: Int) async throws {
-        let result = wrapper.transcribeSamples(samples, count: samples.count)
+        guard let wrapper = wrapper else { return }
+        
+        // Convert Float array to NSNumber array for Obj-C++ bridging
+        let nsSamples = samples.map { NSNumber(value: $0) }
+        
+        let result = wrapper.transcribeAudio(nsSamples)
         
         if let text = result, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let segment = TranscriptSegment(
@@ -46,6 +55,6 @@ class WhisperEngine: SpeechToTextEngine {
     }
     
     func cancel() {
-        wrapper.cancel()
+        wrapper?.cancelTranscription()
     }
 }
