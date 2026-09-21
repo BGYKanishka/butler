@@ -42,10 +42,9 @@ class WhisperEngine: SpeechToTextEngine {
     func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
         guard let wrapper = wrapper else { return }
         
-        // Convert Float array to NSNumber array for Obj-C++ bridging
-        let nsSamples = samples.map { NSNumber(value: $0) }
-        
-        let result = wrapper.transcribeAudio(nsSamples)
+        let result = samples.withUnsafeBufferPointer { ptr in
+            wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
+        }
         
         if let text = result, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let segment = TranscriptSegment(

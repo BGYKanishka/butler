@@ -21,18 +21,21 @@ class QuestionDetector {
     private var debounceWorkItem: DispatchWorkItem?
     
     func process(transcript: String, source: AudioSource) {
-        // Cancel any pending debounce
-        debounceWorkItem?.cancel()
-        
-        let result = detect(transcript: transcript, source: source)
-        
-        if result == .strongQuestion {
-            // Schedule the trigger for 500ms from now
-            let workItem = DispatchWorkItem { [weak self] in
-                self?.onQuestionConfirmed?(transcript)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            // Cancel any pending debounce
+            self.debounceWorkItem?.cancel()
+            
+            let result = self.detect(transcript: transcript, source: source)
+            
+            if result == .strongQuestion {
+                // Schedule the trigger for 500ms from now
+                let workItem = DispatchWorkItem { [weak self] in
+                    self?.onQuestionConfirmed?(transcript)
+                }
+                self.debounceWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
             }
-            debounceWorkItem = workItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
         }
     }
     

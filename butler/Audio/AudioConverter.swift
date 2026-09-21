@@ -6,12 +6,12 @@ class AudioConverter {
     private var sourceFormat: AVAudioFormat?
     private let targetFormat: AVAudioFormat
     
-    init?() {
+    init() throws {
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                          sampleRate: 16000,
                                          channels: 1,
                                          interleaved: false) else {
-            return nil
+            throw AssistantError.initializationFailed("Failed to create target audio format")
         }
         self.targetFormat = format
     }

@@ -20,7 +20,7 @@ class ResponseGenerator {
         llmEngine.cancel()
         
         currentGenerationTask = Task {
-            let context = contextManager.getRecentContext()
+            let context = await contextManager.getRecentContext()
             let prompt = promptBuilder.build(context: context, question: question)
             
             do {

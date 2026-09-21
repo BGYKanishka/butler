@@ -9,11 +9,14 @@ class LocalLLMEngine: LLMEngine {
         guard !isLoaded else { return }
         
         let modelPath = config.getModelPath()
+        guard !modelPath.isEmpty, FileManager.default.fileExists(atPath: modelPath) else {
+            throw AssistantError.modelNotFound("LLM model not found at path: \(modelPath)")
+        }
         
         do {
             try wrapper.loadModel(modelPath, contextSize: Int32(config.contextSize))
         } catch {
-            throw AssistantError.modelNotFound("Model not found at \(modelPath)")
+            throw AssistantError.modelNotFound(error.localizedDescription)
         }
         
         isLoaded = true
@@ -25,12 +28,13 @@ class LocalLLMEngine: LLMEngine {
     }
     
     func generateStreaming(prompt: String, onToken: @escaping (String) -> Void) async throws {
-        Task.detached { [weak self] in
+        guard isLoaded else { throw AssistantError.inferenceFailed("Model not loaded") }
+        await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return }
             self.wrapper.generateStreaming(prompt, temperature: self.config.temperature, maxTokens: Int32(self.config.maxTokens)) { token in
                 onToken(token)
             }
-        }
+        }.value
     }
     
     func cancel() {

@@ -8,7 +8,9 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject {
     private let engine = AVAudioEngine()
     
     var onSamplesCaptured: (([Float]) -> Void)?
-    private let converter = AudioConverter()!
+    private lazy var converter: AudioConverter = {
+        return (try? AudioConverter()) ?? { fatalError("Cannot create audio converter") }()
+    }()
     
     init() {}
     

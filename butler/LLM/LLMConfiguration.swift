@@ -21,8 +21,9 @@ struct LLMConfiguration {
             return customPath
         }
         
-        let fileManager = FileManager.default
-        let appSupportURL = try! fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        guard let appSupportURL = try? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask,
+            appropriateFor: nil, create: true) else { return "" }
         let dirURL = appSupportURL.appendingPathComponent("butler/Models/llm")
         return dirURL.appendingPathComponent(modelFileName).path
     }

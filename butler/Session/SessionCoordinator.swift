@@ -21,9 +21,12 @@ class SessionCoordinator: ObservableObject {
     @Published var overlayViewModel = OverlayViewModel()
     @Published var state: SessionState = .idle
     @Published var transcripts: [TranscriptSegment] = []
+    @Published var isLoadingModels: Bool = false
     
     private var speechStartTimestamp: TimeInterval?
     private var sysSpeechStartTimestamp: TimeInterval?
+    private var prevMicSpeaking = false
+    private var prevSysSpeaking = false
     
     init() {
         setupBindings()
@@ -74,7 +77,7 @@ class SessionCoordinator: ObservableObject {
         transcriptAssembler.addSegment(segment)
         
         let turn = ConversationTurn(id: UUID(), source: segment.source, text: segment.text, timestamp: Date())
-        contextManager.addTurn(turn)
+        Task { await contextManager.addTurn(turn) }
         
         DispatchQueue.main.async {
             self.overlayViewModel.appendSubtitle(segment.text)
@@ -86,73 +89,63 @@ class SessionCoordinator: ObservableObject {
     }
     
     private func handleMicSamples(_ samples: [Float]) {
-        micRingBuffer.push(samples, timestamp: 0)
+        micRingBuffer.push(samples, timestamp: mach_absolute_time())
+        let rms = calculateRMS(samples)
+        let ts = Date().timeIntervalSince1970
+        let isSpeaking = micVAD.process(rms: rms, timestamp: ts)
+        let justEnded = !isSpeaking && prevMicSpeaking
+        let justStarted = isSpeaking && !prevMicSpeaking
+        prevMicSpeaking = isSpeaking
         
-        // Calculate RMS
-        let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count))
-        let timestamp = Date().timeIntervalSince1970
-        
-        let wasSpeaking = micVAD.process(rms: rms, timestamp: timestamp)
-        
-        // Trigger Whisper when speech ends
-        if wasSpeaking && state == .listening {
-            if speechStartTimestamp == nil {
-                speechStartTimestamp = timestamp
-            }
-        } else if !wasSpeaking && speechStartTimestamp != nil {
-            // Speech ended
-            let duration = timestamp - speechStartTimestamp!
+        if justStarted { speechStartTimestamp = ts }
+        if justEnded, let start = speechStartTimestamp {
             speechStartTimestamp = nil
-            
-            if duration > 0.5 { // Only transcribe if > 0.5s
-                // Pull samples from ring buffer (e.g. last 'duration' + buffer seconds)
-                let sampleCount = Int(duration * 16000)
-                let pulledSamples = micRingBuffer.getRecent(samplesCount: sampleCount)
-                
-                Task.detached { [weak self] in
-                    guard let self = self else { return }
-                    await MainActor.run {
-                        self.state = .processing
-                    }
-                    try? await self.whisperEngine.transcribe(samples: pulledSamples, sampleRate: 16000, source: .microphone)
-                }
+            let duration = ts - start
+            guard duration > 0.5 else { return }
+            let count = Int(duration * 16000)
+            let captured = micRingBuffer.getRecent(samplesCount: count)
+            Task.detached(priority: .userInitiated) { [weak self] in
+                guard let self, await self.sessionIsActive() else { return }
+                await MainActor.run { self.state = .processing }
+                try? await self.whisperEngine.transcribe(samples: captured, sampleRate: 16000, source: .microphone)
             }
         }
     }
     
     private func handleSysSamples(_ samples: [Float]) {
-        sysRingBuffer.push(samples, timestamp: 0)
+        sysRingBuffer.push(samples, timestamp: mach_absolute_time())
+        let rms = calculateRMS(samples)
+        let ts = Date().timeIntervalSince1970
+        let isSpeaking = sysVAD.process(rms: rms, timestamp: ts)
+        let justEnded = !isSpeaking && prevSysSpeaking
+        let justStarted = isSpeaking && !prevSysSpeaking
+        prevSysSpeaking = isSpeaking
         
-        let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count))
-        let timestamp = Date().timeIntervalSince1970
-        
-        let wasSpeaking = sysVAD.process(rms: rms, timestamp: timestamp)
-        
-        if wasSpeaking {
-            if sysSpeechStartTimestamp == nil {
-                sysSpeechStartTimestamp = timestamp
-            }
-        } else if !wasSpeaking && sysSpeechStartTimestamp != nil {
-            let duration = timestamp - sysSpeechStartTimestamp!
+        if justStarted { sysSpeechStartTimestamp = ts }
+        if justEnded, let start = sysSpeechStartTimestamp {
             sysSpeechStartTimestamp = nil
-            
-            if duration > 0.5 {
-                let sampleCount = Int(duration * 16000)
-                let pulledSamples = sysRingBuffer.getRecent(samplesCount: sampleCount)
-                
-                Task.detached { [weak self] in
-                    guard let self = self else { return }
-                    // We don't set state = .processing for system audio so it doesn't block assistant UI state unnecessarily, 
-                    // or we could, but let's just transcribe.
-                    try? await self.whisperEngine.transcribe(samples: pulledSamples, sampleRate: 16000, source: .system)
-                }
+            let duration = ts - start
+            guard duration > 0.5 else { return }
+            let count = Int(duration * 16000)
+            let captured = sysRingBuffer.getRecent(samplesCount: count)
+            Task.detached(priority: .userInitiated) { [weak self] in
+                guard let self else { return }
+                try? await self.whisperEngine.transcribe(samples: captured, sampleRate: 16000, source: .system)
             }
         }
+    }
+    
+    @MainActor private func sessionIsActive() -> Bool { state == .listening }
+    
+    private func calculateRMS(_ samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+        return sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count))
     }
     
     func startSession() {
         guard state == .idle else { return }
         state = .listening
+        isLoadingModels = true
         
         Task {
             do {
@@ -164,11 +157,15 @@ class SessionCoordinator: ObservableObject {
                 
                 MemoryMonitor.shared.startMonitoring()
                 
+                DispatchQueue.main.async {
+                    self.isLoadingModels = false
+                }
                 print("Session started.")
             } catch {
                 print("Failed to start session: \(error)")
                 DispatchQueue.main.async {
-                    self.state = .idle
+                    self.isLoadingModels = false
+                    self.state = .error(error)
                 }
             }
         }
@@ -193,7 +190,7 @@ class SessionCoordinator: ObservableObject {
         transcriptAssembler.addSegment(segment)
         
         let turn = ConversationTurn(id: UUID(), source: source, text: text, timestamp: Date())
-        contextManager.addTurn(turn)
+        Task { await contextManager.addTurn(turn) }
         
         DispatchQueue.main.async {
             self.overlayViewModel.appendSubtitle(text)

@@ -34,10 +34,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.menuBarManager?.setState(.idle)
                 case .listening:
                     self?.menuBarManager?.setState(.listening)
+                    self?.overlayPanel?.makeKeyAndOrderFront(nil)
                 case .processing, .answering:
                     self?.menuBarManager?.setState(.processing)
                 case .error:
                     self?.menuBarManager?.setState(.idle)
+                    self?.overlayPanel?.orderOut(nil)
                 }
             }
             .store(in: &cancellables)

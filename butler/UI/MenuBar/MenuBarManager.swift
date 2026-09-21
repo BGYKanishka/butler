@@ -9,14 +9,13 @@ enum MenuBarState {
 
 class MenuBarManager {
     var statusItem: NSStatusItem
+    private var settingsWindow: NSWindow?
     
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "butler")
-            button.action = #selector(menuClicked)
-            button.target = self
         }
         
         setupMenu()
@@ -42,20 +41,20 @@ class MenuBarManager {
         }
     }
     
-    @objc func menuClicked() {
-        statusItem.menu?.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
-    }
-    
     @objc func showSettings() {
-        let settingsWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 300),
-            styleMask: [.titled, .closable],
-            backing: .buffered, defer: false)
-        settingsWindow.center()
-        settingsWindow.setFrameAutosaveName("Settings")
-        settingsWindow.title = "Settings"
-        settingsWindow.contentView = NSHostingView(rootView: SettingsView())
-        settingsWindow.makeKeyAndOrderFront(nil)
+        if settingsWindow == nil {
+            let win = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 550, height: 350),
+                styleMask: [.titled, .closable, .miniaturizable],
+                backing: .buffered, defer: false)
+            win.center()
+            win.setFrameAutosaveName("ButlerSettings")
+            win.title = "Butler Settings"
+            win.contentView = NSHostingView(rootView: SettingsView())
+            win.isReleasedWhenClosed = false
+            settingsWindow = win
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }

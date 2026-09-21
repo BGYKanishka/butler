@@ -34,15 +34,9 @@
     }
 }
 
-- (nullable NSString *)transcribeAudio:(NSArray<NSNumber *> *)samples {
+- (nullable NSString *)transcribeAudio:(const float *)samples count:(NSInteger)count {
     if (ctx == nullptr) {
         return nil;
-    }
-    
-    // Convert NSArray of NSNumbers to std::vector of floats
-    std::vector<float> pcmf32(samples.count);
-    for (NSUInteger i = 0; i < samples.count; i++) {
-        pcmf32[i] = [samples[i] floatValue];
     }
     
     struct whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -52,8 +46,13 @@
     wparams.print_timestamps = false;
     wparams.translate        = false;
     wparams.language         = "en";
-    wparams.n_threads        = 4;
+    wparams.n_threads        = (int)MIN(4, [[NSProcessInfo processInfo] activeProcessorCount]);
     wparams.single_segment   = true;
+    
+    wparams.abort_callback = [](void *user_data) -> bool {
+        return *(BOOL *)user_data;
+    };
+    wparams.abort_callback_user_data = &isCancelled;
     
     // Check for cancellation before processing
     if (isCancelled) {
@@ -61,7 +60,7 @@
         return nil;
     }
     
-    int ret = whisper_full(ctx, wparams, pcmf32.data(), (int)pcmf32.size());
+    int ret = whisper_full(ctx, wparams, samples, (int)count);
     if (ret != 0) {
         NSLog(@"[WhisperWrapper] Failed to process audio");
         return nil;
@@ -88,7 +87,6 @@
 
 - (void)cancelTranscription {
     isCancelled = YES;
-    // Note: To make cancel truly interrupt whisper_full mid-processing, we would need to set an abort callback in wparams.
 }
 
 @end

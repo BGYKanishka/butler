@@ -51,6 +51,8 @@ class TranscriptAssembler {
         var maxOverlap = 0
         let minLen = min(words1.count, words2.count)
         
+        guard minLen > 0 else { return clean1 + (clean1.isEmpty || clean2.isEmpty ? "" : " ") + clean2 }
+        
         for i in 1...minLen {
             let suffix = words1.suffix(i)
             let prefix = words2.prefix(i)

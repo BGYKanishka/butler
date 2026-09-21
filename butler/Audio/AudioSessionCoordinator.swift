@@ -1,11 +1,6 @@
 import Foundation
 
 class AudioSessionCoordinator {
-    let micRingBuffer = AudioRingBuffer(capacity: 16000 * 60)
-    let sysRingBuffer = AudioRingBuffer(capacity: 16000 * 60)
-    
-    let micVAD = VoiceActivityDetector()
-    let sysVAD = VoiceActivityDetector()
-    
-    // Connect capture services to buffers
+// TODO: Refactor audio pipeline coordination into this class.
+// Currently duplicated and managed in SessionCoordinator.swift
 }

@@ -9,7 +9,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Transcribes the provided audio samples. Samples must be 16kHz mono Float32.
 /// Returns the transcribed text.
-- (nullable NSString *)transcribeAudio:(NSArray<NSNumber *> *)samples;
+- (nullable NSString *)transcribeAudio:(const float *)samples count:(NSInteger)count;
 
 /// Signals the engine to cancel any ongoing transcription.
 - (void)cancelTranscription;
