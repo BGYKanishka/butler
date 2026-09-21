@@ -3,6 +3,7 @@ import Foundation
 class WhisperEngine: SpeechToTextEngine {
     private var wrapper: WhisperWrapper?
     private var isLoaded = false
+    private let transcriptionQueue = DispatchQueue(label: "com.butler.whisperQueue")
     
     func load() async throws {
         guard !isLoaded else { return }
@@ -42,8 +43,13 @@ class WhisperEngine: SpeechToTextEngine {
     func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
         guard let wrapper = wrapper else { return }
         
-        let result = samples.withUnsafeBufferPointer { ptr in
-            wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
+        let result: String? = await withCheckedContinuation { continuation in
+            transcriptionQueue.async {
+                let text = samples.withUnsafeBufferPointer { ptr in
+                    wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
+                }
+                continuation.resume(returning: text)
+            }
         }
         
         if let text = result, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

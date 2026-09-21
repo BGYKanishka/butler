@@ -23,6 +23,8 @@ class SessionCoordinator: ObservableObject {
     @Published var transcripts: [TranscriptSegment] = []
     @Published var isLoadingModels: Bool = false
     
+    private let vadQueue = DispatchQueue(label: "com.butler.vadQueue", qos: .userInitiated)
+    
     private var speechStartTimestamp: TimeInterval?
     private var sysSpeechStartTimestamp: TimeInterval?
     private var prevMicSpeaking = false
@@ -82,6 +84,9 @@ class SessionCoordinator: ObservableObject {
         DispatchQueue.main.async {
             self.overlayViewModel.appendSubtitle(segment.text)
             self.transcripts.append(segment)
+            if self.transcripts.count > 100 {
+                self.transcripts.removeFirst(self.transcripts.count - 100)
+            }
         }
         
         // Feed it to the question detector. If it triggers, it will call onQuestionConfirmed after a debounce.
@@ -90,47 +95,53 @@ class SessionCoordinator: ObservableObject {
     
     private func handleMicSamples(_ samples: [Float]) {
         micRingBuffer.push(samples, timestamp: mach_absolute_time())
-        let rms = calculateRMS(samples)
-        let ts = Date().timeIntervalSince1970
-        let isSpeaking = micVAD.process(rms: rms, timestamp: ts)
-        let justEnded = !isSpeaking && prevMicSpeaking
-        let justStarted = isSpeaking && !prevMicSpeaking
-        prevMicSpeaking = isSpeaking
-        
-        if justStarted { speechStartTimestamp = ts }
-        if justEnded, let start = speechStartTimestamp {
-            speechStartTimestamp = nil
-            let duration = ts - start
-            guard duration > 0.5 else { return }
-            let count = Int(duration * 16000)
-            let captured = micRingBuffer.getRecent(samplesCount: count)
-            Task.detached(priority: .userInitiated) { [weak self] in
-                guard let self, await self.sessionIsActive() else { return }
-                await MainActor.run { self.state = .processing }
-                try? await self.whisperEngine.transcribe(samples: captured, sampleRate: 16000, source: .microphone)
+        vadQueue.async { [weak self] in
+            guard let self = self else { return }
+            let rms = self.calculateRMS(samples)
+            let ts = Date().timeIntervalSince1970
+            let isSpeaking = self.micVAD.process(rms: rms, timestamp: ts)
+            let justEnded = !isSpeaking && self.prevMicSpeaking
+            let justStarted = isSpeaking && !self.prevMicSpeaking
+            self.prevMicSpeaking = isSpeaking
+            
+            if justStarted { self.speechStartTimestamp = ts }
+            if justEnded, let start = self.speechStartTimestamp {
+                self.speechStartTimestamp = nil
+                let duration = ts - start
+                guard duration > 0.5 else { return }
+                let count = Int(duration * 16000)
+                let captured = self.micRingBuffer.getRecent(samplesCount: count)
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    guard let self, await self.sessionIsActive() else { return }
+                    await MainActor.run { self.state = .processing }
+                    try? await self.whisperEngine.transcribe(samples: captured, sampleRate: 16000, source: .microphone)
+                }
             }
         }
     }
     
     private func handleSysSamples(_ samples: [Float]) {
         sysRingBuffer.push(samples, timestamp: mach_absolute_time())
-        let rms = calculateRMS(samples)
-        let ts = Date().timeIntervalSince1970
-        let isSpeaking = sysVAD.process(rms: rms, timestamp: ts)
-        let justEnded = !isSpeaking && prevSysSpeaking
-        let justStarted = isSpeaking && !prevSysSpeaking
-        prevSysSpeaking = isSpeaking
-        
-        if justStarted { sysSpeechStartTimestamp = ts }
-        if justEnded, let start = sysSpeechStartTimestamp {
-            sysSpeechStartTimestamp = nil
-            let duration = ts - start
-            guard duration > 0.5 else { return }
-            let count = Int(duration * 16000)
-            let captured = sysRingBuffer.getRecent(samplesCount: count)
-            Task.detached(priority: .userInitiated) { [weak self] in
-                guard let self else { return }
-                try? await self.whisperEngine.transcribe(samples: captured, sampleRate: 16000, source: .system)
+        vadQueue.async { [weak self] in
+            guard let self = self else { return }
+            let rms = self.calculateRMS(samples)
+            let ts = Date().timeIntervalSince1970
+            let isSpeaking = self.sysVAD.process(rms: rms, timestamp: ts)
+            let justEnded = !isSpeaking && self.prevSysSpeaking
+            let justStarted = isSpeaking && !self.prevSysSpeaking
+            self.prevSysSpeaking = isSpeaking
+            
+            if justStarted { self.sysSpeechStartTimestamp = ts }
+            if justEnded, let start = self.sysSpeechStartTimestamp {
+                self.sysSpeechStartTimestamp = nil
+                let duration = ts - start
+                guard duration > 0.5 else { return }
+                let count = Int(duration * 16000)
+                let captured = self.sysRingBuffer.getRecent(samplesCount: count)
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    guard let self else { return }
+                    try? await self.whisperEngine.transcribe(samples: captured, sampleRate: 16000, source: .system)
+                }
             }
         }
     }
