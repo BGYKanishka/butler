@@ -5,18 +5,18 @@ class AppEnvironment: ObservableObject {
     let sysAudioService: SystemAudioCaptureService
     let audioSessionCoordinator: AudioSessionCoordinator
     let whisperEngine: WhisperEngine
-    let llmEngine: LocalLLMEngine
+    let llmEngine: LLMEngine
     let contextManager: ContextManager
     let promptBuilder: PromptBuilder
     let questionDetector: QuestionDetector
     let transcriptAssembler: TranscriptAssembler
     
-    init() {
+    init(llmEngine: LLMEngine = LocalLLMEngine()) {
         self.micService = MicrophoneCaptureService()
         self.sysAudioService = SystemAudioCaptureService()
         self.audioSessionCoordinator = AudioSessionCoordinator(micService: micService, sysAudioService: sysAudioService)
         self.whisperEngine = WhisperEngine()
-        self.llmEngine = LocalLLMEngine()
+        self.llmEngine = llmEngine
         self.contextManager = ContextManager()
         self.promptBuilder = PromptBuilder()
         self.questionDetector = QuestionDetector()

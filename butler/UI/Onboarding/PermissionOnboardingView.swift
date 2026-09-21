@@ -75,6 +75,20 @@ struct PermissionOnboardingView: View {
                     }
                     .padding(.top, 20)
                     .transition(.opacity)
+                    
+                    Button(action: {
+                        NotificationCenter.default.post(name: NSNotification.Name("SkipOnboarding"), object: nil)
+                    }) {
+                        Text("Continue & Start")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(width: 160, height: 44)
+                            .background(Color.blue)
+                            .cornerRadius(22)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 20)
+                    .transition(.opacity)
                 }
             }
             .padding(50)
@@ -116,9 +130,7 @@ struct PermissionOnboardingView: View {
     @ViewBuilder
     private func permissionToggle(title: String, icon: String, isGranted: Bool, action: @escaping () -> Void) -> some View {
         Button(action: {
-            if !isGranted {
-                action()
-            }
+            action()
         }) {
             VStack(spacing: 16) {
                 ZStack {

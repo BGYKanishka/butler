@@ -34,6 +34,7 @@ class WhisperEngine: SpeechToTextEngine {
     
     func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
         guard let wrapper = wrapper else { return }
+        guard !samples.isEmpty else { return }
         
         let result: String? = await withCheckedContinuation { continuation in
             transcriptionQueue.async {

@@ -12,7 +12,7 @@ class ModelManager {
         }
         
         if !fileManager.fileExists(atPath: llmPath) {
-            throw AssistantError.modelNotFound("LLM model not found. Please place 'Llama-3.2-3B-Instruct.gguf' in \(llmPath).")
+            throw AssistantError.modelNotFound("LLM model not found. Please place 'Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf' in \(llmPath).")
         }
     }
     

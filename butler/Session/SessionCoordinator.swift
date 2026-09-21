@@ -9,7 +9,7 @@ class SessionCoordinator: ObservableObject {
     var sysAudioService: SystemAudioCaptureService { environment.sysAudioService }
     var audioSessionCoordinator: AudioSessionCoordinator { environment.audioSessionCoordinator }
     var whisperEngine: WhisperEngine { environment.whisperEngine }
-    var llmEngine: LocalLLMEngine { environment.llmEngine }
+    var llmEngine: LLMEngine { environment.llmEngine }
     var contextManager: ContextManager { environment.contextManager }
     var promptBuilder: PromptBuilder { environment.promptBuilder }
     var questionDetector: QuestionDetector { environment.questionDetector }

@@ -13,7 +13,7 @@ struct LLMConfiguration {
         return val > 0 ? val : 200
     }
     
-    var modelFileName: String = "Llama-3.2-3B-Instruct.gguf"
+    var modelFileName: String = "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
     
     func getModelPath() -> String {
         let customPath = UserDefaults.standard.string(forKey: "llamaModelPath") ?? ""

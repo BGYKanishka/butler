@@ -4,30 +4,31 @@ struct MainWindowView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @StateObject private var micPermission = MicrophonePermission()
     @StateObject private var screenPermission = ScreenRecordingPermission()
+    @State private var onboardingSkipped = false
     
     var body: some View {
         Group {
-            if !micPermission.isGranted || !screenPermission.isGranted {
+            if (!micPermission.isGranted || !screenPermission.isGranted) && !onboardingSkipped {
                 PermissionOnboardingView(micPermission: micPermission, screenPermission: screenPermission, micService: coordinator.micService)
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SkipOnboarding"))) { _ in
+                        withAnimation {
+                            onboardingSkipped = true
+                        }
+                        coordinator.startSession()
+                    }
             } else {
                 VStack(spacing: 20) {
                     HStack {
                         Text("butler Session Control")
                             .font(.headline)
                         Spacer()
-                        Button(action: {
-                            NotificationCenter.default.post(name: NSNotification.Name("ToggleOverlay"), object: nil)
-                        }) {
-                            Label("Suggestions Overlay", systemImage: "macwindow.on.rectangle")
-                                .font(.system(size: 12))
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(8)
-                        .help("Toggle the floating suggestions window (⌥⌘A)")
                     }
+                    
+                    // Embedded Suggestions View
+                    OverlayContentView(viewModel: coordinator.overlayViewModel)
+                        .frame(minHeight: 150)
+                        .background(Color.white.opacity(0.05))
+                        .cornerRadius(16)
                     
                     if case .error(let error) = coordinator.state {
                         HStack {

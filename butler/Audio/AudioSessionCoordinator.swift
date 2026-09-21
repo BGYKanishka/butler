@@ -40,7 +40,11 @@ class AudioSessionCoordinator {
     
     func start() async throws {
         try await micService.start()
-        try await sysAudioService.start()
+        do {
+            try await sysAudioService.start()
+        } catch {
+            print("System audio capture failed, continuing with microphone only: \(error)")
+        }
         
         isRunning = true
         startVADPolling()

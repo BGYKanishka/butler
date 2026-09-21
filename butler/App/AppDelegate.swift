@@ -4,22 +4,15 @@ import Combine
 import HotKey
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var overlayPanel: OverlayPanel?
     var menuBarManager: MenuBarManager?
     var sessionCoordinator = SessionCoordinator()
     
     private var cancellables = Set<AnyCancellable>()
     private var toggleSessionHotKey: HotKey?
-    private var toggleOverlayHotKey: HotKey?
     private var stopSessionHotKey: HotKey?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBarManager = MenuBarManager()
-        
-        let overlayView = OverlayContentView(viewModel: sessionCoordinator.overlayViewModel)
-        overlayPanel = OverlayPanel(contentView: overlayView)
-        // Hidden by default, toggled via hotkey
-        // overlayPanel?.makeKeyAndOrderFront(nil)
         
         setupBindings()
         setupHotKeys()
@@ -34,25 +27,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.menuBarManager?.setState(.idle)
                 case .listening:
                     self?.menuBarManager?.setState(.listening)
-                    self?.overlayPanel?.makeKeyAndOrderFront(nil)
                 case .processing:
                     self?.menuBarManager?.setState(.processing)
                 case .answering:
                     self?.menuBarManager?.setState(.processing)
-                    self?.overlayPanel?.makeKeyAndOrderFront(nil)
                 case .error:
                     self?.menuBarManager?.setState(.idle)
-                }
-            }
-            .store(in: &cancellables)
-            
-        NotificationCenter.default.publisher(for: NSNotification.Name("ToggleOverlay"))
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                if self?.overlayPanel?.isVisible == true {
-                    self?.overlayPanel?.orderOut(nil)
-                } else {
-                    self?.overlayPanel?.makeKeyAndOrderFront(nil)
                 }
             }
             .store(in: &cancellables)
@@ -67,17 +47,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.sessionCoordinator.startSession()
             } else {
                 self.sessionCoordinator.stopSession()
-            }
-        }
-        
-        // Option + Command + A: Toggle Overlay
-        toggleOverlayHotKey = HotKey(key: .a, modifiers: [.option, .command])
-        toggleOverlayHotKey?.keyDownHandler = { [weak self] in
-            guard let self = self else { return }
-            if self.overlayPanel?.isVisible == true {
-                self.overlayPanel?.orderOut(nil)
-            } else {
-                self.overlayPanel?.makeKeyAndOrderFront(nil)
             }
         }
         

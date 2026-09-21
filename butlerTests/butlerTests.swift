@@ -35,21 +35,21 @@ final class butlerTests: XCTestCase {
         XCTAssertEqual(detector.detect(transcript: "Hello world.", source: .system), .none)
         XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .system), .strongQuestion)
         XCTAssertEqual(detector.detect(transcript: "I heard what happened.", source: .system), .possibleQuestion)
-        XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .microphone), .none)
+        XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .microphone), .strongQuestion)
     }
     
-    func testContextManager() throws {
+    func testContextManager() async throws {
         let manager = ContextManager()
         
-        let turn1 = ConversationTurn(id: UUID(), source: .system, text: "Hello there.", timestamp: Date().addingTimeInterval(-100))
-        let turn2 = ConversationTurn(id: UUID(), source: .microphone, text: "Hi, how are you?", timestamp: Date().addingTimeInterval(-50))
-        let turn3 = ConversationTurn(id: UUID(), source: .system, text: "I'm doing well, thank you.", timestamp: Date())
+        let turn1 = ConversationTurn(id: UUID(), source: .system, type: .statement, text: "Hello there.", timestamp: Date().addingTimeInterval(-100))
+        let turn2 = ConversationTurn(id: UUID(), source: .microphone, type: .statement, text: "Hi, how are you?", timestamp: Date().addingTimeInterval(-50))
+        let turn3 = ConversationTurn(id: UUID(), source: .system, type: .statement, text: "I'm doing well, thank you.", timestamp: Date())
         
-        manager.addTurn(turn1)
-        manager.addTurn(turn2)
-        manager.addTurn(turn3)
+        await manager.addTurn(turn1)
+        await manager.addTurn(turn2)
+        await manager.addTurn(turn3)
         
-        let contextString = manager.getRecentContext()
+        let contextString = await manager.getRecentContext()
         XCTAssertFalse(contextString.contains("Hello there.")) // Evicted because it's older than 60s
         XCTAssertTrue(contextString.contains("[LOCAL]: Hi, how are you?"))
         XCTAssertTrue(contextString.contains("[REMOTE]: I'm doing well, thank you."))

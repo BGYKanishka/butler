@@ -40,8 +40,8 @@ class QuestionDetector {
     }
     
     func detect(transcript: String, source: AudioSource) -> QuestionDetectionResult {
-        // Only process REMOTE transcripts
-        guard source == .system else { return .none }
+        // Process all transcripts, including user's voice
+
         
         let text = transcript.lowercased()
         

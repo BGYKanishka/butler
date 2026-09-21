@@ -70,7 +70,9 @@
     }
     
     // Tokenize
-    std::string prompt_str = [prompt UTF8String];
+    const char *c_prompt = [prompt UTF8String];
+    if (!c_prompt) return;
+    std::string prompt_str = c_prompt;
     std::vector<llama_token> tokens_list(prompt_str.length() + 2); // rough estimate
     
     int n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), prompt_str.length(), tokens_list.data(), tokens_list.size(), true, true);

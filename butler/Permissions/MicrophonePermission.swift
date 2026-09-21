@@ -1,11 +1,26 @@
 import Foundation
+import AppKit
 import AVFoundation
 
 class MicrophonePermission: ObservableObject {
     @Published var isGranted: Bool = false
+    private var observer: Any?
     
     init() {
         checkPermission()
+        observer = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.checkPermission()
+        }
+    }
+    
+    deinit {
+        if let observer = observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
     
     func checkPermission() {
@@ -13,7 +28,8 @@ class MicrophonePermission: ObservableObject {
         case .authorized:
             isGranted = true
         case .notDetermined:
-            requestPermission()
+            // Don't auto-request, let user initiate
+            isGranted = false
         case .denied, .restricted:
             isGranted = false
         @unknown default:
@@ -22,6 +38,9 @@ class MicrophonePermission: ObservableObject {
     }
     
     func requestPermission() {
+        if isGranted {
+            return
+        }
         AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
             DispatchQueue.main.async {
                 self?.isGranted = granted
