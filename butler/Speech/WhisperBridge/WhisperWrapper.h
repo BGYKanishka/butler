@@ -7,6 +7,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Initializes the Whisper engine with a specific model path.
 - (nullable instancetype)initWithModelPath:(NSString *)modelPath;
 
+/// Block for streaming partial transcript segments.
+@property (nonatomic, copy, nullable) void (^onPartialTranscript)(NSString *partialText);
+
 /// Transcribes the provided audio samples. Samples must be 16kHz mono Float32.
 /// Returns the transcribed text.
 - (nullable NSString *)transcribeAudio:(const float *)samples count:(NSInteger)count;

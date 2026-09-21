@@ -39,12 +39,28 @@ class WhisperEngine: SpeechToTextEngine {
     }
     
     var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
+    var onPartialTranscriptionCompleted: ((TranscriptSegment) -> Void)?
     
     func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
         guard let wrapper = wrapper else { return }
         
         let result: String? = await withCheckedContinuation { continuation in
             transcriptionQueue.async {
+                wrapper.onPartialTranscript = { [weak self] partialText in
+                    let text = partialText
+                    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                    let segment = TranscriptSegment(
+                        id: UUID(),
+                        source: source,
+                        startTime: Date().timeIntervalSince1970,
+                        endTime: Date().timeIntervalSince1970 + Double(samples.count) / Double(sampleRate),
+                        text: text,
+                        isFinal: false,
+                        confidence: 1.0
+                    )
+                    self?.onPartialTranscriptionCompleted?(segment)
+                }
+                
                 let text = samples.withUnsafeBufferPointer { ptr in
                     wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
                 }

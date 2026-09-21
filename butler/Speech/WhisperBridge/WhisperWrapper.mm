@@ -54,6 +54,23 @@
     };
     wparams.abort_callback_user_data = &isCancelled;
     
+    wparams.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
+        WhisperWrapper *wrapper = (__bridge WhisperWrapper *)user_data;
+        if (wrapper.onPartialTranscript) {
+            std::string partial = "";
+            const int n_segments = whisper_full_n_segments(ctx);
+            for (int i = 0; i < n_segments; ++i) {
+                const char * text = whisper_full_get_segment_text(ctx, i);
+                if (text) {
+                    partial += text;
+                }
+            }
+            NSString *nsPartial = [NSString stringWithUTF8String:partial.c_str()];
+            wrapper.onPartialTranscript(nsPartial);
+        }
+    };
+    wparams.new_segment_callback_user_data = (__bridge void *)self;
+    
     // Check for cancellation before processing
     if (isCancelled) {
         isCancelled = NO;

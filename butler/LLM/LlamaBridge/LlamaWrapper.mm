@@ -64,7 +64,10 @@
 - (void)generateStreaming:(NSString *)prompt temperature:(float)temperature maxTokens:(int)maxTokens onToken:(void (^)(NSString *token))onToken {
     if (!_model || !_ctx || !_vocab) return;
     _isCancelled = NO;
-    llama_kv_cache_clear(_ctx);
+    llama_memory_t mem = llama_get_memory(_ctx);
+    if (mem) {
+        llama_memory_clear(mem, true);
+    }
     
     // Tokenize
     std::string prompt_str = [prompt UTF8String];
