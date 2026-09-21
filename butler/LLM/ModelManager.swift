@@ -3,10 +3,8 @@ import Foundation
 class ModelManager {
     func validateModels() throws {
         let fileManager = FileManager.default
-        let appSupportURL = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         
-        let whisperPath = UserDefaults.standard.string(forKey: "whisperModelPath") ?? appSupportURL.appendingPathComponent("RealtimeAssistant/Models/whisper/ggml-base.en.bin").path
-        
+        let whisperPath = WhisperConfiguration().getModelPath()
         let llmPath = LLMConfiguration().getModelPath()
         
         if !fileManager.fileExists(atPath: whisperPath) {
@@ -21,6 +19,7 @@ class ModelManager {
     func downloadModels() async throws {
         // Downloading via bash script inside bundle is unsupported in a real macOS app.
         // Users must place models manually in Application Support for now.
-        throw AssistantError.modelNotFound("Automatic model download is not supported. Please place models manually in ~/Library/Application Support/RealtimeAssistant/Models/")
+        let defaultPath = Constants.modelsDirectory?.path ?? "~/Library/Application Support/RealtimeAssistant/Models/"
+        throw AssistantError.modelNotFound("Automatic model download is not supported. Please place models manually in \(defaultPath)")
     }
 }

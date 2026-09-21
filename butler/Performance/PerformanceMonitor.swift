@@ -4,26 +4,25 @@ import os
 class PerformanceMonitor {
     static let shared = PerformanceMonitor()
     
-    private let logger = Logger(subsystem: "com.example.butler", category: "Performance")
-    private var marks: [String: CFAbsoluteTime] = [:]
+    private let logger = OSLog(subsystem: "com.example.butler", category: "Performance")
+    private var marks: [String: OSSignpostID] = [:]
     
     private init() {}
     
     func start(_ task: String) {
-        marks[task] = CFAbsoluteTimeGetCurrent()
-        logger.debug("Started task: \(task)")
+        let signpostID = OSSignpostID(log: logger)
+        marks[task] = signpostID
+        os_signpost(.begin, log: logger, name: "PerformanceTask", signpostID: signpostID, "Started task: %{public}s", task)
     }
     
     func end(_ task: String) {
-        guard let startTime = marks[task] else {
-            logger.warning("Task \(task) ended without being started.")
+        guard let signpostID = marks[task] else {
+            os_log("Task %{public}s ended without being started.", log: logger, type: .info, task)
             return
         }
         
-        let duration = CFAbsoluteTimeGetCurrent() - startTime
+        os_signpost(.end, log: logger, name: "PerformanceTask", signpostID: signpostID, "Ended task: %{public}s", task)
         marks.removeValue(forKey: task)
-        
-        logger.info("Task \(task) completed in \(String(format: "%.3f", duration)) seconds.")
     }
     
     func logMemoryUsage() {
@@ -41,9 +40,9 @@ class PerformanceMonitor {
         
         if kerr == KERN_SUCCESS {
             let memoryMB = Double(info.resident_size) / 1048576.0
-            logger.info("Memory usage: \(String(format: "%.2f", memoryMB)) MB")
+            os_log("Memory usage: %.2f MB", log: logger, type: .info, memoryMB)
         } else {
-            logger.error("Failed to get memory usage.")
+            os_log("Failed to get memory usage.", log: logger, type: .error)
         }
     }
 }

@@ -21,10 +21,6 @@ struct LLMConfiguration {
             return customPath
         }
         
-        guard let appSupportURL = try? FileManager.default.url(
-            for: .applicationSupportDirectory, in: .userDomainMask,
-            appropriateFor: nil, create: true) else { return "" }
-        let dirURL = appSupportURL.appendingPathComponent("RealtimeAssistant/Models/llm")
-        return dirURL.appendingPathComponent(modelFileName).path
+        return Constants.llmModelPath ?? ""
     }
 }

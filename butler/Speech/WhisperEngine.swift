@@ -9,16 +9,7 @@ class WhisperEngine: SpeechToTextEngine {
         guard !isLoaded else { return }
         
         let fileManager = FileManager.default
-        
-        let modelPath: String
-        let customPath = UserDefaults.standard.string(forKey: "whisperModelPath") ?? ""
-        
-        if !customPath.isEmpty {
-            modelPath = customPath
-        } else {
-            let appSupportURL = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            modelPath = appSupportURL.appendingPathComponent("butler/Models/whisper/ggml-base.en.bin").path
-        }
+        let modelPath = WhisperConfiguration().getModelPath()
         
         // Ensure path exists before initializing C++ context
         guard fileManager.fileExists(atPath: modelPath) else {

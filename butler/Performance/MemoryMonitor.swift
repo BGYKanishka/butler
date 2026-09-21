@@ -40,6 +40,7 @@ class MemoryMonitor {
             
             if usedBytes > budgetLimitInBytes {
                 os_log("MEMORY WARNING: Usage exceeded 15 GB budget! (%.2f GB)", log: logger, type: .fault, usedGB)
+                NotificationCenter.default.post(name: Notification.Name("MemoryLimitExceeded"), object: nil)
             }
         }
     }

@@ -23,10 +23,8 @@ class AudioConverter {
     }
     
     func convert(buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        guard let format = sourceFormat else {
+        if sourceFormat == nil || sourceFormat != buffer.format {
             setupConverter(from: buffer.format)
-            guard sourceFormat != nil else { return nil }
-            return convert(buffer: buffer)
         }
         
         guard let converter = converter else { return nil }

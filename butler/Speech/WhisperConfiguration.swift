@@ -5,9 +5,11 @@ struct WhisperConfiguration {
     var language: String = "en"
     
     func getModelPath() -> String {
-        let fileManager = FileManager.default
-        let appSupportURL = try! fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let dirURL = appSupportURL.appendingPathComponent("butler/Models/whisper")
-        return dirURL.appendingPathComponent("ggml-\(modelType).bin").path
+        let customPath = UserDefaults.standard.string(forKey: "whisperModelPath") ?? ""
+        if !customPath.isEmpty {
+            return customPath
+        }
+        
+        return Constants.whisperModelPath ?? ""
     }
 }
