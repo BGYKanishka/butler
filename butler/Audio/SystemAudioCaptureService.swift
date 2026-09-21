@@ -2,7 +2,7 @@ import ScreenCaptureKit
 import Combine
 import CoreMedia
 
-class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject, SCStreamOutput {
+class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject, SCStreamOutput, @unchecked Sendable {
     @Published var isRunning: Bool = false
     @Published var audioLevel: Float = 0.0
     
@@ -31,8 +31,15 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         config.sampleRate = 16000
         config.channelCount = 1
         
+        // Add minimal video settings and a video output to suppress the 
+        // `_SCStream_RemoteVideoQueueOperationHandlerWithError` console spam
+        config.width = 16
+        config.height = 16
+        config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+        
         stream = SCStream(filter: filter, configuration: config, delegate: nil)
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "SystemAudioCaptureQueue"))
+        try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "SystemAudioCaptureQueue"))
         
         try await stream?.startCapture()
         

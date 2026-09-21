@@ -18,6 +18,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupHotKeys()
     }
     
+    func applicationWillTerminate(_ notification: Notification) {
+        // Explicitly stop the session and unload ML engines before exit().
+        // This ensures llama_free / whisper_free are called while the Metal
+        // device is still alive, draining residency sets and preventing the
+        // GGML_ASSERT([rsets->data count] == 0) crash in ggml_metal_device_free.
+        if sessionCoordinator.state != .idle {
+            sessionCoordinator.stopSession()
+        }
+        sessionCoordinator.llmEngine.unload()
+        sessionCoordinator.whisperEngine.unload()
+    }
+    
     private func setupBindings() {
         sessionCoordinator.$state
             .receive(on: DispatchQueue.main)

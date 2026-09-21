@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-class AudioSessionCoordinator {
+class AudioSessionCoordinator: @unchecked Sendable {
     let micService: MicrophoneCaptureService
     let sysAudioService: SystemAudioCaptureService
     
@@ -41,13 +41,24 @@ class AudioSessionCoordinator {
         }
     }
     
-    func start() async throws {
-        try await micService.start()
-        do {
-            try await sysAudioService.start()
-            DispatchQueue.main.async { self.systemAudioAvailable = true }
-        } catch {
-            print("System audio capture failed, continuing with microphone only: \(error)")
+    func start(includeSystemAudio: Bool = true, micGranted: Bool = true) async throws {
+        if micGranted {
+            do {
+                try await micService.start()
+            } catch {
+                print("Session Warning: Microphone start failed: \(error)")
+            }
+        }
+        
+        if includeSystemAudio {
+            do {
+                try await sysAudioService.start()
+                DispatchQueue.main.async { self.systemAudioAvailable = true }
+            } catch {
+                print("System audio capture failed, continuing with microphone only: \(error)")
+                DispatchQueue.main.async { self.systemAudioAvailable = false }
+            }
+        } else {
             DispatchQueue.main.async { self.systemAudioAvailable = false }
         }
         

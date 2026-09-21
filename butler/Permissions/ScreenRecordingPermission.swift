@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import ScreenCaptureKit
 
+@MainActor
 class ScreenRecordingPermission: ObservableObject {
     @Published var isGranted: Bool = false
     private var observer: Any?
@@ -13,7 +14,9 @@ class ScreenRecordingPermission: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.checkPermission()
+            Task { @MainActor in
+                self?.checkPermission()
+            }
         }
     }
     
@@ -24,18 +27,16 @@ class ScreenRecordingPermission: ObservableObject {
     }
     
     /// Checks screen recording permission silently.
-    /// Uses CGPreflightScreenCaptureAccess() which is synchronous and never shows a dialog.
+    /// Uses CGPreflightScreenCaptureAccess() and falls back to SCShareableContent on failure.
     func checkPermission() {
         if isGranted { return }
         
         if CGPreflightScreenCaptureAccess() {
             isGranted = true
+        } else {
+            // Fall back to SCShareableContent because of Xcode's ad-hoc code signing
+            verifySilentlyWithSCShareableContent()
         }
-        // Do NOT fall back to SCShareableContent automatically here.
-        // Because of Xcode's ad-hoc code signing (CODE_SIGN_IDENTITY: "-"),
-        // every build creates a new signature. If we call SCShareableContent
-        // automatically, macOS will treat it as a new app and show the
-        // permission dialog on every single launch!
     }
     
     /// Async fallback check using SCShareableContent.
@@ -43,7 +44,7 @@ class ScreenRecordingPermission: ObservableObject {
     /// so we only call it during polling (after the user has explicitly tapped Grant).
     private func verifySilentlyWithSCShareableContent() {
         SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { [weak self] content, error in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if error == nil && content != nil {
                     self?.isGranted = true
                 }
@@ -80,19 +81,18 @@ class ScreenRecordingPermission: ObservableObject {
     private func pollPermission(attempts: Int) {
         guard attempts > 0 && !isGranted else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            guard let self = self else { return }
-            self.checkPermission()
-            
-            // If CGPreflight failed, try SCShareableContent as fallback
-            if !self.isGranted {
-                self.verifySilentlyWithSCShareableContent()
-            }
-            
-            // checkPermission is partially async (SCShareableContent), so wait
-            // a beat before checking if we need to continue polling.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                if self.isGranted == false {
-                    self.pollPermission(attempts: attempts - 1)
+            Task { @MainActor in
+                guard let self = self else { return }
+                self.checkPermission()
+                
+                // checkPermission is partially async (SCShareableContent), so wait
+                // a beat before checking if we need to continue polling.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    Task { @MainActor in
+                        if self.isGranted == false {
+                            self.pollPermission(attempts: attempts - 1)
+                        }
+                    }
                 }
             }
         }

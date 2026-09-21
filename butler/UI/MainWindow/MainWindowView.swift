@@ -4,8 +4,10 @@ struct MainWindowView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @ObservedObject var permissionsGateway: PermissionsGateway
 
-    private var allPermissionsGranted: Bool {
-        permissionsGateway.allPermissionsGranted
+    @AppStorage("isVisionEnabled") private var isVisionEnabled = false
+
+    private var requiredPermissionsGranted: Bool {
+        permissionsGateway.anyPermissionGranted
     }
 
     private var anyPermissionGranted: Bool {
@@ -20,10 +22,12 @@ struct MainWindowView: View {
                     Text("butler Session Control")
                         .font(.headline)
                     Spacer()
+                    Toggle("Enable Vision", isOn: $isVisionEnabled)
+                        .toggleStyle(.switch)
                 }
 
-                // ── Inline Permission Card (shown until all are granted) ──
-                if !allPermissionsGranted {
+                // ── Inline Permission Card (shown until required are granted) ──
+                if !requiredPermissionsGranted || (!permissionsGateway.isScreenGranted && isVisionEnabled) {
                     PermissionCardView(
                         permissionsGateway: permissionsGateway,
                         micService: coordinator.micService
@@ -109,15 +113,24 @@ struct MainWindowView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(buttonColor(for: coordinator.state))
                     .controlSize(.large)
-                    .disabled(!anyPermissionGranted)
+                    .disabled(!requiredPermissionsGranted)
                 }
+                
+                // ── Test Tools ──────────────────────────────────────────
+                Button(action: {
+                    coordinator.testWithAudioFile(path: "/Users/yehankanishka/Project/meeting_assistant/system_test_ track.m4a", forceAnswer: true)
+                }) {
+                    Text("Test Audio Track")
+                        .font(.system(.body, design: .rounded))
+                }
+                .padding(.top, 8)
             }
             .padding()
         }
         .frame(minWidth: 500, minHeight: 400)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: anyPermissionGranted)
-        // Auto-start once any permission becomes available
-        .onChange(of: anyPermissionGranted) { _, granted in
+        // Auto-start once required permissions become available
+        .onChange(of: requiredPermissionsGranted) { _, granted in
             if granted && coordinator.state == .idle {
                 coordinator.startSession()
             }

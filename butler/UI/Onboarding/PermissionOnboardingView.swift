@@ -49,11 +49,7 @@ struct PermissionOnboardingView: View {
                         title: "Microphone",
                         icon: "mic.fill",
                         isGranted: permissionsGateway.isMicGranted,
-                        action: {
-                            Task {
-                                await permissionsGateway.requestMicPermission()
-                            }
-                        }
+                    action: { requestMic() }
                     )
                     
                     permissionToggle(
@@ -171,5 +167,11 @@ struct PermissionOnboardingView: View {
         }
         .buttonStyle(.plain)
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isGranted)
+    }
+
+    private func requestMic() {
+        Task { @MainActor in
+            await permissionsGateway.requestMicPermission()
+        }
     }
 }

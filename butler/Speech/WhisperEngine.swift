@@ -17,9 +17,12 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         }
         
         wrapper = WhisperWrapper(modelPath: modelPath)
-        guard wrapper != nil else {
+        guard let wrapper = wrapper else {
             throw AssistantError.modelNotFound("Failed to initialize whisper context with model: \(modelPath)")
         }
+        
+        // Add context for programming/meeting terminology to improve transcription accuracy
+        wrapper.initialPrompt = "Transcript of a software engineering meeting discussing React hooks, programming, variables, functions, and code."
         
         isLoaded = true
     }

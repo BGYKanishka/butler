@@ -33,7 +33,13 @@ class AudioConverter {
         guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return nil }
         
         var error: NSError?
+        var provided = false
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+            if provided {
+                outStatus.pointee = .noDataNow
+                return nil
+            }
+            provided = true
             outStatus.pointee = .haveData
             return buffer
         }

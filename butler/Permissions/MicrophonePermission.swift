@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import AVFoundation
 
+@MainActor
 class MicrophonePermission: ObservableObject {
     @Published var isGranted: Bool = false
     private var observer: Any?
@@ -13,7 +14,9 @@ class MicrophonePermission: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.checkPermission()
+            Task { @MainActor in
+                self?.checkPermission()
+            }
         }
     }
     
@@ -42,10 +45,16 @@ class MicrophonePermission: ObservableObject {
             return true
         }
         
-        let granted = await AVCaptureDevice.requestAccess(for: .audio)
-        await MainActor.run {
-            self.isGranted = granted
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        if status == .denied || status == .restricted {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                NSWorkspace.shared.open(url)
+            }
+            return false
         }
+        
+        let granted = await AVCaptureDevice.requestAccess(for: .audio)
+        self.isGranted = granted
         return granted
     }
 }

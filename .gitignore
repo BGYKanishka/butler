@@ -27,3 +27,4 @@ Models/
 # Logs
 *.log
 
+*.profraw

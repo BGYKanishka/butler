@@ -111,23 +111,22 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         Task { @MainActor in
             let gateway = self.environment.permissionsGateway
             
-            // Only mic permission is required to start a session.
-            // Screen recording (system audio) is optional — AudioSessionCoordinator
-            // will gracefully fall back to mic-only if it's not available.
-            if gateway.isMicGranted {
-                self.startSessionInternal()
+            // Allow starting a session as long as ANY hardware permission is granted.
+            // If they only have System Audio or Vision, we can still run those pipelines.
+            if gateway.anyPermissionGranted {
+                self.startSessionInternal(micGranted: gateway.isMicGranted)
             } else {
                 let granted = await gateway.requestMicPermission()
                 if granted {
-                    self.startSessionInternal()
+                    self.startSessionInternal(micGranted: true)
                 } else {
-                    self.state = .error(AssistantError.permissionDenied("Microphone access is required to start a session"))
+                    self.state = .error(AssistantError.permissionDenied("At least one permission (Mic or System Audio) is required to start a session"))
                 }
             }
         }
     }
     
-    private func startSessionInternal() {
+    private func startSessionInternal(micGranted: Bool) {
         state = .listening
         isLoadingModels = true
         
@@ -139,7 +138,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 try await whisperEngine.load()
                 try await llmEngine.load()
                 
-                try await audioSessionCoordinator.start()
+                let isVisionEnabled = UserDefaults.standard.bool(forKey: "isVisionEnabled")
+                try await audioSessionCoordinator.start(includeSystemAudio: isVisionEnabled, micGranted: micGranted)
                 
                 MemoryMonitor.shared.startMonitoring()
                 
@@ -190,43 +190,102 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         questionDetector.process(transcript: text, source: source)
     }
     
-    func testWithAudioFile(path: String) {
+    func testWithAudioFile(path: String, forceAnswer: Bool = false) {
         print("Test Info: Starting audio file test with \(path)")
         
         // Ensure engines are loaded
         Task {
-            do {
+            let needsLoad = await MainActor.run {
                 if !self.isLoadingModels && self.state == .idle {
+                    self.isLoadingModels = true
+                    return true
+                }
+                return false
+            }
+            
+            do {
+                if needsLoad {
                     try await whisperEngine.load()
                     try await llmEngine.load()
+                    await MainActor.run { self.isLoadingModels = false }
                 }
                 
                 let url = URL(fileURLWithPath: path)
                 let file = try AVAudioFile(forReading: url)
-                guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false) else {
-                    print("Test Error: Could not create audio format")
+                guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false) else {
+                    print("Test Error: Could not create target audio format")
                     return
                 }
                 
-                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(file.length)) else {
-                    print("Test Error: Could not create buffer")
+                let sourceFormat = file.processingFormat
+                let frameCount = AVAudioFrameCount(file.length)
+                
+                guard let sourceBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frameCount) else {
+                    print("Test Error: Could not create source buffer")
+                    return
+                }
+                try file.read(into: sourceBuffer)
+                
+                let ratio = targetFormat.sampleRate / sourceFormat.sampleRate
+                let targetCapacity = AVAudioFrameCount(Double(frameCount) * ratio)
+                
+                guard let targetBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: targetCapacity) else {
+                    print("Test Error: Could not create target buffer")
                     return
                 }
                 
-                try file.read(into: buffer)
-                
-                guard let channelData = buffer.floatChannelData?[0] else {
-                    print("Test Error: No channel data")
+                guard let converter = AVAudioConverter(from: sourceFormat, to: targetFormat) else {
+                    print("Test Error: Could not create converter")
                     return
                 }
                 
-                let frameLength = Int(buffer.frameLength)
-                var samples = [Float](repeating: 0.0, count: frameLength)
-                for i in 0..<frameLength {
+                var error: NSError?
+                var provided = false
+                let status = converter.convert(to: targetBuffer, error: &error) { inNumPackets, outStatus in
+                    if provided {
+                        outStatus.pointee = .noDataNow
+                        return nil
+                    }
+                    provided = true
+                    outStatus.pointee = .haveData
+                    return sourceBuffer
+                }
+                
+                if status == .error || error != nil {
+                    print("Test Error: Conversion failed - \(error?.localizedDescription ?? "unknown error")")
+                    return
+                }
+                
+                guard let channelData = targetBuffer.floatChannelData?[0] else {
+                    print("Test Error: No channel data in target buffer")
+                    return
+                }
+                
+                let length = Int(targetBuffer.frameLength)
+                var samples = [Float](repeating: 0.0, count: length)
+                for i in 0..<length {
                     samples[i] = channelData[i]
                 }
                 
-                print("Test Info: Loaded \(samples.count) samples. Transcribing...")
+                print("Test Info: Resampled to \(samples.count) samples. Transcribing...")
+                
+                if forceAnswer {
+                    // Temporarily intercept the next transcription and force it to be answered
+                    let originalHandler = self.whisperEngine.onTranscriptionCompleted
+                    self.whisperEngine.onTranscriptionCompleted = { [weak self] segment in
+                        self?.handleTranscription(segment: segment)
+                        print("Test Info: Forced answer for: \(segment.text)")
+                        DispatchQueue.main.async {
+                            self?.overlayViewModel.setQuestion(segment.text)
+                            self?.state = .answering
+                        }
+                        self?.responseGenerator.handleQuestionDetected(segment.text)
+                        
+                        // Restore handler
+                        self?.whisperEngine.onTranscriptionCompleted = originalHandler
+                    }
+                }
+                
                 try await whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: .microphone)
                 print("Test Info: Transcription request sent.")
                 

@@ -49,10 +49,9 @@
     wparams.n_threads        = (int)MIN(4, [[NSProcessInfo processInfo] activeProcessorCount]);
     wparams.single_segment   = true;
     
-    wparams.abort_callback = [](void *user_data) -> bool {
-        return *(BOOL *)user_data;
-    };
-    wparams.abort_callback_user_data = &isCancelled;
+    if (self.initialPrompt != nil) {
+        wparams.initial_prompt = [self.initialPrompt UTF8String];
+    }
     
     wparams.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
         WhisperWrapper *wrapper = (__bridge WhisperWrapper *)user_data;

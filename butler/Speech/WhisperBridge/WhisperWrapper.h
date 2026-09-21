@@ -10,6 +10,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Block for streaming partial transcript segments.
 @property (nonatomic, copy, nullable) void (^onPartialTranscript)(NSString *partialText);
 
+/// Optional context prompt to guide the transcription
+@property (nonatomic, copy, nullable) NSString *initialPrompt;
+
 /// Transcribes the provided audio samples. Samples must be 16kHz mono Float32.
 /// Returns the transcribed text.
 - (nullable NSString *)transcribeAudio:(const float *)samples count:(NSInteger)count;

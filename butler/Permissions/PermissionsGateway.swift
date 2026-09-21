@@ -11,19 +11,29 @@ class PermissionsGateway: ObservableObject {
     let screenPermission: ScreenRecordingPermission
     private var cancellables = Set<AnyCancellable>()
     
-    init(micPermission: MicrophonePermission = MicrophonePermission(),
-         screenPermission: ScreenRecordingPermission = ScreenRecordingPermission()) {
-        self.micPermission = micPermission
-        self.screenPermission = screenPermission
+    @MainActor
+    init(micPermission: MicrophonePermission? = nil,
+         screenPermission: ScreenRecordingPermission? = nil) {
+        let mic = micPermission ?? MicrophonePermission()
+        let screen = screenPermission ?? ScreenRecordingPermission()
+        
+        self.micPermission = mic
+        self.screenPermission = screen
         
         // Forward published properties
-        micPermission.$isGranted
+        self.micPermission.$isGranted
             .receive(on: DispatchQueue.main)
-            .assign(to: &$isMicGranted)
+            .sink { [weak self] granted in
+                self?.isMicGranted = granted
+            }
+            .store(in: &cancellables)
             
-        screenPermission.$isGranted
+        self.screenPermission.$isGranted
             .receive(on: DispatchQueue.main)
-            .assign(to: &$isScreenGranted)
+            .sink { [weak self] granted in
+                self?.isScreenGranted = granted
+            }
+            .store(in: &cancellables)
     }
     
     var allPermissionsGranted: Bool {

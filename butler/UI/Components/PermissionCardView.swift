@@ -15,7 +15,7 @@ struct PermissionCardView: View {
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundColor(.primary)
                 Spacer()
-                Text("Grant at least one to start")
+                Text("Grant permissions to start")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -25,16 +25,19 @@ struct PermissionCardView: View {
                     title: "Microphone",
                     icon: "mic.fill",
                     isGranted: permissionsGateway.isMicGranted,
-                    action: {
-                        _ = Task { @MainActor in
-                            await permissionsGateway.requestMicPermission()
-                        }
-                    }
+                    action: { self.requestMic() }
                 )
 
                 permissionButton(
                     title: "System Audio",
-                    icon: "macwindow.on.rectangle",
+                    icon: "speaker.wave.2.fill",
+                    isGranted: permissionsGateway.isScreenGranted,
+                    action: { permissionsGateway.requestScreenPermission() }
+                )
+                
+                permissionButton(
+                    title: "Vision",
+                    icon: "eye.fill",
                     isGranted: permissionsGateway.isScreenGranted,
                     action: { permissionsGateway.requestScreenPermission() }
                 )
@@ -101,5 +104,11 @@ struct PermissionCardView: View {
         }
         .buttonStyle(.plain)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isGranted)
+    }
+
+    private func requestMic() {
+        Task { @MainActor in
+            await permissionsGateway.requestMicPermission()
+        }
     }
 }
