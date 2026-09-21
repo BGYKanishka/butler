@@ -15,6 +15,8 @@ class AudioSessionCoordinator {
     private var vadTimer: DispatchSourceTimer?
     private var isRunning = false
     
+    @Published var systemAudioAvailable = false
+    
     private var speechStartTimestamp: TimeInterval?
     private var sysSpeechStartTimestamp: TimeInterval?
     private var prevMicSpeaking = false
@@ -43,8 +45,10 @@ class AudioSessionCoordinator {
         try await micService.start()
         do {
             try await sysAudioService.start()
+            DispatchQueue.main.async { self.systemAudioAvailable = true }
         } catch {
             print("System audio capture failed, continuing with microphone only: \(error)")
+            DispatchQueue.main.async { self.systemAudioAvailable = false }
         }
         
         isRunning = true

@@ -1,6 +1,6 @@
 #import "LlamaWrapper.h"
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdocumentation"
+#pragma clang diagnostic ignored "-Weverything"
 #import "llama.h"
 #pragma clang diagnostic pop
 #include <string>

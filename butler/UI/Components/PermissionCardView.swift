@@ -26,7 +26,7 @@ struct PermissionCardView: View {
                     icon: "mic.fill",
                     isGranted: permissionsGateway.isMicGranted,
                     action: {
-                        Task {
+                        _ = Task { @MainActor in
                             await permissionsGateway.requestMicPermission()
                         }
                     }
@@ -48,7 +48,7 @@ struct PermissionCardView: View {
                     AudioLevelView(level: micService.audioLevel)
                         .frame(maxWidth: .infinity)
                 }
-                .onAppear { Task { try? await micService.start() } }
+                .onAppear { _ = Task { try? await micService.start() } }
                 .transition(.opacity)
             }
         }

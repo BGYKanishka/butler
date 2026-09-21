@@ -51,10 +51,12 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         audioSessionCoordinator.onSpeechDetected = { [weak self] samples, source in
             Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self = self, await self.sessionIsActive() else { return }
+                print("Session Info: Speech detected from \(source), transcribing...")
                 await MainActor.run { self.state = .processing }
                 do {
                     try await self.whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: source)
                 } catch {
+                    print("Session Error: Transcription failed: \(error)")
                     await MainActor.run {
                         self.state = .error(error)
                     }
@@ -74,6 +76,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         }
         
         questionDetector.onQuestionConfirmed = { [weak self] question in
+            print("Session Info: Question detected! -> \(question)")
             DispatchQueue.main.async {
                 self?.overlayViewModel.setQuestion(question)
                 self?.state = .answering
@@ -185,5 +188,51 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         }
         
         questionDetector.process(transcript: text, source: source)
+    }
+    
+    func testWithAudioFile(path: String) {
+        print("Test Info: Starting audio file test with \(path)")
+        
+        // Ensure engines are loaded
+        Task {
+            do {
+                if !self.isLoadingModels && self.state == .idle {
+                    try await whisperEngine.load()
+                    try await llmEngine.load()
+                }
+                
+                let url = URL(fileURLWithPath: path)
+                let file = try AVAudioFile(forReading: url)
+                guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false) else {
+                    print("Test Error: Could not create audio format")
+                    return
+                }
+                
+                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(file.length)) else {
+                    print("Test Error: Could not create buffer")
+                    return
+                }
+                
+                try file.read(into: buffer)
+                
+                guard let channelData = buffer.floatChannelData?[0] else {
+                    print("Test Error: No channel data")
+                    return
+                }
+                
+                let frameLength = Int(buffer.frameLength)
+                var samples = [Float](repeating: 0.0, count: frameLength)
+                for i in 0..<frameLength {
+                    samples[i] = channelData[i]
+                }
+                
+                print("Test Info: Loaded \(samples.count) samples. Transcribing...")
+                try await whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: .microphone)
+                print("Test Info: Transcription request sent.")
+                
+            } catch {
+                print("Test Error: \(error)")
+            }
+        }
     }
 }
