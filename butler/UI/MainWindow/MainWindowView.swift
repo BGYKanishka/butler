@@ -8,11 +8,41 @@ struct MainWindowView: View {
     var body: some View {
         Group {
             if !micPermission.isGranted || !screenPermission.isGranted {
-                PermissionOnboardingView(micPermission: micPermission, screenPermission: screenPermission)
+                PermissionOnboardingView(micPermission: micPermission, screenPermission: screenPermission, micService: coordinator.micService)
             } else {
                 VStack(spacing: 20) {
-                    Text("butler Session Control")
-                        .font(.headline)
+                    HStack {
+                        Text("butler Session Control")
+                            .font(.headline)
+                        Spacer()
+                        Button(action: {
+                            NotificationCenter.default.post(name: NSNotification.Name("ToggleOverlay"), object: nil)
+                        }) {
+                            Label("Suggestions Overlay", systemImage: "macwindow.on.rectangle")
+                                .font(.system(size: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(8)
+                        .help("Toggle the floating suggestions window (⌥⌘A)")
+                    }
+                    
+                    if case .error(let error) = coordinator.state {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.yellow)
+                            Text(error.localizedDescription)
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color.red.opacity(0.2))
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.5), lineWidth: 1))
+                    }
                     
                     HStack(spacing: 30) {
                         VStack {
@@ -53,23 +83,26 @@ struct MainWindowView: View {
                         Spacer()
                         
                         Button(action: {
-                            if coordinator.state != .idle {
+                            var isError = false
+                            if case .error = coordinator.state { isError = true }
+                            
+                            if coordinator.state != .idle && !isError {
                                 coordinator.stopSession()
                             } else {
                                 coordinator.startSession()
                             }
                         }) {
-                            Text(coordinator.state != .idle ? "Stop Session" : "Start Session")
+                            Text(buttonTitle(for: coordinator.state))
                                 .font(.system(.body, design: .rounded, weight: .semibold))
                                 .frame(minWidth: 100)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(coordinator.state != .idle ? .red : .blue)
+                        .tint(buttonColor(for: coordinator.state))
                         .controlSize(.large)
                     }
                 }
                 .padding()
-                .frame(minWidth: 400, minHeight: 300)
+                .frame(minWidth: 400, minHeight: 350)
             }
         }
         .frame(minWidth: 500, minHeight: 400)
@@ -131,5 +164,19 @@ struct MainWindowView: View {
         case .answering: return "Answering..."
         case .error: return "Error"
         }
+    }
+    
+    private func buttonTitle(for state: SessionState) -> String {
+        if case .error = state {
+            return "Start Session"
+        }
+        return state != .idle ? "Stop Session" : "Start Session"
+    }
+    
+    private func buttonColor(for state: SessionState) -> Color {
+        if case .error = state {
+            return .blue
+        }
+        return state != .idle ? .red : .blue
     }
 }

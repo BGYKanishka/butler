@@ -35,11 +35,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 case .listening:
                     self?.menuBarManager?.setState(.listening)
                     self?.overlayPanel?.makeKeyAndOrderFront(nil)
-                case .processing, .answering:
+                case .processing:
                     self?.menuBarManager?.setState(.processing)
+                case .answering:
+                    self?.menuBarManager?.setState(.processing)
+                    self?.overlayPanel?.makeKeyAndOrderFront(nil)
                 case .error:
                     self?.menuBarManager?.setState(.idle)
+                }
+            }
+            .store(in: &cancellables)
+            
+        NotificationCenter.default.publisher(for: NSNotification.Name("ToggleOverlay"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                if self?.overlayPanel?.isVisible == true {
                     self?.overlayPanel?.orderOut(nil)
+                } else {
+                    self?.overlayPanel?.makeKeyAndOrderFront(nil)
                 }
             }
             .store(in: &cancellables)

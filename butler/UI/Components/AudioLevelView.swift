@@ -22,12 +22,13 @@ struct AudioLevelView: View {
     }
     
     private func heightForBar(at index: Int) -> CGFloat {
-        // level is typically a small float. Multiply to make it more pronounced.
-        let normalizedLevel = CGFloat(level) * 10.0
+        // RMS level is typically a small float (0.01 - 0.1). Multiply to make it more pronounced.
+        // A multiplier of 30.0 makes normal speech more visible.
+        let normalizedLevel = CGFloat(level) * 30.0
         let clampedLevel = min(max(normalizedLevel, 0), 1.0)
         
         let minHeight: CGFloat = 6.0
-        if clampedLevel <= 0.05 {
+        if clampedLevel <= 0.02 { // Lowered noise floor threshold
             return minHeight
         }
         

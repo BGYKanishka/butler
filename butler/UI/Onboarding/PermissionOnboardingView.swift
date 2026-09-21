@@ -3,100 +3,160 @@ import SwiftUI
 struct PermissionOnboardingView: View {
     @ObservedObject var micPermission: MicrophonePermission
     @ObservedObject var screenPermission: ScreenRecordingPermission
+    @ObservedObject var micService: MicrophoneCaptureService
+    
+    @State private var phase = 0.0
     
     var body: some View {
         ZStack {
-            // Dark sleek background with blurred orbs
-            Color.black.ignoresSafeArea()
+            // Futuristic Dark Background
+            Color(white: 0.05).ignoresSafeArea()
+            
+            // Animated Glowing Orbs
+            Circle()
+                .fill(
+                    RadialGradient(gradient: Gradient(colors: [Color.blue.opacity(0.6), Color.clear]), center: .center, startRadius: 10, endRadius: 250)
+                )
+                .frame(width: 500, height: 500)
+                .offset(x: cos(phase) * 100, y: sin(phase) * 100)
+                .blur(radius: 60)
             
             Circle()
-                .fill(Color.blue.opacity(0.3))
-                .frame(width: 300, height: 300)
-                .blur(radius: 100)
-                .offset(x: -150, y: -150)
-            
-            Circle()
-                .fill(Color.purple.opacity(0.3))
+                .fill(
+                    RadialGradient(gradient: Gradient(colors: [Color.purple.opacity(0.5), Color.clear]), center: .center, startRadius: 10, endRadius: 200)
+                )
                 .frame(width: 400, height: 400)
-                .blur(radius: 120)
-                .offset(x: 200, y: 150)
+                .offset(x: -cos(phase) * 150, y: -sin(phase) * 80)
+                .blur(radius: 50)
             
             VStack(spacing: 30) {
-                VStack(spacing: 8) {
+                VStack(spacing: 12) {
                     Text("Welcome to Butler")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .font(.system(size: 42, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
+                        .shadow(color: Color.blue.opacity(0.5), radius: 10, x: 0, y: 0)
                     
-                    Text("We need microphone access to hear your speech,\nand screen recording access to capture system audio.")
+                    Text("To empower your AI meeting assistant, please grant the following permissions.")
                         .font(.system(size: 16, weight: .regular, design: .rounded))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
-                        .lineSpacing(4)
+                        .lineSpacing(6)
+                        .frame(maxWidth: 350)
                 }
                 .padding(.bottom, 20)
                 
-                HStack(spacing: 40) {
+                HStack(spacing: 30) {
                     permissionToggle(
                         title: "Microphone",
                         icon: "mic.fill",
                         isGranted: micPermission.isGranted,
-                        action: { micPermission.requestPermission() }
+                        action: {
+                            micPermission.requestPermission()
+                        }
                     )
                     
                     permissionToggle(
                         title: "System Audio",
-                        icon: "macwindow",
+                        icon: "macwindow.on.rectangle",
                         isGranted: screenPermission.isGranted,
                         action: { screenPermission.requestPermission() }
                     )
                 }
+                
+                if micPermission.isGranted {
+                    VStack(spacing: 8) {
+                        Text("Microphone Input")
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.gray)
+                        
+                        AudioLevelView(level: micService.audioLevel)
+                            .frame(width: 150)
+                            .padding(.top, 4)
+                    }
+                    .padding(.top, 20)
+                    .transition(.opacity)
+                }
             }
-            .padding(40)
+            .padding(50)
             .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                    .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow).clipShape(RoundedRectangle(cornerRadius: 24)))
+                VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
             )
-            .shadow(color: Color.black.opacity(0.5), radius: 20, x: 0, y: 10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .stroke(
+                        LinearGradient(gradient: Gradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.0)]), startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.6), radius: 30, x: 0, y: 20)
         }
-        .frame(minWidth: 500, minHeight: 400)
+        .frame(minWidth: 600, minHeight: 450)
+        .onAppear {
+            withAnimation(.linear(duration: 10).repeatForever(autoreverses: true)) {
+                phase = .pi * 2
+            }
+            
+            // Auto start mic for visualizer if already granted
+            if micPermission.isGranted {
+                Task { try? await micService.start() }
+            }
+        }
+        .onChange(of: micPermission.isGranted) { isGranted in
+            if isGranted {
+                Task { try? await micService.start() }
+            }
+        }
+        .onDisappear {
+            // Stop mic when leaving onboarding
+            micService.stop()
+        }
     }
     
     @ViewBuilder
     private func permissionToggle(title: String, icon: String, isGranted: Bool, action: @escaping () -> Void) -> some View {
         Button(action: {
-            if !isGranted { action() }
-        }) {
-            VStack(spacing: 12) {
-                Image(systemName: isGranted ? "checkmark.circle.fill" : icon)
-                    .font(.system(size: 24))
-                    .foregroundColor(isGranted ? .green : .white)
-                
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                
-                Text(isGranted ? "Granted" : "Grant Access")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(isGranted ? .green.opacity(0.8) : .gray)
+            if !isGranted {
+                action()
             }
-            .frame(width: 120, height: 100)
-            .padding()
+        }) {
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(isGranted ? Color.green.opacity(0.15) : Color.white.opacity(0.05))
+                        .frame(width: 60, height: 60)
+                    
+                    Image(systemName: isGranted ? "checkmark" : icon)
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(isGranted ? .green : .white)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(isGranted ? Color.green.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 1)
+                )
+                
+                VStack(spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    Text(isGranted ? "Granted" : "Grant Access")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(isGranted ? .green.opacity(0.9) : .gray)
+                }
+            }
+            .frame(width: 140, height: 160)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isGranted ? Color.green.opacity(0.1) : Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isGranted ? Color.green.opacity(0.3) : Color.white.opacity(0.1), lineWidth: 1)
-                    )
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.white.opacity(0.03))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(isGranted ? Color.green.opacity(0.3) : Color.white.opacity(0.05), lineWidth: 1)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .animation(.spring(), value: isGranted)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isGranted)
     }
 }
