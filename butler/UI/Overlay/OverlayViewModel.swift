@@ -1,8 +1,13 @@
 import Foundation
 import Combine
 
+struct SubtitleItem: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+}
+
 class OverlayViewModel: ObservableObject {
-    @Published var subtitles: [String] = []
+    @Published var subtitles: [SubtitleItem] = []
     @Published var detectedQuestion: String? = nil
     @Published var llmResponse: String? = nil
     @Published var latency: TimeInterval? = nil
@@ -11,13 +16,16 @@ class OverlayViewModel: ObservableObject {
     private var questionDetectedTime: Date? = nil
     
     func appendSubtitle(_ text: String) {
-        subtitles.append(text)
+        let item = SubtitleItem(text: text)
+        subtitles.append(item)
         if subtitles.count > 3 {
             subtitles.removeFirst()
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            if let index = self.subtitles.firstIndex(of: text) {
+        let itemId = item.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+            guard let self = self else { return }
+            if let index = self.subtitles.firstIndex(where: { $0.id == itemId }) {
                 self.subtitles.remove(at: index)
             }
         }

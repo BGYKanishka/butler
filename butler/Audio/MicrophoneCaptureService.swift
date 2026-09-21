@@ -8,9 +8,7 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject {
     private let engine = AVAudioEngine()
     
     var onSamplesCaptured: (([Float]) -> Void)?
-    private lazy var converter: AudioConverter = {
-        return (try? AudioConverter()) ?? { fatalError("Cannot create audio converter") }()
-    }()
+    private var converter: AudioConverter?
     
     init() {}
     
@@ -23,7 +21,11 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject {
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, time in
             guard let self = self else { return }
             
-            guard let convertedBuffer = self.converter.convert(buffer: buffer),
+            if self.converter == nil {
+                self.converter = try? AudioConverter()
+            }
+            
+            guard let convertedBuffer = self.converter?.convert(buffer: buffer),
                   let channelData = convertedBuffer.floatChannelData?[0] else { return }
             
             let frameLength = Int(convertedBuffer.frameLength)

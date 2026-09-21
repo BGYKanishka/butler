@@ -87,8 +87,8 @@ struct OverlayContentView: View {
             
             if viewModel.detectedQuestion == nil && !viewModel.subtitles.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    ForEach(viewModel.subtitles.suffix(3), id: \.self) { line in
-                        Text(line)
+                    ForEach(viewModel.subtitles.suffix(3)) { item in
+                        Text(item.text)
                             .font(.system(size: 12, design: .rounded))
                             .foregroundColor(.white.opacity(0.6))
                             .lineLimit(2)

@@ -13,7 +13,7 @@ struct LLMConfiguration {
         return val > 0 ? val : 200
     }
     
-    var modelFileName: String = "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"
+    var modelFileName: String = "Llama-3.2-3B-Instruct.gguf"
     
     func getModelPath() -> String {
         let customPath = UserDefaults.standard.string(forKey: "llamaModelPath") ?? ""
@@ -24,7 +24,7 @@ struct LLMConfiguration {
         guard let appSupportURL = try? FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask,
             appropriateFor: nil, create: true) else { return "" }
-        let dirURL = appSupportURL.appendingPathComponent("butler/Models/llm")
+        let dirURL = appSupportURL.appendingPathComponent("RealtimeAssistant/Models/llm")
         return dirURL.appendingPathComponent(modelFileName).path
     }
 }
