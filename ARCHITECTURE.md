@@ -23,7 +23,9 @@ Butler is built with a strictly unidirectional, asynchronous pipeline designed f
    - If a question is detected from a REMOTE source, it triggers the LLM.
 
 5. **Inference** (`LocalLLMEngine`)
-   - Uses `llama.cpp` with a local GGUF model (e.g. Qwen2.5).
+   - Uses `llama.cpp` with a local GGUF model.
+   - Text inference uses `Llama-3.2-3B-Instruct.gguf` by default for performance and RAM constraints.
+   - Multimodal tasks (future V2) will dynamically load `Qwen2.5-VL`.
    - Injected with conversation history via `ContextManager`.
    - Streams tokens via callbacks to the UI thread.
 

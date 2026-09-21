@@ -47,6 +47,10 @@ targets:
         - "-framework Foundation"
         - "-framework Metal"
         - "-framework MetalKit"
+      OTHER_CFLAGS:
+        - "-Wno-documentation"
+      OTHER_CPLUSPLUSFLAGS:
+        - "-Wno-documentation"
 
   butlerTests:
     type: bundle.unit-test

@@ -1,5 +1,8 @@
 #import "LlamaWrapper.h"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"
 #import "llama.h"
+#pragma clang diagnostic pop
 #include <string>
 #include <vector>
 
@@ -37,9 +40,9 @@
     
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = contextSize;
-    _ctx = llama_new_context_with_model(_model, ctx_params);
+    _ctx = llama_init_from_model(_model, ctx_params);
     if (!_ctx) {
-        llama_free_model(_model);
+        llama_model_free(_model);
         _model = NULL;
         _vocab = NULL;
         if (error) *error = [NSError errorWithDomain:@"Llama" code:2 userInfo:@{NSLocalizedDescriptionKey: @"Failed to create context"}];
@@ -55,7 +58,7 @@
         _ctx = NULL;
     }
     if (_model) {
-        llama_free_model(_model);
+        llama_model_free(_model);
         _model = NULL;
         _vocab = NULL;
     }
@@ -75,10 +78,10 @@
     std::string prompt_str = c_prompt;
     std::vector<llama_token> tokens_list(prompt_str.length() + 2); // rough estimate
     
-    int n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), prompt_str.length(), tokens_list.data(), tokens_list.size(), true, true);
+    int n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), (int32_t)prompt_str.length(), tokens_list.data(), (int32_t)tokens_list.size(), true, true);
     if (n_tokens < 0) {
         tokens_list.resize(-n_tokens);
-        n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), prompt_str.length(), tokens_list.data(), tokens_list.size(), true, true);
+        n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), (int32_t)prompt_str.length(), tokens_list.data(), (int32_t)tokens_list.size(), true, true);
     }
     tokens_list.resize(n_tokens);
     

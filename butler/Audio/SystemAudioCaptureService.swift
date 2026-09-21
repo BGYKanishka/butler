@@ -12,9 +12,17 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
     func start() async throws {
         guard !isRunning else { return }
         
+        // Note: We intentionally do NOT guard with CGPreflightScreenCaptureAccess() here.
+        // CGPreflight returns false when running from Xcode with ad-hoc code signing,
+        // even when the user has granted permission in System Settings. Instead, we let
+        // SCShareableContent.excludingDesktopWindows throw if permission is truly denied.
+        // AudioSessionCoordinator catches this and falls back to mic-only capture.
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first else { return }
         
+        // Note: Currently, we exclude no applications and no windows, which means we capture
+        // the entire display's audio output (including notifications and other apps). 
+        // This is a known privacy consideration for V1. Future iterations may filter to specific meeting apps.
         let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
         
         let config = SCStreamConfiguration()

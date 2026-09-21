@@ -2,127 +2,142 @@ import SwiftUI
 
 struct MainWindowView: View {
     @ObservedObject var coordinator: SessionCoordinator
-    @StateObject private var micPermission = MicrophonePermission()
-    @StateObject private var screenPermission = ScreenRecordingPermission()
-    @State private var onboardingSkipped = false
-    
+    @ObservedObject var permissionsGateway: PermissionsGateway
+
+    private var allPermissionsGranted: Bool {
+        permissionsGateway.allPermissionsGranted
+    }
+
+    private var anyPermissionGranted: Bool {
+        permissionsGateway.anyPermissionGranted
+    }
+
     var body: some View {
-        Group {
-            if (!micPermission.isGranted || !screenPermission.isGranted) && !onboardingSkipped {
-                PermissionOnboardingView(micPermission: micPermission, screenPermission: screenPermission, micService: coordinator.micService)
-                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SkipOnboarding"))) { _ in
-                        withAnimation {
-                            onboardingSkipped = true
-                        }
-                        coordinator.startSession()
-                    }
-            } else {
-                VStack(spacing: 20) {
+        ScrollView {
+            VStack(spacing: 16) {
+                // ── Header ──────────────────────────────────────────────
+                HStack {
+                    Text("butler Session Control")
+                        .font(.headline)
+                    Spacer()
+                }
+
+                // ── Inline Permission Card (shown until all are granted) ──
+                if !allPermissionsGranted {
+                    PermissionCardView(
+                        permissionsGateway: permissionsGateway,
+                        micService: coordinator.micService
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                // ── Suggestions area ────────────────────────────────────
+                OverlayContentView(viewModel: coordinator.overlayViewModel)
+                    .frame(minHeight: 150)
+                    .background(Color.white.opacity(0.05))
+                    .cornerRadius(16)
+
+                // ── Error banner ────────────────────────────────────────
+                if case .error(let error) = coordinator.state {
                     HStack {
-                        Text("butler Session Control")
-                            .font(.headline)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow)
+                        Text(error.localizedDescription)
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundColor(.white)
                         Spacer()
-                    }
-                    
-                    // Embedded Suggestions View
-                    OverlayContentView(viewModel: coordinator.overlayViewModel)
-                        .frame(minHeight: 150)
-                        .background(Color.white.opacity(0.05))
-                        .cornerRadius(16)
-                    
-                    if case .error(let error) = coordinator.state {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.yellow)
-                            Text(error.localizedDescription)
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundColor(.white)
-                            Spacer()
-                        }
-                        .padding()
-                        .background(Color.red.opacity(0.2))
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.5), lineWidth: 1))
-                    }
-                    
-                    HStack(spacing: 30) {
-                        VStack {
-                            Text("Microphone")
-                            AudioLevelView(level: coordinator.micService.audioLevel)
-                                .frame(width: 100)
-                        }
-                        
-                        VStack {
-                            Text("System Audio")
-                            AudioLevelView(level: coordinator.sysAudioService.audioLevel)
-                                .frame(width: 100)
-                        }
                     }
                     .padding()
-                    
-                    PerformanceView(coordinator: coordinator)
-                    
-                    TranscriptView(transcripts: coordinator.transcripts)
-                    
-                    HStack(spacing: 16) {
-                        // Visual State Indicator
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(statusColor(for: coordinator.state))
-                                .frame(width: 10, height: 10)
-                                .shadow(color: statusColor(for: coordinator.state).opacity(0.6), radius: 4, x: 0, y: 0)
-                            
-                            Text(statusText(for: coordinator.state))
-                                .font(.system(.subheadline, design: .rounded, weight: .medium))
-                                .foregroundColor(.primary)
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(Capsule())
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            var isError = false
-                            if case .error = coordinator.state { isError = true }
-                            
-                            if coordinator.state != .idle && !isError {
-                                coordinator.stopSession()
-                            } else {
-                                coordinator.startSession()
-                            }
-                        }) {
-                            Text(buttonTitle(for: coordinator.state))
-                                .font(.system(.body, design: .rounded, weight: .semibold))
-                                .frame(minWidth: 100)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(buttonColor(for: coordinator.state))
-                        .controlSize(.large)
+                    .background(Color.red.opacity(0.2))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.5), lineWidth: 1))
+                }
+
+                // ── Audio level meters ──────────────────────────────────
+                HStack(spacing: 30) {
+                    VStack {
+                        Text("Microphone")
+                        AudioLevelView(level: coordinator.micService.audioLevel)
+                            .frame(width: 100)
+                    }
+
+                    VStack {
+                        Text("System Audio")
+                        AudioLevelView(level: coordinator.sysAudioService.audioLevel)
+                            .frame(width: 100)
                     }
                 }
                 .padding()
-                .frame(minWidth: 400, minHeight: 350)
+
+                PerformanceView(coordinator: coordinator)
+
+                TranscriptView(transcripts: coordinator.transcripts)
+
+                // ── Status + Stop/Start ─────────────────────────────────
+                HStack(spacing: 16) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(statusColor(for: coordinator.state))
+                            .frame(width: 10, height: 10)
+                            .shadow(color: statusColor(for: coordinator.state).opacity(0.6), radius: 4, x: 0, y: 0)
+
+                        Text(statusText(for: coordinator.state))
+                            .font(.system(.subheadline, design: .rounded, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(Capsule())
+
+                    Spacer()
+
+                    Button(action: {
+                        var isError = false
+                        if case .error = coordinator.state { isError = true }
+
+                        if coordinator.state != .idle && !isError {
+                            coordinator.stopSession()
+                        } else {
+                            coordinator.startSession()
+                        }
+                    }) {
+                        Text(buttonTitle(for: coordinator.state))
+                            .font(.system(.body, design: .rounded, weight: .semibold))
+                            .frame(minWidth: 100)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(buttonColor(for: coordinator.state))
+                    .controlSize(.large)
+                    .disabled(!anyPermissionGranted)
+                }
             }
+            .padding()
         }
         .frame(minWidth: 500, minHeight: 400)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: anyPermissionGranted)
+        // Auto-start once any permission becomes available
+        .onChange(of: anyPermissionGranted) { _, granted in
+            if granted && coordinator.state == .idle {
+                coordinator.startSession()
+            }
+        }
         .overlay(
             Group {
                 if coordinator.isLoadingModels {
                     ZStack {
                         Color.black.opacity(0.6).ignoresSafeArea()
-                        
+
                         VStack(spacing: 24) {
                             ProgressView()
                                 .scaleEffect(1.5)
                                 .tint(.white)
-                            
+
                             VStack(spacing: 8) {
                                 Text("Waking up AI engines...")
                                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                                     .foregroundColor(.white)
-                                
+
                                 Text("Loading Llama model into Metal unified memory.\nThis may take a few seconds.")
                                     .font(.system(size: 13, weight: .regular, design: .rounded))
                                     .foregroundColor(.gray)
@@ -146,7 +161,7 @@ struct MainWindowView: View {
         )
         .animation(.easeInOut, value: coordinator.isLoadingModels)
     }
-    
+
     private func statusColor(for state: SessionState) -> Color {
         switch state {
         case .idle: return .gray
@@ -156,7 +171,7 @@ struct MainWindowView: View {
         case .error: return .red
         }
     }
-    
+
     private func statusText(for state: SessionState) -> String {
         switch state {
         case .idle: return "Idle"
@@ -166,18 +181,15 @@ struct MainWindowView: View {
         case .error: return "Error"
         }
     }
-    
+
     private func buttonTitle(for state: SessionState) -> String {
-        if case .error = state {
-            return "Start Session"
-        }
+        if case .error = state { return "Start Session" }
         return state != .idle ? "Stop Session" : "Start Session"
     }
-    
+
     private func buttonColor(for state: SessionState) -> Color {
-        if case .error = state {
-            return .blue
-        }
+        if case .error = state { return .blue }
         return state != .idle ? .red : .blue
     }
 }
+

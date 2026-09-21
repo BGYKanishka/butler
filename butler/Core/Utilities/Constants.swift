@@ -1,7 +1,7 @@
 import Foundation
 
 struct Constants {
-    static let appSupportDirectoryName = "RealtimeAssistant"
+    static let appSupportDirectoryName = "butler"
     
     static var modelsDirectory: URL? {
         guard let appSupportURL = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {

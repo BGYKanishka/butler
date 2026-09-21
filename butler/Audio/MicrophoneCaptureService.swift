@@ -1,7 +1,7 @@
 import AVFoundation
 import Combine
 
-class MicrophoneCaptureService: AudioCaptureService, ObservableObject {
+class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecked Sendable {
     @Published var isRunning: Bool = false
     @Published var audioLevel: Float = 0.0
     
@@ -22,7 +22,13 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject {
             guard let self = self else { return }
             
             if self.converter == nil {
-                self.converter = try? AudioConverter()
+                do {
+                    self.converter = try AudioConverter()
+                } catch {
+                    print("Failed to initialize AudioConverter: \(error)")
+                    self.stop()
+                    return
+                }
             }
             
             guard let convertedBuffer = self.converter?.convert(buffer: buffer),

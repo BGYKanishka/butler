@@ -6,7 +6,7 @@ struct butlerApp: App {
     
     var body: some Scene {
         WindowGroup {
-            MainWindowView(coordinator: appDelegate.sessionCoordinator)
+            MainWindowView(coordinator: appDelegate.sessionCoordinator, permissionsGateway: appDelegate.sessionCoordinator.environment.permissionsGateway)
         }
     }
 }

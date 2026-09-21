@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import AVFoundation
 
-class SessionCoordinator: ObservableObject {
+final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     let environment: AppEnvironment
     
     var micService: MicrophoneCaptureService { environment.micService }
@@ -52,7 +52,13 @@ class SessionCoordinator: ObservableObject {
             Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self = self, await self.sessionIsActive() else { return }
                 await MainActor.run { self.state = .processing }
-                try? await self.whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: source)
+                do {
+                    try await self.whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: source)
+                } catch {
+                    await MainActor.run {
+                        self.state = .error(error)
+                    }
+                }
             }
         }
         
@@ -99,23 +105,22 @@ class SessionCoordinator: ObservableObject {
     func startSession() {
         guard state == .idle else { return }
         
-        let status = AVCaptureDevice.authorizationStatus(for: .audio)
-        if status == .notDetermined {
-            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+        Task { @MainActor in
+            let gateway = self.environment.permissionsGateway
+            
+            // Only mic permission is required to start a session.
+            // Screen recording (system audio) is optional — AudioSessionCoordinator
+            // will gracefully fall back to mic-only if it's not available.
+            if gateway.isMicGranted {
+                self.startSessionInternal()
+            } else {
+                let granted = await gateway.requestMicPermission()
                 if granted {
-                    DispatchQueue.main.async {
-                        self?.startSessionInternal()
-                    }
+                    self.startSessionInternal()
                 } else {
-                    DispatchQueue.main.async {
-                        self?.state = .error(AssistantError.permissionDenied("Microphone access is required"))
-                    }
+                    self.state = .error(AssistantError.permissionDenied("Microphone access is required to start a session"))
                 }
             }
-        } else if status == .authorized {
-            startSessionInternal()
-        } else {
-            state = .error(AssistantError.permissionDenied("Microphone access is required"))
         }
     }
     

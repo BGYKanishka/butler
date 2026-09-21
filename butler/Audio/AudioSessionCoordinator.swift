@@ -12,6 +12,7 @@ class AudioSessionCoordinator {
     let sysRingBuffer = AudioRingBuffer(capacity: 320000)
     
     private let vadQueue = DispatchQueue(label: "com.butler.vadQueue", qos: .userInitiated)
+    private var vadTimer: DispatchSourceTimer?
     private var isRunning = false
     
     private var speechStartTimestamp: TimeInterval?
@@ -54,16 +55,22 @@ class AudioSessionCoordinator {
         micService.stop()
         sysAudioService.stop()
         isRunning = false
+        stopVADPolling()
     }
     
     private func startVADPolling() {
-        vadQueue.async { [weak self] in
-            while self?.isRunning == true {
-                self?.processMicVAD()
-                self?.processSysVAD()
-                Thread.sleep(forTimeInterval: 0.1) // 100ms polling interval
-            }
+        vadTimer = DispatchSource.makeTimerSource(queue: vadQueue)
+        vadTimer?.schedule(deadline: .now(), repeating: 0.1)
+        vadTimer?.setEventHandler { [weak self] in
+            self?.processMicVAD()
+            self?.processSysVAD()
         }
+        vadTimer?.resume()
+    }
+    
+    private func stopVADPolling() {
+        vadTimer?.cancel()
+        vadTimer = nil
     }
     
     private func processMicVAD() {

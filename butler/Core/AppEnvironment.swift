@@ -10,6 +10,7 @@ class AppEnvironment: ObservableObject {
     let promptBuilder: PromptBuilder
     let questionDetector: QuestionDetector
     let transcriptAssembler: TranscriptAssembler
+    let permissionsGateway: PermissionsGateway
     
     init(llmEngine: LLMEngine = LocalLLMEngine()) {
         self.micService = MicrophoneCaptureService()
@@ -21,5 +22,6 @@ class AppEnvironment: ObservableObject {
         self.promptBuilder = PromptBuilder()
         self.questionDetector = QuestionDetector()
         self.transcriptAssembler = TranscriptAssembler()
+        self.permissionsGateway = MainActor.assumeIsolated { PermissionsGateway() }
     }
 }

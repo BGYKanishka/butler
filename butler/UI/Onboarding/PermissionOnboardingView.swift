@@ -1,8 +1,7 @@
 import SwiftUI
 
 struct PermissionOnboardingView: View {
-    @ObservedObject var micPermission: MicrophonePermission
-    @ObservedObject var screenPermission: ScreenRecordingPermission
+    @ObservedObject var permissionsGateway: PermissionsGateway
     @ObservedObject var micService: MicrophoneCaptureService
     
     @State private var phase = 0.0
@@ -49,21 +48,23 @@ struct PermissionOnboardingView: View {
                     permissionToggle(
                         title: "Microphone",
                         icon: "mic.fill",
-                        isGranted: micPermission.isGranted,
+                        isGranted: permissionsGateway.isMicGranted,
                         action: {
-                            micPermission.requestPermission()
+                            Task {
+                                await permissionsGateway.requestMicPermission()
+                            }
                         }
                     )
                     
                     permissionToggle(
                         title: "System Audio",
                         icon: "macwindow.on.rectangle",
-                        isGranted: screenPermission.isGranted,
-                        action: { screenPermission.requestPermission() }
+                        isGranted: permissionsGateway.isScreenGranted,
+                        action: { permissionsGateway.requestScreenPermission() }
                     )
                 }
                 
-                if micPermission.isGranted {
+                if permissionsGateway.isMicGranted {
                     VStack(spacing: 8) {
                         Text("Microphone Input")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
@@ -112,11 +113,11 @@ struct PermissionOnboardingView: View {
             }
             
             // Auto start mic for visualizer if already granted
-            if micPermission.isGranted {
+            if permissionsGateway.isMicGranted {
                 Task { try? await micService.start() }
             }
         }
-        .onChange(of: micPermission.isGranted) { isGranted in
+        .onChange(of: permissionsGateway.isMicGranted) { _, isGranted in
             if isGranted {
                 Task { try? await micService.start() }
             }

@@ -1,6 +1,6 @@
 import Foundation
 
-class WhisperEngine: SpeechToTextEngine {
+class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
     private var wrapper: WhisperWrapper?
     private var isLoaded = false
     private let transcriptionQueue = DispatchQueue(label: "com.butler.whisperQueue")
@@ -37,7 +37,7 @@ class WhisperEngine: SpeechToTextEngine {
         guard !samples.isEmpty else { return }
         
         let result: String? = await withCheckedContinuation { continuation in
-            transcriptionQueue.async {
+            transcriptionQueue.async { [weak self] in
                 wrapper.onPartialTranscript = { [weak self] partialText in
                     let text = partialText
                     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -79,3 +79,5 @@ class WhisperEngine: SpeechToTextEngine {
         wrapper?.cancelTranscription()
     }
 }
+
+extension WhisperWrapper: @unchecked Sendable {}

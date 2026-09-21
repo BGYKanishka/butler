@@ -37,14 +37,15 @@ class MicrophonePermission: ObservableObject {
         }
     }
     
-    func requestPermission() {
+    func requestPermission() async -> Bool {
         if isGranted {
-            return
+            return true
         }
-        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-            DispatchQueue.main.async {
-                self?.isGranted = granted
-            }
+        
+        let granted = await AVCaptureDevice.requestAccess(for: .audio)
+        await MainActor.run {
+            self.isGranted = granted
         }
+        return granted
     }
 }
