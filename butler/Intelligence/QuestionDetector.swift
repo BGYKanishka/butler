@@ -40,17 +40,24 @@ class QuestionDetector {
     }
     
     func detect(transcript: String, source: AudioSource) -> QuestionDetectionResult {
+        print("QuestionDetector Info: Received transcript from \(source): '\(transcript)'")
+        
         // Process all transcripts, including user's voice
-        if source == .microphone { return .none }
+        if source == .microphone {
+            print("QuestionDetector Info: Ignored because source is microphone. (Assistant only answers questions from system audio/others in the meeting)")
+            return .none
+        }
 
         let text = transcript.lowercased()
         
         if text.contains("?") {
+            print("QuestionDetector Info: Detected '?' -> Strong Question")
             return .strongQuestion
         }
         
         for phrase in questionPhrases {
             if text.contains(phrase) {
+                print("QuestionDetector Info: Detected phrase '\(phrase)' -> Strong Question")
                 return .strongQuestion
             }
         }
@@ -59,6 +66,7 @@ class QuestionDetector {
         guard let firstWord = words.first else { return .none }
         
         if questionWords.contains(firstWord) {
+            print("QuestionDetector Info: Detected starting word '\(firstWord)' -> Strong Question")
             return .strongQuestion
         }
         

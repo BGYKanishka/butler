@@ -143,7 +143,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 try await whisperEngine.load()
                 try await llmEngine.load()
                 
-                let isVisionEnabled = UserDefaults.standard.bool(forKey: ConfigKey.isVisionEnabled)
+                let _ = UserDefaults.standard.bool(forKey: ConfigKey.isVisionEnabled)
                 try await audioSessionCoordinator.start(includeSystemAudio: self.environment.permissionsGateway.isScreenGranted, micGranted: micGranted)
                 
                 MemoryMonitor.shared.startMonitoring()
@@ -277,17 +277,17 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 if forceAnswer {
                     // Temporarily intercept the next transcription and force it to be answered
                     let originalHandler = self.whisperEngine.onTranscriptionCompleted
-                    self.whisperEngine.onTranscriptionCompleted = { [weak self] segment in
-                        self?.handleTranscription(segment: segment)
+                    self.whisperEngine.onTranscriptionCompleted = { segment in
+                        self.handleTranscription(segment: segment)
                         print("Test Info: Forced answer for: \(segment.text)")
                         DispatchQueue.main.async {
-                            self?.overlayViewModel.setQuestion(segment.text)
-                            self?.state = .answering
+                            self.overlayViewModel.setQuestion(segment.text)
+                            self.state = .answering
                         }
-                        self?.responseGenerator.handleQuestionDetected(segment.text)
+                        self.responseGenerator.handleQuestionDetected(segment.text)
                         
                         // Restore handler
-                        self?.whisperEngine.onTranscriptionCompleted = originalHandler
+                        self.whisperEngine.onTranscriptionCompleted = originalHandler
                     }
                 }
                 

@@ -115,16 +115,7 @@ struct MainWindowView: View {
                     .disabled(!requiredPermissionsGranted)
                 }
                 
-                #if DEBUG
-                // ── Test Tools ──────────────────────────────────────────
-                Button(action: {
-                    coordinator.testWithAudioFile(path: "/Users/yehankanishka/Project/meeting_assistant/system_test_ track.m4a", forceAnswer: true)
-                }) {
-                    Text("Test Audio Track")
-                        .font(.system(.body, design: .rounded))
-                }
-                .padding(.top, 8)
-                #endif
+
             }
             .padding()
         }

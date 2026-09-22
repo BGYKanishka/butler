@@ -65,6 +65,7 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
             }
         }
         
+        print("Whisper raw result: '\(result ?? "nil")'")
         if let text = result, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let segment = TranscriptSegment(
                 id: UUID(),
@@ -77,6 +78,8 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
             )
             onTranscriptionCompleted?(segment)
             print("Whisper transcribed: \(text)")
+        } else {
+            print("Whisper Info: Ignored empty or whitespace-only transcription.")
         }
     }
     

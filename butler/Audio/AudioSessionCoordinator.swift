@@ -100,8 +100,12 @@ class AudioSessionCoordinator: @unchecked Sendable {
         let justStarted = isSpeaking && !prevMicSpeaking
         prevMicSpeaking = isSpeaking
         
-        if justStarted { speechStartTimestamp = ts }
+        if justStarted { 
+            print("VAD Info: Speech started on Mic (RMS: \(rms))")
+            speechStartTimestamp = ts 
+        }
         if justEnded, let start = speechStartTimestamp {
+            print("VAD Info: Speech ended on Mic. Capturing segment...")
             speechStartTimestamp = nil
             let duration = ts - start
             guard duration > 0.5 else { return }
@@ -123,8 +127,12 @@ class AudioSessionCoordinator: @unchecked Sendable {
         let justStarted = isSpeaking && !prevSysSpeaking
         prevSysSpeaking = isSpeaking
         
-        if justStarted { sysSpeechStartTimestamp = ts }
+        if justStarted { 
+            print("VAD Info: Speech started on SystemAudio (RMS: \(rms))")
+            sysSpeechStartTimestamp = ts 
+        }
         if justEnded, let start = sysSpeechStartTimestamp {
+            print("VAD Info: Speech ended on SystemAudio. Capturing segment...")
             sysSpeechStartTimestamp = nil
             let duration = ts - start
             guard duration > 0.5 else { return }

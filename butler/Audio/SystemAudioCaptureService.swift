@@ -27,15 +27,16 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         
         let config = SCStreamConfiguration()
         config.capturesAudio = true
-        config.excludesCurrentProcessAudio = true
+        // Set to false so the internal AVPlayer test track can be captured by SCStream.
+        // If set to true, the app ignores its own audio, making the test track invisible to system audio capture.
+        config.excludesCurrentProcessAudio = false
         config.sampleRate = 16000
         config.channelCount = 1
         
-        // Add minimal video settings and a video output to suppress the 
-        // `_SCStream_RemoteVideoQueueOperationHandlerWithError` console spam.
-        // This is a privacy-surface minimizing workaround (1x1 dummy video).
-        config.width = 1
-        config.height = 1
+        // Use the display's actual dimensions. Some macOS versions silently fail 
+        // to capture audio if the width and height are too small (e.g., 1x1).
+        config.width = display.width
+        config.height = display.height
         config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
         
         stream = SCStream(filter: filter, configuration: config, delegate: nil)
@@ -103,6 +104,8 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         onSamplesCaptured?(samples)
 
         let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(max(1, samples.count)))
-        DispatchQueue.main.async { self.audioLevel = rms }
+        DispatchQueue.main.async {
+            self.audioLevel = rms
+        }
     }
 }

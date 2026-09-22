@@ -9,7 +9,7 @@ class SettingsViewModel: ObservableObject {
     }
     
     func fetchMicrophones() {
-        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
+        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external], mediaType: .audio, position: .unspecified)
         availableMicrophones = discoverySession.devices
         
         let selectedMic = UserDefaults.standard.string(forKey: ConfigKey.selectedMicrophoneID) ?? ""

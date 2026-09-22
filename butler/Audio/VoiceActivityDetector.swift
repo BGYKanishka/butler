@@ -1,8 +1,8 @@
 import Foundation
 
 class VoiceActivityDetector {
-    var speechThreshold: Float = 0.05
-    var silenceThreshold: Float = 0.03
+    var speechThreshold: Float = 0.015
+    var silenceThreshold: Float = 0.01
     var minSpeechDuration: TimeInterval = 0.2
     var maxSilenceInSpeech: TimeInterval = 0.6
     
