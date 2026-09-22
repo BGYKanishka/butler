@@ -5,8 +5,8 @@ enum SessionState: Equatable {
         switch (lhs, rhs) {
         case (.idle, .idle), (.listening, .listening), (.processing, .processing), (.answering, .answering):
             return true
-        case (.error, .error):
-            return true // Simplified for Equatable
+        case (.error(let lhsErr), .error(let rhsErr)):
+            return lhsErr.localizedDescription == rhsErr.localizedDescription
         default:
             return false
         }

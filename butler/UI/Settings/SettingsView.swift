@@ -12,9 +12,9 @@ class SettingsViewModel: ObservableObject {
         let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
         availableMicrophones = discoverySession.devices
         
-        let selectedMic = UserDefaults.standard.string(forKey: "selectedMicrophoneID") ?? ""
+        let selectedMic = UserDefaults.standard.string(forKey: ConfigKey.selectedMicrophoneID) ?? ""
         if selectedMic.isEmpty, let first = availableMicrophones.first {
-            UserDefaults.standard.set(first.uniqueID, forKey: "selectedMicrophoneID")
+            UserDefaults.standard.set(first.uniqueID, forKey: ConfigKey.selectedMicrophoneID)
         }
     }
     
@@ -24,7 +24,7 @@ class SettingsViewModel: ObservableObject {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
-            UserDefaults.standard.set(url.path, forKey: "whisperModelPath")
+            UserDefaults.standard.set(url.path, forKey: ConfigKey.whisperModelPath)
         }
     }
     
@@ -34,7 +34,7 @@ class SettingsViewModel: ObservableObject {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
-            UserDefaults.standard.set(url.path, forKey: "llamaModelPath")
+            UserDefaults.standard.set(url.path, forKey: ConfigKey.llamaModelPath)
         }
     }
 }
@@ -42,13 +42,14 @@ class SettingsViewModel: ObservableObject {
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     
-    @AppStorage("selectedMicrophoneID") private var selectedMicrophoneID: String = ""
-    @AppStorage("whisperModelPath") private var whisperModelPath: String = ""
-    @AppStorage("llamaModelPath") private var llamaModelPath: String = ""
+    @AppStorage(ConfigKey.selectedMicrophoneID) private var selectedMicrophoneID: String = ""
+    @AppStorage(ConfigKey.whisperModelPath) private var whisperModelPath: String = ""
+    @AppStorage(ConfigKey.llamaModelPath) private var llamaModelPath: String = ""
     
-    @AppStorage("llmTemperature") private var llmTemperature: Double = 0.3
-    @AppStorage("llmMaxTokens") private var llmMaxTokens: Int = 200
-    @AppStorage("saveTranscripts") private var saveTranscripts: Bool = false
+    @AppStorage(ConfigKey.llmTemperature) private var llmTemperature: Double = 0.3
+    @AppStorage(ConfigKey.llmMaxTokens) private var llmMaxTokens: Int = 200
+    @AppStorage(ConfigKey.saveTranscripts) private var saveTranscripts: Bool = false
+    @AppStorage(ConfigKey.modelProfile) private var modelProfile: ModelProfile = .fast
     
     var body: some View {
         TabView {
@@ -108,6 +109,12 @@ struct SettingsView: View {
                         }), in: 50...1000, step: 10)
                         Text("\(llmMaxTokens)")
                             .frame(width: 40)
+                    }
+                    
+                    Picker("Model Profile:", selection: $modelProfile) {
+                        ForEach(ModelProfile.allCases, id: \.self) { profile in
+                            Text(profile.rawValue.capitalized).tag(profile)
+                        }
                     }
                 }
             }

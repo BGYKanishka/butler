@@ -32,26 +32,30 @@ struct PermissionCardView: View {
                     title: "System Audio",
                     icon: "speaker.wave.2.fill",
                     isGranted: permissionsGateway.isScreenGranted,
-                    action: { permissionsGateway.requestScreenPermission() }
+                    pollingGaveUp: permissionsGateway.screenPermission.pollingGaveUp,
+                    action: { permissionsGateway.requestScreenPermission() },
+                    checkAgainAction: { permissionsGateway.screenPermission.checkPermission(allowFallback: true) }
                 )
                 
                 permissionButton(
                     title: "Vision",
                     icon: "eye.fill",
                     isGranted: permissionsGateway.isScreenGranted,
-                    action: { permissionsGateway.requestScreenPermission() }
+                    pollingGaveUp: permissionsGateway.screenPermission.pollingGaveUp,
+                    action: { permissionsGateway.requestScreenPermission() },
+                    checkAgainAction: { permissionsGateway.screenPermission.checkPermission(allowFallback: true) }
                 )
             }
 
             if permissionsGateway.isMicGranted {
                 HStack(spacing: 8) {
-                    Image(systemName: "waveform")
+                    Image(systemName: "mic.fill")
                         .foregroundColor(.green)
                         .font(.caption)
-                    AudioLevelView(level: micService.audioLevel)
-                        .frame(maxWidth: .infinity)
+                    Text("Microphone Ready")
+                        .font(.caption)
+                        .foregroundColor(.green)
                 }
-                .onAppear { _ = Task { try? await micService.start() } }
                 .transition(.opacity)
             }
         }
@@ -74,9 +78,19 @@ struct PermissionCardView: View {
         title: String,
         icon: String,
         isGranted: Bool,
-        action: @escaping () -> Void
+        pollingGaveUp: Bool = false,
+        action: @escaping () -> Void,
+        checkAgainAction: (() -> Void)? = nil
     ) -> some View {
-        Button(action: { if !isGranted { action() } }) {
+        Button(action: { 
+            if !isGranted { 
+                if pollingGaveUp {
+                    checkAgainAction?()
+                } else {
+                    action() 
+                }
+            } 
+        }) {
             HStack(spacing: 8) {
                 Image(systemName: isGranted ? "checkmark.circle.fill" : icon)
                     .foregroundColor(isGranted ? .green : .secondary)
@@ -85,9 +99,9 @@ struct PermissionCardView: View {
                     Text(title)
                         .font(.system(.caption, design: .rounded, weight: .semibold))
                         .foregroundColor(.primary)
-                    Text(isGranted ? "Granted" : "Tap to grant")
+                    Text(isGranted ? "Granted" : (pollingGaveUp ? "Check Again" : "Tap to grant"))
                         .font(.system(size: 10, weight: .regular))
-                        .foregroundColor(isGranted ? .green : .secondary)
+                        .foregroundColor(isGranted ? .green : (pollingGaveUp ? .orange : .secondary))
                 }
                 Spacer()
             }

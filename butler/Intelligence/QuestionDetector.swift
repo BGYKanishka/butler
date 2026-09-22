@@ -41,8 +41,8 @@ class QuestionDetector {
     
     func detect(transcript: String, source: AudioSource) -> QuestionDetectionResult {
         // Process all transcripts, including user's voice
+        if source == .microphone { return .none }
 
-        
         let text = transcript.lowercased()
         
         if text.contains("?") {

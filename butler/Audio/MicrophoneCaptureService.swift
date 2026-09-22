@@ -12,6 +12,16 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
     
     init() {
         engine.attach(mixer)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleConfigurationChange),
+            name: .AVAudioEngineConfigurationChange, object: engine)
+    }
+    
+    @objc private func handleConfigurationChange() {
+        guard isRunning else { return }
+        mixer.removeTap(onBus: 0)
+        engine.stop()
+        Task { try? await start() }
     }
     
     func start() async throws {
@@ -29,7 +39,14 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         
         // Connect mixer to main mixer to establish the graph for conversion
         let mainMixer = engine.mainMixerNode
-        engine.connect(mixer, to: mainMixer, format: targetFormat)
+        engine.connect(mixer, to: mainMixer, format: nil)
+        
+        // Fix for kAudioUnitErr_TooManyFramesToProcess (-10874)
+        // When sample rate conversion occurs, the requested frame count can occasionally 
+        // exceed the default 512 max frames per slice (e.g. 513).
+        let maxFrames: AVAudioFrameCount = 4096
+        inputNode.auAudioUnit.maximumFramesToRender = maxFrames
+        mixer.auAudioUnit.maximumFramesToRender = maxFrames
         
         // Mute the mixer so we don't hear microphone feedback
         mixer.outputVolume = 0.0

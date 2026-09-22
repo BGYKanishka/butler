@@ -4,7 +4,7 @@ struct MainWindowView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @ObservedObject var permissionsGateway: PermissionsGateway
 
-    @AppStorage("isVisionEnabled") private var isVisionEnabled = false
+    @AppStorage(ConfigKey.isVisionEnabled) private var isVisionEnabled = false
 
     private var requiredPermissionsGranted: Bool {
         permissionsGateway.anyPermissionGranted
@@ -26,14 +26,13 @@ struct MainWindowView: View {
                         .toggleStyle(.switch)
                 }
 
-                // ── Inline Permission Card (shown until required are granted) ──
-                if !requiredPermissionsGranted || (!permissionsGateway.isScreenGranted && isVisionEnabled) {
-                    PermissionCardView(
-                        permissionsGateway: permissionsGateway,
-                        micService: coordinator.micService
-                    )
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
+                // ── Inline Permission Card ──
+                PermissionCardView(
+                    permissionsGateway: permissionsGateway,
+                    micService: coordinator.micService
+                )
+                .transition(.move(edge: .top).combined(with: .opacity))
+
 
                 // ── Suggestions area ────────────────────────────────────
                 OverlayContentView(viewModel: coordinator.overlayViewModel)
@@ -116,6 +115,7 @@ struct MainWindowView: View {
                     .disabled(!requiredPermissionsGranted)
                 }
                 
+                #if DEBUG
                 // ── Test Tools ──────────────────────────────────────────
                 Button(action: {
                     coordinator.testWithAudioFile(path: "/Users/yehankanishka/Project/meeting_assistant/system_test_ track.m4a", forceAnswer: true)
@@ -124,6 +124,7 @@ struct MainWindowView: View {
                         .font(.system(.body, design: .rounded))
                 }
                 .padding(.top, 8)
+                #endif
             }
             .padding()
         }

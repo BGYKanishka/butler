@@ -4,6 +4,7 @@ class LocalLLMEngine: LLMEngine {
     private let wrapper = LlamaWrapper()
     private let config = LLMConfiguration()
     private var isLoaded = false
+    private let inferenceQueue = DispatchQueue(label: "com.butler.llmQueue")
     
     func load() async throws {
         guard !isLoaded else { return }
@@ -28,8 +29,10 @@ class LocalLLMEngine: LLMEngine {
     }
     
     func unload() {
-        wrapper.unload()
-        isLoaded = false
+        inferenceQueue.sync {
+            self.wrapper.unload()
+            self.isLoaded = false
+        }
     }
     
     func generateStreaming(prompt: String, onToken: @escaping (String) -> Void) async throws {
@@ -40,19 +43,25 @@ class LocalLLMEngine: LLMEngine {
         
         print("LLM Info: Starting generation with prompt:\n\(prompt)")
         
-        await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return }
-            var tokenCount = 0
-            let startTime = Date()
-            
-            self.wrapper.generateStreaming(prompt, temperature: self.config.temperature, maxTokens: Int32(self.config.maxTokens)) { token in
-                tokenCount += 1
-                onToken(token)
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            inferenceQueue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume()
+                    return
+                }
+                var tokenCount = 0
+                let startTime = Date()
+                
+                self.wrapper.generateStreaming(prompt, temperature: self.config.temperature, maxTokens: Int32(self.config.maxTokens)) { token in
+                    tokenCount += 1
+                    onToken(token)
+                }
+                
+                let duration = Date().timeIntervalSince(startTime)
+                print("LLM Info: Generation completed. Generated \(tokenCount) tokens in \(String(format: "%.2f", duration))s (\(String(format: "%.2f", duration > 0 ? Double(tokenCount) / duration : 0)) tokens/sec)")
+                continuation.resume()
             }
-            
-            let duration = Date().timeIntervalSince(startTime)
-            print("LLM Info: Generation completed. Generated \(tokenCount) tokens in \(String(format: "%.2f", duration))s (\(String(format: "%.2f", duration > 0 ? Double(tokenCount) / duration : 0)) tokens/sec)")
-        }.value
+        }
     }
     
     func cancel() {

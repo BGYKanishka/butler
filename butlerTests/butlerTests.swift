@@ -35,7 +35,7 @@ final class butlerTests: XCTestCase {
         XCTAssertEqual(detector.detect(transcript: "Hello world.", source: .system), .none)
         XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .system), .strongQuestion)
         XCTAssertEqual(detector.detect(transcript: "I heard what happened.", source: .system), .possibleQuestion)
-        XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .microphone), .strongQuestion)
+        XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .microphone), .none)
     }
     
     func testContextManager() async throws {

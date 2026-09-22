@@ -100,8 +100,9 @@
     }
     
     int n_cur = n_tokens;
+    int n_generated = 0;
     
-    while (n_cur <= maxTokens) {
+    while (n_generated < maxTokens) {
         if (_isCancelled) break;
         
         llama_token new_token_id = llama_sampler_sample(smpl, _ctx, -1);
@@ -128,6 +129,7 @@
         }
         
         n_cur += 1;
+        n_generated += 1;
     }
     
     llama_sampler_free(smpl);

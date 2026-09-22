@@ -35,7 +35,7 @@ struct PermissionOnboardingView: View {
                         .foregroundColor(.white)
                         .shadow(color: Color.blue.opacity(0.5), radius: 10, x: 0, y: 0)
                     
-                    Text("To empower your AI meeting assistant, please grant the following permissions.")
+                    Text("To empower your AI meeting assistant, please grant the following permissions. (Note: System Audio captures all audio from your display, including other apps).")
                         .font(.system(size: 16, weight: .regular, design: .rounded))
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -56,22 +56,27 @@ struct PermissionOnboardingView: View {
                         title: "System Audio",
                         icon: "macwindow.on.rectangle",
                         isGranted: permissionsGateway.isScreenGranted,
-                        action: { permissionsGateway.requestScreenPermission() }
+                        pollingGaveUp: permissionsGateway.screenPermission.pollingGaveUp,
+                        action: { permissionsGateway.requestScreenPermission() },
+                        checkAgainAction: { permissionsGateway.screenPermission.checkPermission(allowFallback: true) }
                     )
                 }
                 
-                if permissionsGateway.isMicGranted {
-                    VStack(spacing: 8) {
-                        Text("Microphone Input")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.gray)
-                        
-                        AudioLevelView(level: micService.audioLevel)
-                            .frame(width: 150)
-                            .padding(.top, 4)
+                if permissionsGateway.anyPermissionGranted {
+                    if permissionsGateway.isMicGranted {
+                        VStack(spacing: 8) {
+                            Text("Microphone Input")
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.gray)
+                            
+                            Text("Microphone Ready")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(.green)
+                                .padding(.top, 4)
+                        }
+                        .padding(.top, 20)
+                        .transition(.opacity)
                     }
-                    .padding(.top, 20)
-                    .transition(.opacity)
                     
                     Button(action: {
                         NotificationCenter.default.post(name: NSNotification.Name("SkipOnboarding"), object: nil)
@@ -107,27 +112,26 @@ struct PermissionOnboardingView: View {
             withAnimation(.linear(duration: 10).repeatForever(autoreverses: true)) {
                 phase = .pi * 2
             }
-            
-            // Auto start mic for visualizer if already granted
-            if permissionsGateway.isMicGranted {
-                Task { try? await micService.start() }
-            }
-        }
-        .onChange(of: permissionsGateway.isMicGranted) { _, isGranted in
-            if isGranted {
-                Task { try? await micService.start() }
-            }
-        }
-        .onDisappear {
-            // Stop mic when leaving onboarding
-            micService.stop()
         }
     }
     
     @ViewBuilder
-    private func permissionToggle(title: String, icon: String, isGranted: Bool, action: @escaping () -> Void) -> some View {
+    private func permissionToggle(
+        title: String, 
+        icon: String, 
+        isGranted: Bool, 
+        pollingGaveUp: Bool = false, 
+        action: @escaping () -> Void, 
+        checkAgainAction: (() -> Void)? = nil
+    ) -> some View {
         Button(action: {
-            action()
+            if !isGranted {
+                if pollingGaveUp {
+                    checkAgainAction?()
+                } else {
+                    action()
+                }
+            }
         }) {
             VStack(spacing: 16) {
                 ZStack {
@@ -149,9 +153,9 @@ struct PermissionOnboardingView: View {
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
                     
-                    Text(isGranted ? "Granted" : "Grant Access")
+                    Text(isGranted ? "Granted" : (pollingGaveUp ? "Check Again" : "Grant Access"))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundColor(isGranted ? .green.opacity(0.9) : .gray)
+                        .foregroundColor(isGranted ? .green.opacity(0.9) : (pollingGaveUp ? .orange : .gray))
                 }
             }
             .frame(width: 140, height: 160)

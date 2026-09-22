@@ -24,36 +24,32 @@ class MockLLMEngine: LLMEngine {
     func cancel() {}
 }
 
+@MainActor
 final class EndToEndFlowTests: XCTestCase {
 
-    func testMicrophoneVoiceTriggersSuggestion() async throws {
+    func testMicrophoneVoiceDoesNotTriggerSuggestion() async throws {
         let mockLLMEngine = MockLLMEngine()
         let environment = AppEnvironment(llmEngine: mockLLMEngine)
         let coordinator = SessionCoordinator(environment: environment)
         
-        let expectation = XCTestExpectation(description: "LLM response completed")
+        let expectation = XCTestExpectation(description: "LLM response should NOT complete")
+        expectation.isInverted = true
         
-        // Mock the response generator's completion block or observe overlayViewModel
         let cancellable = coordinator.overlayViewModel.$statusText.sink { status in
             if status == "Completed" {
                 expectation.fulfill()
             }
         }
         
-        // Wait, the SessionCoordinator doesn't need to load engines if we just simulate speech, BUT the ResponseGenerator will try to use llmEngine.
-        // Also simulateSpeechDetected relies on state == .listening to process audio if testing audio directly, but simulateSpeechDetected bypasses the state check.
-        // But for mockLLMEngine, since the LLMEngine does not throw if not loaded, it will just work! Wait, our mock doesn't throw if not loaded.
-        
-        // Since we changed QuestionDetector to also accept .microphone, let's test it:
+        // Microphone input should not trigger question detection
         coordinator.simulateSpeechDetected(text: "What is the capital of France?", source: .microphone)
         
-        // We wait for the debounce of QuestionDetector (0.5s) and the generation duration
-        await fulfillment(of: [expectation], timeout: 5.0)
+        // Wait for debounce (0.5s) + safety margin to ensure no trigger occurred
+        await fulfillment(of: [expectation], timeout: 1.5)
         cancellable.cancel()
         
-        XCTAssertEqual(coordinator.state, .listening)
-        // Check that overlay text has our mock generated text
-        XCTAssertTrue((coordinator.overlayViewModel.llmResponse ?? "").contains("mock suggestion"), "The overlay should contain the suggested text.")
+        XCTAssertEqual(coordinator.state, .idle)
+        XCTAssertNil(coordinator.overlayViewModel.llmResponse, "The overlay should NOT contain suggested text for microphone input.")
     }
     
     func testSystemAudioTriggersSuggestion() async throws {

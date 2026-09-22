@@ -5,6 +5,7 @@ import ScreenCaptureKit
 @MainActor
 class ScreenRecordingPermission: ObservableObject {
     @Published var isGranted: Bool = false
+    @Published var pollingGaveUp: Bool = false
     private var observer: Any?
     
     init() {
@@ -27,13 +28,13 @@ class ScreenRecordingPermission: ObservableObject {
     }
     
     /// Checks screen recording permission silently.
-    /// Uses CGPreflightScreenCaptureAccess() and falls back to SCShareableContent on failure.
-    func checkPermission() {
+    /// Uses CGPreflightScreenCaptureAccess() and falls back to SCShareableContent on failure if allowFallback is true.
+    func checkPermission(allowFallback: Bool = false) {
         if isGranted { return }
         
         if CGPreflightScreenCaptureAccess() {
             isGranted = true
-        } else {
+        } else if allowFallback {
             // Fall back to SCShareableContent because of Xcode's ad-hoc code signing
             verifySilentlyWithSCShareableContent()
         }
@@ -56,6 +57,7 @@ class ScreenRecordingPermission: ObservableObject {
     /// Shows the system dialog once, then opens System Settings and polls.
     func requestPermission() {
         if isGranted { return }
+        pollingGaveUp = false
         
         // CGRequestScreenCaptureAccess() shows the system prompt once per app launch.
         // Subsequent calls are no-ops that return false immediately.
@@ -79,11 +81,14 @@ class ScreenRecordingPermission: ObservableObject {
     /// Polls using only CGPreflight (silent) + SCShareableContent fallback.
     /// No CGRequestScreenCaptureAccess() — that would re-trigger the dialog.
     private func pollPermission(attempts: Int) {
-        guard attempts > 0 && !isGranted else { return }
+        guard attempts > 0 && !isGranted else {
+            if !isGranted { self.pollingGaveUp = true }
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             Task { @MainActor in
                 guard let self = self else { return }
-                self.checkPermission()
+                self.checkPermission(allowFallback: true)
                 
                 // checkPermission is partially async (SCShareableContent), so wait
                 // a beat before checking if we need to continue polling.

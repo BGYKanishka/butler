@@ -32,9 +32,10 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         config.channelCount = 1
         
         // Add minimal video settings and a video output to suppress the 
-        // `_SCStream_RemoteVideoQueueOperationHandlerWithError` console spam
-        config.width = 16
-        config.height = 16
+        // `_SCStream_RemoteVideoQueueOperationHandlerWithError` console spam.
+        // This is a privacy-surface minimizing workaround (1x1 dummy video).
+        config.width = 1
+        config.height = 1
         config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
         
         stream = SCStream(filter: filter, configuration: config, delegate: nil)
@@ -63,6 +64,10 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio else { return }
         guard CMSampleBufferIsValid(sampleBuffer) else { return }
+        
+        guard let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
+        let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDesc)
+        guard let format = asbd?.pointee, format.mFormatID == kAudioFormatLinearPCM, (format.mFormatFlags & kAudioFormatFlagIsFloat) != 0 else { return }
 
         // Query required size first
         var ablSize = 0

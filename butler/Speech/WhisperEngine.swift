@@ -28,8 +28,10 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
     }
     
     func unload() {
-        wrapper = nil // ARC will call dealloc which calls whisper_free()
-        isLoaded = false
+        transcriptionQueue.sync {
+            self.wrapper = nil // ARC will call dealloc which calls whisper_free()
+            self.isLoaded = false
+        }
     }
     
     var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?

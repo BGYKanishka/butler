@@ -36,8 +36,9 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         
         responseGenerator.onResponseCompleted = { [weak self] in
             DispatchQueue.main.async {
-                self?.overlayViewModel.statusText = "Completed"
-                self?.state = .listening // M7: Reset state so session can continue
+                guard let self = self, self.state == .answering else { return }
+                self.overlayViewModel.statusText = "Completed"
+                self.state = .listening // M7: Reset state so session can continue
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
@@ -52,7 +53,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self = self, await self.sessionIsActive() else { return }
                 print("Session Info: Speech detected from \(source), transcribing...")
-                await MainActor.run { self.state = .processing }
                 do {
                     try await self.whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: source)
                 } catch {
@@ -103,7 +103,12 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         questionDetector.process(transcript: segment.text, source: segment.source)
     }
     
-    @MainActor private func sessionIsActive() -> Bool { state == .listening }
+    @MainActor private func sessionIsActive() -> Bool {
+        switch state {
+        case .idle, .error: return false
+        default: return true
+        }
+    }
     
     func startSession() {
         guard state == .idle else { return }
@@ -138,8 +143,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 try await whisperEngine.load()
                 try await llmEngine.load()
                 
-                let isVisionEnabled = UserDefaults.standard.bool(forKey: "isVisionEnabled")
-                try await audioSessionCoordinator.start(includeSystemAudio: isVisionEnabled, micGranted: micGranted)
+                let isVisionEnabled = UserDefaults.standard.bool(forKey: ConfigKey.isVisionEnabled)
+                try await audioSessionCoordinator.start(includeSystemAudio: self.environment.permissionsGateway.isScreenGranted, micGranted: micGranted)
                 
                 MemoryMonitor.shared.startMonitoring()
                 
