@@ -6,13 +6,11 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
     @Published var audioLevel: Float = 0.0
     
     private let engine = AVAudioEngine()
-    private let mixer = AVAudioMixerNode()
-    private var sinkNode: AVAudioSinkNode?
+    private var converter: AVAudioConverter?
     
     var onSamplesCaptured: (([Float]) -> Void)?
     
     init() {
-        engine.attach(mixer)
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleConfigurationChange),
             name: .AVAudioEngineConfigurationChange, object: engine)
@@ -30,53 +28,58 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
         
-        // Connect input to mixer
-        engine.connect(inputNode, to: mixer, format: inputFormat)
-        
         guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false) else {
             throw AssistantError.initializationFailed("Failed to create target format")
         }
         
-        let maxFrames: AVAudioFrameCount = 4096
-        inputNode.auAudioUnit.maximumFramesToRender = maxFrames
-        mixer.auAudioUnit.maximumFramesToRender = maxFrames
+        guard let audioConverter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
+            throw AssistantError.initializationFailed("Failed to create audio converter")
+        }
+        self.converter = audioConverter
         
-        // Create the sink node to receive the converted audio
-        let sink = AVAudioSinkNode { [weak self] (timestamp, frameCount, audioBufferList) -> OSStatus in
-            guard let self = self else { return noErr }
-            let mutableABL = UnsafeMutablePointer<AudioBufferList>(mutating: audioBufferList)
-            let abl = UnsafeMutableAudioBufferListPointer(mutableABL)
-            guard let buffer = abl.first else { return noErr }
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] (buffer, time) in
+            guard let self = self else { return }
             
-            let frameLength = Int(frameCount)
+            // Calculate capacity for the converted buffer
+            let ratio = targetFormat.sampleRate / inputFormat.sampleRate
+            // Add a small padding to the capacity just in case
+            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1024
+            
+            guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return }
+            
+            var error: NSError?
+            var inputConsumed = false
+            let status = self.converter?.convert(to: outputBuffer, error: &error) { inNumPackets, outStatus in
+                if inputConsumed {
+                    outStatus.pointee = .noDataNow
+                    return nil
+                }
+                inputConsumed = true
+                outStatus.pointee = .haveData
+                return buffer
+            }
+            
+            guard status != .error, error == nil else { return }
+            
+            let frameLength = Int(outputBuffer.frameLength)
             var samples = [Float](repeating: 0.0, count: frameLength)
             var rms: Float = 0
             
-            if let data = buffer.mData {
-                let floatData = data.assumingMemoryBound(to: Float.self)
+            if let channelData = outputBuffer.floatChannelData?[0] {
                 for i in 0..<frameLength {
-                    let sample = floatData[i]
+                    let sample = channelData[i]
                     samples[i] = sample
                     rms += sample * sample
                 }
             }
             
             rms = sqrt(rms / Float(max(1, frameLength)))
-            
             self.onSamplesCaptured?(samples)
             
             DispatchQueue.main.async {
                 self.audioLevel = rms
             }
-            return noErr
         }
-        
-        self.sinkNode = sink
-        engine.attach(sink)
-        
-        // Connect the graph: input -> mixer -> sink
-        // The mixer handles the format conversion from inputFormat (48000Hz) to targetFormat (16000Hz)
-        engine.connect(mixer, to: sink, format: targetFormat)
         
         engine.prepare()
         try engine.start()
@@ -88,11 +91,8 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
     
     func stop() {
         guard isRunning else { return }
+        engine.inputNode.removeTap(onBus: 0)
         engine.stop()
-        if let sink = sinkNode {
-            engine.detach(sink)
-            sinkNode = nil
-        }
         
         DispatchQueue.main.async {
             self.isRunning = false

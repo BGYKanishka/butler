@@ -3,47 +3,47 @@ import SwiftUI
 struct AudioLevelView: View {
     var level: Float
     
+    // Smooth the level for animations
+    @State private var animatedLevel: CGFloat = 0.0
+    
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<12, id: \.self) { index in
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8)]),
-                            startPoint: .bottom,
-                            endPoint: .top
-                        )
-                    )
-                    .frame(width: 6, height: heightForBar(at: index))
-                    .animation(.spring(response: 0.15, dampingFraction: 0.6), value: level)
+        ZStack {
+            // Background container
+            Capsule()
+                .fill(Color.black.opacity(0.1))
+                .frame(width: 80, height: 32)
+                .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
+            
+            // Glowing pulsing orbs
+            HStack(spacing: -10) {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 20, height: 20)
+                    .scaleEffect(1.0 + (animatedLevel * 0.5))
+                    .blur(radius: 4)
+                    .blendMode(.screen)
+                
+                Circle()
+                    .fill(Color.purple)
+                    .frame(width: 20, height: 20)
+                    .scaleEffect(1.0 + (animatedLevel * 0.8))
+                    .blur(radius: 4)
+                    .blendMode(.screen)
+                
+                Circle()
+                    .fill(Color.pink)
+                    .frame(width: 20, height: 20)
+                    .scaleEffect(1.0 + (animatedLevel * 0.6))
+                    .blur(radius: 4)
+                    .blendMode(.screen)
             }
         }
-        .frame(height: 32, alignment: .center)
-    }
-    
-    private func heightForBar(at index: Int) -> CGFloat {
-        // RMS level is typically a small float (0.01 - 0.1). Multiply to make it more pronounced.
-        // A multiplier of 30.0 makes normal speech more visible.
-        let normalizedLevel = CGFloat(level) * 30.0
-        let clampedLevel = min(max(normalizedLevel, 0), 1.0)
-        
-        let minHeight: CGFloat = 6.0
-        if clampedLevel <= 0.02 { // Lowered noise floor threshold
-            return minHeight
+        .onChange(of: level) { _, newValue in
+            // Normalize level (RMS usually small)
+            let normalized = min(max(CGFloat(newValue) * 30.0, 0), 1.0)
+            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
+                animatedLevel = normalized
+            }
         }
-        
-        // Shape the waveform (bell curve / sine wave shape across the bars)
-        let phase = Double(index) / 11.0 * .pi
-        let intensity = CGFloat(sin(phase))
-        
-        // Add a pseudo-random modifier based on the index and current level so bars move independently
-        let pseudoRandom = CGFloat(sin(Double(index) * 1.5 + Double(clampedLevel * 10)))
-        let variation = 0.7 + (0.3 * pseudoRandom)
-        
-        let maxHeight: CGFloat = 32.0
-        
-        let targetHeight = minHeight + (maxHeight - minHeight) * clampedLevel * intensity * variation
-        
-        return max(minHeight, targetHeight)
     }
 }

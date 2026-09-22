@@ -4,46 +4,72 @@ struct TranscriptView: View {
     let transcripts: [TranscriptSegment]
     
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Live Transcript")
-                .font(.headline)
-                .padding(.bottom, 4)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 4)
             
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 12) {
                         ForEach(transcripts, id: \.id) { segment in
-                            HStack(alignment: .top) {
-                                Text(segment.source == .microphone ? "[LOCAL]" : "[REMOTE]")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(segment.source == .microphone ? .blue : .green)
-                                
-                                Text(segment.text)
-                                    .font(.body)
-                                    .foregroundColor(segment.isFinal ? .primary : .secondary)
-                            }
-                            .id(segment.id)
+                            ChatBubbleView(segment: segment)
+                                .id(segment.id)
                         }
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .onChange(of: transcripts.count) { _ in
                         if let last = transcripts.last {
-                            withAnimation {
+                            withAnimation(.easeOut(duration: 0.2)) {
                                 proxy.scrollTo(last.id, anchor: .bottom)
                             }
                         }
                     }
                 }
             }
-            .frame(height: 150)
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
+            .frame(height: 300)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+            .cornerRadius(16)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.15), lineWidth: 1)
             )
+        }
+    }
+}
+
+struct ChatBubbleView: View {
+    let segment: TranscriptSegment
+    
+    var isLocal: Bool {
+        segment.source == .microphone
+    }
+    
+    var body: some View {
+        HStack {
+            if isLocal { Spacer(minLength: 40) }
+            
+            VStack(alignment: isLocal ? .trailing : .leading, spacing: 4) {
+                Text(isLocal ? "You" : "Remote")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 4)
+                
+                Text(segment.text)
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundColor(isLocal ? .white : .primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(isLocal ? Color.blue.opacity(0.9) : Color(NSColor.windowBackgroundColor))
+                    .cornerRadius(16)
+                    .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    .opacity(segment.isFinal ? 1.0 : 0.6)
+            }
+            
+            if !isLocal { Spacer(minLength: 40) }
         }
     }
 }
