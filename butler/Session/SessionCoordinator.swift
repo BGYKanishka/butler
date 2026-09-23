@@ -12,7 +12,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     var llmEngine: LLMEngine { environment.llmEngine }
     var contextManager: ContextManager { environment.contextManager }
     var promptBuilder: PromptBuilder { environment.promptBuilder }
-    var questionDetector: QuestionDetector { environment.questionDetector }
+
     var transcriptAssembler: TranscriptAssembler { environment.transcriptAssembler }
     
     lazy var responseGenerator = ResponseGenerator(contextManager: contextManager, promptBuilder: promptBuilder, llmEngine: llmEngine)
@@ -75,13 +75,12 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             }
         }
         
-        questionDetector.onQuestionConfirmed = { [weak self] question in
-            print("Session Info: Question detected! -> \(question)")
+        responseGenerator.onIntentConfirmed = { [weak self] question in
+            print("Session Info: Intent confirmed by LLM! -> \(question)")
             DispatchQueue.main.async {
                 self?.overlayViewModel.setQuestion(question)
                 self?.state = .answering
             }
-            self?.responseGenerator.handleQuestionDetected(question)
         }
     }
     
@@ -99,8 +98,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             }
         }
         
-        // Feed it to the question detector. If it triggers, it will call onQuestionConfirmed after a debounce.
-        questionDetector.process(transcript: segment.text, source: segment.source)
+        // Pass every transcript directly to the ResponseGenerator to evaluate intent
+        responseGenerator.handleTranscript(segment.text)
     }
     
     @MainActor private func sessionIsActive() -> Bool {
@@ -192,7 +191,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             self.overlayViewModel.appendSubtitle(text)
         }
         
-        questionDetector.process(transcript: text, source: source)
+        responseGenerator.handleTranscript(text)
     }
     
     func testWithAudioFile(path: String, forceAnswer: Bool = false) {
@@ -284,7 +283,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                             self.overlayViewModel.setQuestion(segment.text)
                             self.state = .answering
                         }
-                        self.responseGenerator.handleQuestionDetected(segment.text)
+                        self.responseGenerator.handleTranscript(segment.text)
                         
                         // Restore handler
                         self.whisperEngine.onTranscriptionCompleted = originalHandler

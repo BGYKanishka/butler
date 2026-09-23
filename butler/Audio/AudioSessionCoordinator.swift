@@ -108,7 +108,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
             print("VAD Info: Speech ended on Mic. Capturing segment...")
             speechStartTimestamp = nil
             let duration = ts - start
-            guard duration > 0.5 else { return }
+            guard duration > 1.0 else { return }
             let count = Int(duration * 16000)
             let captured = micRingBuffer.getRecent(samplesCount: count)
             onSpeechDetected?(captured, .microphone)
@@ -135,7 +135,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
             print("VAD Info: Speech ended on SystemAudio. Capturing segment...")
             sysSpeechStartTimestamp = nil
             let duration = ts - start
-            guard duration > 0.5 else { return }
+            guard duration > 1.0 else { return }
             let count = Int(duration * 16000)
             let captured = sysRingBuffer.getRecent(samplesCount: count)
             onSpeechDetected?(captured, .system)

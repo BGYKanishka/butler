@@ -8,7 +8,7 @@ class AppEnvironment: ObservableObject {
     let llmEngine: LLMEngine
     let contextManager: ContextManager
     let promptBuilder: PromptBuilder
-    let questionDetector: QuestionDetector
+
     let transcriptAssembler: TranscriptAssembler
     let permissionsGateway: PermissionsGateway
     
@@ -20,7 +20,7 @@ class AppEnvironment: ObservableObject {
         self.llmEngine = llmEngine
         self.contextManager = ContextManager()
         self.promptBuilder = PromptBuilder()
-        self.questionDetector = QuestionDetector()
+
         self.transcriptAssembler = TranscriptAssembler()
         self.permissionsGateway = MainActor.assumeIsolated { PermissionsGateway() }
     }

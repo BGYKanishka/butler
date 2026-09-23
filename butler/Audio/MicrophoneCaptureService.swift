@@ -18,8 +18,12 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
     
     @objc private func handleConfigurationChange() {
         guard isRunning else { return }
-        engine.stop()
-        Task { try? await start() }
+        self.stop() // Must remove tap and reset state
+        Task {
+            // Give CoreAudio / Bluetooth a moment to settle the new format
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            try? await self.start()
+        }
     }
     
     func start() async throws {
@@ -27,6 +31,10 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
+        
+        guard inputFormat.channelCount > 0, inputFormat.sampleRate > 0 else {
+            throw AssistantError.initializationFailed("Invalid microphone format (channels: \(inputFormat.channelCount), sampleRate: \(inputFormat.sampleRate)). Please check your Bluetooth connection.")
+        }
         
         guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false) else {
             throw AssistantError.initializationFailed("Failed to create target format")
