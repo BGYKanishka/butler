@@ -21,6 +21,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     @Published var state: SessionState = .idle
     @Published var transcripts: [TranscriptSegment] = []
     @Published var isLoadingModels: Bool = false
+    @Published var micAudioLevel: Float = 0.0
+    @Published var sysAudioLevel: Float = 0.0
     
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
@@ -47,6 +49,14 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                     self?.overlayViewModel.clearLLMResponse()
                 }
             }
+        }
+        
+        audioSessionCoordinator.micService.onAudioLevelChanged = { [weak self] level in
+            DispatchQueue.main.async { self?.micAudioLevel = level }
+        }
+        
+        audioSessionCoordinator.sysAudioService.onAudioLevelChanged = { [weak self] level in
+            DispatchQueue.main.async { self?.sysAudioLevel = level }
         }
         
         audioSessionCoordinator.onSpeechDetected = { [weak self] samples, source in

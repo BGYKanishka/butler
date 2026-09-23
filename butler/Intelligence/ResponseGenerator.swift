@@ -21,8 +21,9 @@ class ResponseGenerator {
         currentGenerationTask?.cancel()
         llmEngine.cancel()
         
-        currentGenerationTask = Task {
-            let context = await contextManager.getRecentContext()
+        currentGenerationTask = Task { [weak self] in
+            guard let self = self else { return }
+            let context = await self.contextManager.getRecentContext()
             let prompt = promptBuilder.build(context: context, question: transcript)
             
             var buffer = ""

@@ -7,6 +7,7 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
     @Published var audioLevel: Float = 0.0
     
     var onSamplesCaptured: (([Float]) -> Void)?
+    var onAudioLevelChanged: ((Float) -> Void)?
     private var stream: SCStream?
     
     func start() async throws {
@@ -58,6 +59,7 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
             DispatchQueue.main.async {
                 self.isRunning = false
                 self.audioLevel = 0.0
+                self.onAudioLevelChanged?(0.0)
             }
         }
     }
@@ -104,6 +106,8 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         onSamplesCaptured?(samples)
 
         let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(max(1, samples.count)))
+        onAudioLevelChanged?(rms)
+        
         DispatchQueue.main.async {
             self.audioLevel = rms
         }

@@ -21,7 +21,7 @@ struct TranscriptView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .onChange(of: transcripts.count) { _ in
+                    .onChange(of: transcripts.count) { oldValue, newValue in
                         if let last = transcripts.last {
                             withAnimation(.easeOut(duration: 0.2)) {
                                 proxy.scrollTo(last.id, anchor: .bottom)

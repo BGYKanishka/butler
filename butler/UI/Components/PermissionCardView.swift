@@ -4,7 +4,6 @@ import SwiftUI
 /// Shown only when one or more permissions are not yet granted.
 struct PermissionCardView: View {
     @ObservedObject var permissionsGateway: PermissionsGateway
-    @ObservedObject var micService: MicrophoneCaptureService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

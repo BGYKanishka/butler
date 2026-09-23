@@ -80,22 +80,21 @@ struct MainWindowView: View {
                         Text("Microphone")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        AudioLevelView(level: coordinator.micService.audioLevel)
+                        AudioLevelView(level: coordinator.micAudioLevel)
                     }
                     
                     VStack {
                         Text("System Audio")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        AudioLevelView(level: coordinator.sysAudioService.audioLevel)
+                        AudioLevelView(level: coordinator.sysAudioLevel)
                     }
                 }
                 .padding(.top, 8)
                 
                 // Permissions
                 PermissionCardView(
-                    permissionsGateway: permissionsGateway,
-                    micService: coordinator.micService
+                    permissionsGateway: permissionsGateway
                 )
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .padding(.horizontal, 16)

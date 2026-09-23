@@ -2,8 +2,8 @@ import Foundation
 import Combine
 
 class AudioSessionCoordinator: @unchecked Sendable {
-    let micService: MicrophoneCaptureService
-    let sysAudioService: SystemAudioCaptureService
+    var micService: any AudioCaptureService
+    var sysAudioService: any AudioCaptureService
     
     let micVAD = VoiceActivityDetector()
     let sysVAD = VoiceActivityDetector()
@@ -16,6 +16,8 @@ class AudioSessionCoordinator: @unchecked Sendable {
     private var isRunning = false
     
     @Published var systemAudioAvailable = false
+    @Published var micAudioLevel: Float = 0.0
+    @Published var sysAudioLevel: Float = 0.0
     
     private var speechStartTimestamp: TimeInterval?
     private var sysSpeechStartTimestamp: TimeInterval?
@@ -24,7 +26,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
     
     var onSpeechDetected: (([Float], AudioSource) -> Void)?
     
-    init(micService: MicrophoneCaptureService, sysAudioService: SystemAudioCaptureService) {
+    init(micService: any AudioCaptureService, sysAudioService: any AudioCaptureService) {
         self.micService = micService
         self.sysAudioService = sysAudioService
         
@@ -35,9 +37,15 @@ class AudioSessionCoordinator: @unchecked Sendable {
         micService.onSamplesCaptured = { [weak self] samples in
             self?.micRingBuffer.push(samples, timestamp: mach_absolute_time())
         }
+        micService.onAudioLevelChanged = { [weak self] level in
+            DispatchQueue.main.async { self?.micAudioLevel = level }
+        }
         
         sysAudioService.onSamplesCaptured = { [weak self] samples in
             self?.sysRingBuffer.push(samples, timestamp: mach_absolute_time())
+        }
+        sysAudioService.onAudioLevelChanged = { [weak self] level in
+            DispatchQueue.main.async { self?.sysAudioLevel = level }
         }
     }
     
@@ -77,8 +85,9 @@ class AudioSessionCoordinator: @unchecked Sendable {
         vadTimer = DispatchSource.makeTimerSource(queue: vadQueue)
         vadTimer?.schedule(deadline: .now(), repeating: 0.1)
         vadTimer?.setEventHandler { [weak self] in
-            self?.processMicVAD()
-            self?.processSysVAD()
+            guard let self = self else { return }
+            self.processVAD(for: .microphone, ringBuffer: self.micRingBuffer, vad: self.micVAD, prevSpeaking: &self.prevMicSpeaking, startTimestamp: &self.speechStartTimestamp)
+            self.processVAD(for: .system, ringBuffer: self.sysRingBuffer, vad: self.sysVAD, prevSpeaking: &self.prevSysSpeaking, startTimestamp: &self.sysSpeechStartTimestamp)
         }
         vadTimer?.resume()
     }
@@ -88,57 +97,32 @@ class AudioSessionCoordinator: @unchecked Sendable {
         vadTimer = nil
     }
     
-    private func processMicVAD() {
-        let samples = micRingBuffer.getRecent(samplesCount: 1600)
+    private func processVAD(for source: AudioSource, ringBuffer: AudioRingBuffer, vad: VoiceActivityDetector, prevSpeaking: inout Bool, startTimestamp: inout TimeInterval?) {
+        let samples = ringBuffer.getRecent(samplesCount: 1600)
         guard !samples.isEmpty else { return }
         
         let rms = calculateRMS(samples)
         let ts = Date().timeIntervalSince1970
-        let isSpeaking = micVAD.process(rms: rms, timestamp: ts)
+        let isSpeaking = vad.process(rms: rms, timestamp: ts)
         
-        let justEnded = !isSpeaking && prevMicSpeaking
-        let justStarted = isSpeaking && !prevMicSpeaking
-        prevMicSpeaking = isSpeaking
+        let justEnded = !isSpeaking && prevSpeaking
+        let justStarted = isSpeaking && !prevSpeaking
+        prevSpeaking = isSpeaking
+        
+        let sourceName = source == .microphone ? "Mic" : "SystemAudio"
         
         if justStarted { 
-            print("VAD Info: Speech started on Mic (RMS: \(rms))")
-            speechStartTimestamp = ts 
+            print("VAD Info: Speech started on \(sourceName) (RMS: \(rms))")
+            startTimestamp = ts 
         }
-        if justEnded, let start = speechStartTimestamp {
-            print("VAD Info: Speech ended on Mic. Capturing segment...")
-            speechStartTimestamp = nil
+        if justEnded, let start = startTimestamp {
+            print("VAD Info: Speech ended on \(sourceName). Capturing segment...")
+            startTimestamp = nil
             let duration = ts - start
             guard duration > 1.0 else { return }
             let count = Int(duration * 16000)
-            let captured = micRingBuffer.getRecent(samplesCount: count)
-            onSpeechDetected?(captured, .microphone)
-        }
-    }
-    
-    private func processSysVAD() {
-        let samples = sysRingBuffer.getRecent(samplesCount: 1600)
-        guard !samples.isEmpty else { return }
-        
-        let rms = calculateRMS(samples)
-        let ts = Date().timeIntervalSince1970
-        let isSpeaking = sysVAD.process(rms: rms, timestamp: ts)
-        
-        let justEnded = !isSpeaking && prevSysSpeaking
-        let justStarted = isSpeaking && !prevSysSpeaking
-        prevSysSpeaking = isSpeaking
-        
-        if justStarted { 
-            print("VAD Info: Speech started on SystemAudio (RMS: \(rms))")
-            sysSpeechStartTimestamp = ts 
-        }
-        if justEnded, let start = sysSpeechStartTimestamp {
-            print("VAD Info: Speech ended on SystemAudio. Capturing segment...")
-            sysSpeechStartTimestamp = nil
-            let duration = ts - start
-            guard duration > 1.0 else { return }
-            let count = Int(duration * 16000)
-            let captured = sysRingBuffer.getRecent(samplesCount: count)
-            onSpeechDetected?(captured, .system)
+            let captured = ringBuffer.getRecent(samplesCount: count)
+            onSpeechDetected?(captured, source)
         }
     }
     

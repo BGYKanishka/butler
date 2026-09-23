@@ -6,9 +6,10 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
     @Published var audioLevel: Float = 0.0
     
     private let engine = AVAudioEngine()
-    private var converter: AVAudioConverter?
+    private var converter: AudioConverter?
     
     var onSamplesCaptured: (([Float]) -> Void)?
+    var onAudioLevelChanged: ((Float) -> Void)?
     
     init() {
         NotificationCenter.default.addObserver(
@@ -40,34 +41,12 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
             throw AssistantError.initializationFailed("Failed to create target format")
         }
         
-        guard let audioConverter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
-            throw AssistantError.initializationFailed("Failed to create audio converter")
-        }
-        self.converter = audioConverter
+        self.converter = try AudioConverter(from: inputFormat)
         
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] (buffer, time) in
             guard let self = self else { return }
             
-            // Calculate capacity for the converted buffer
-            let ratio = targetFormat.sampleRate / inputFormat.sampleRate
-            // Add a small padding to the capacity just in case
-            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1024
-            
-            guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return }
-            
-            var error: NSError?
-            var inputConsumed = false
-            let status = self.converter?.convert(to: outputBuffer, error: &error) { inNumPackets, outStatus in
-                if inputConsumed {
-                    outStatus.pointee = .noDataNow
-                    return nil
-                }
-                inputConsumed = true
-                outStatus.pointee = .haveData
-                return buffer
-            }
-            
-            guard status != .error, error == nil else { return }
+            guard let outputBuffer = self.converter?.convert(buffer: buffer) else { return }
             
             let frameLength = Int(outputBuffer.frameLength)
             var samples = [Float](repeating: 0.0, count: frameLength)
@@ -83,6 +62,7 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
             
             rms = sqrt(rms / Float(max(1, frameLength)))
             self.onSamplesCaptured?(samples)
+            self.onAudioLevelChanged?(rms)
             
             DispatchQueue.main.async {
                 self.audioLevel = rms
@@ -105,6 +85,7 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         DispatchQueue.main.async {
             self.isRunning = false
             self.audioLevel = 0.0
+            self.onAudioLevelChanged?(0.0)
         }
     }
 }
