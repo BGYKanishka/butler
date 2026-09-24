@@ -122,6 +122,6 @@ struct OverlayContentView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.subtitles)
         .animation(.easeInOut(duration: 0.2), value: viewModel.statusText)
         .colorScheme(.dark) // Force dark mode
-        .frame(maxWidth: 400, alignment: .bottomLeading)
+        .frame(maxWidth: 600, alignment: .bottomLeading)
     }
 }

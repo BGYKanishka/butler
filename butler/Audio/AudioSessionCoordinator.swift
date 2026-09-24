@@ -118,7 +118,11 @@ class AudioSessionCoordinator: @unchecked Sendable {
         if justEnded, let start = startTimestamp {
             print("VAD Info: Speech ended on \(sourceName). Capturing segment...")
             startTimestamp = nil
-            let duration = ts - start
+            
+            // Add 0.5s of pre-roll padding to capture the start of the word before VAD triggered
+            let preRollTime: TimeInterval = 0.5
+            let duration = ts - start + preRollTime
+            
             guard duration > 1.0 else { return }
             let count = Int(duration * 16000)
             let captured = ringBuffer.getRecent(samplesCount: count)

@@ -34,6 +34,24 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         }
     }
     
+    private func isValidTranscription(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return false }
+        
+        var cleanedText = trimmed
+        if let regex = try? NSRegularExpression(pattern: "\\[.*?\\]|\\(.*?\\)", options: []) {
+            let range = NSRange(location: 0, length: cleanedText.utf16.count)
+            cleanedText = regex.stringByReplacingMatches(in: cleanedText, options: [], range: range, withTemplate: "")
+        }
+        
+        let alphanumeric = CharacterSet.alphanumerics
+        if cleanedText.rangeOfCharacter(from: alphanumeric) == nil {
+            return false
+        }
+        
+        return true
+    }
+    
     var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
     var onPartialTranscriptionCompleted: ((TranscriptSegment) -> Void)?
     
@@ -44,8 +62,10 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         let result: String? = await withCheckedContinuation { continuation in
             transcriptionQueue.async { [weak self] in
                 wrapper.onPartialTranscript = { [weak self] partialText in
+                    guard let self = self else { return }
                     let text = partialText
-                    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                    guard self.isValidTranscription(text) else { return }
+                    
                     let segment = TranscriptSegment(
                         id: UUID(),
                         source: source,
@@ -55,7 +75,7 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
                         isFinal: false,
                         confidence: 1.0
                     )
-                    self?.onPartialTranscriptionCompleted?(segment)
+                    self.onPartialTranscriptionCompleted?(segment)
                 }
                 
                 let text = samples.withUnsafeBufferPointer { ptr in
@@ -66,7 +86,7 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         }
         
         print("Whisper raw result: '\(result ?? "nil")'")
-        if let text = result, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let text = result, isValidTranscription(text) {
             let segment = TranscriptSegment(
                 id: UUID(),
                 source: source,
@@ -79,7 +99,7 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
             onTranscriptionCompleted?(segment)
             print("Whisper transcribed: \(text)")
         } else {
-            print("Whisper Info: Ignored empty or whitespace-only transcription.")
+            print("Whisper Info: Ignored empty or non-speech transcription.")
         }
     }
     

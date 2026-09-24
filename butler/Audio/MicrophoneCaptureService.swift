@@ -5,7 +5,7 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
     @Published var isRunning: Bool = false
     @Published var audioLevel: Float = 0.0
     
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private var converter: AudioConverter?
     
     var onSamplesCaptured: (([Float]) -> Void)?
@@ -23,7 +23,17 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         Task {
             // Give CoreAudio / Bluetooth a moment to settle the new format
             try? await Task.sleep(nanoseconds: 500_000_000)
-            try? await self.start()
+            
+            // Recreate the engine entirely to avoid stale hardware formats
+            DispatchQueue.main.async {
+                NotificationCenter.default.removeObserver(self, name: .AVAudioEngineConfigurationChange, object: self.engine)
+                self.engine = AVAudioEngine()
+                NotificationCenter.default.addObserver(self, selector: #selector(self.handleConfigurationChange), name: .AVAudioEngineConfigurationChange, object: self.engine)
+                
+                Task {
+                    try? await self.start()
+                }
+            }
         }
     }
     
@@ -41,9 +51,9 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
             throw AssistantError.initializationFailed("Failed to create target format")
         }
         
-        self.converter = try AudioConverter(from: inputFormat)
+        self.converter = try AudioConverter(from: nil)
         
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] (buffer, time) in
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] (buffer, time) in
             guard let self = self else { return }
             
             guard let outputBuffer = self.converter?.convert(buffer: buffer) else { return }

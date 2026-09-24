@@ -6,7 +6,7 @@ class OverlayPanel: NSPanel {
         let styleMask: NSWindow.StyleMask = [.nonactivatingPanel, .resizable, .fullSizeContentView, .titled, .closable]
         
         super.init(
-            contentRect: NSRect(x: 100, y: 100, width: 400, height: 200),
+            contentRect: NSRect(x: 100, y: 100, width: 600, height: 200),
             styleMask: styleMask,
             backing: .buffered,
             defer: false
