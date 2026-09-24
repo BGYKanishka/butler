@@ -11,6 +11,9 @@
     struct llama_context *_ctx;
     const struct llama_vocab *_vocab;
     BOOL _isCancelled;
+    
+    // Vision components (requires clip.h)
+    void *_ctx_clip; // struct clip_ctx
 }
 
 - (instancetype)init {
@@ -52,6 +55,26 @@
     return YES;
 }
 
+- (BOOL)loadVisionModel:(NSString *)modelPath mmprojPath:(NSString *)mmprojPath contextSize:(int)contextSize error:(NSError **)error {
+    if (![self loadModel:modelPath contextSize:contextSize error:error]) {
+        return NO;
+    }
+    
+    // TODO: To enable Vision, you must link clip.cpp / llava library into your Xcode target.
+    // 1. Include the clip header: #include "clip.h" (often found in llama.cpp/examples/llava or tools/mtmd)
+    // 2. Uncomment the following code to load the mmproj projector:
+    
+    /*
+    _ctx_clip = clip_model_load([mmprojPath UTF8String], 1);
+    if (!_ctx_clip) {
+        if (error) *error = [NSError errorWithDomain:@"Llama" code:3 userInfo:@{NSLocalizedDescriptionKey: @"Failed to load mmproj projector"}];
+        return NO;
+    }
+    */
+    
+    return YES;
+}
+
 - (void)unload {
     if (_ctx) {
         llama_free(_ctx);
@@ -62,6 +85,11 @@
         _model = NULL;
         _vocab = NULL;
     }
+    
+    // if (_ctx_clip) {
+    //     clip_free(_ctx_clip);
+    //     _ctx_clip = NULL;
+    // }
 }
 
 - (void)generateStreaming:(NSString *)prompt temperature:(float)temperature maxTokens:(int)maxTokens onToken:(void (^)(NSString *token))onToken {
@@ -133,6 +161,28 @@
     }
     
     llama_sampler_free(smpl);
+}
+
+- (void)generateVisionStreaming:(NSString *)prompt imagePath:(NSString *)imagePath temperature:(float)temperature maxTokens:(int)maxTokens onToken:(void (^)(NSString *))onToken {
+    // TODO: Implement Vision inference flow using llama.cpp clip API
+    
+    // High-level C++ workflow:
+    // 1. Load the image into an array of bytes
+    //    auto img = load_image_from_file([imagePath UTF8String]);
+    // 2. Generate Image embeddings using the clip model
+    //    clip_image_f32 img_res;
+    //    clip_image_preprocess(_ctx_clip, img, &img_res);
+    //    struct llava_image_embed * embed = llava_image_embed_make_with_clip_img(_ctx_clip, 1, &img_res);
+    // 3. Inject image tokens into the batch BEFORE the text prompt tokens using:
+    //    llava_eval_image_embed(_ctx, embed, n_past, &n_past);
+    // 4. Tokenize and pass the `prompt` string (similar to generateStreaming)
+    
+    // Because clip API changes drastically depending on your llama.cpp version, 
+    // it is safer to implement the llava text processing logic directly here.
+    // For now, this falls back to text-only generation so the app compiles:
+    
+    NSLog(@"Vision inference called for image: %@", imagePath);
+    [self generateStreaming:prompt temperature:temperature maxTokens:maxTokens onToken:onToken];
 }
 
 - (void)cancel {
