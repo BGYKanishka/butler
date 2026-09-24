@@ -74,6 +74,25 @@ struct MainWindowView: View {
                         .fill(buttonColor(for: coordinator.state))
                 )
                 .disabled(!requiredPermissionsGranted)
+                
+                Button(action: {
+                    InteractiveCaptureService.shared.captureRegion { fileUrl in
+                        guard let imagePath = fileUrl?.path else { return }
+                        promptUserForVisionTask(imagePath: imagePath)
+                    }
+                }) {
+                    Image(systemName: "viewfinder")
+                    Text("Analyze Screen")
+                        .font(.system(.body, design: .rounded, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(Color.purple)
+                )
+                .foregroundColor(.white)
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -143,6 +162,51 @@ struct MainWindowView: View {
             }
         }
         .animation(.easeInOut, value: coordinator.isLoadingModels)
+    }
+
+    private func promptUserForVisionTask(imagePath: String) {
+        let alert = NSAlert()
+        alert.messageText = "Analyze Screen Region"
+        alert.informativeText = "What do you want to ask about this screenshot?"
+        
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        textField.placeholderString = "e.g., Explain this diagram, Fix this error..."
+        textField.stringValue = "Explain what is shown in this image."
+        alert.accessoryView = textField
+        
+        alert.addButton(withTitle: "Ask Butler")
+        alert.addButton(withTitle: "Cancel")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            let prompt = textField.stringValue
+            processVisionRequest(prompt: prompt, imagePath: imagePath)
+        }
+    }
+    
+    private func processVisionRequest(prompt: String, imagePath: String) {
+        // Clear old overlays
+        coordinator.overlayViewModel.clearLLMResponse()
+        coordinator.overlayViewModel.setQuestion(prompt)
+        coordinator.state = .answering
+        
+        Task {
+            do {
+                try await coordinator.llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { token in
+                    DispatchQueue.main.async {
+                        coordinator.overlayViewModel.appendLLMToken(token)
+                    }
+                }
+                DispatchQueue.main.async {
+                    coordinator.state = .listening
+                }
+            } catch {
+                print("Vision error: \(error)")
+                DispatchQueue.main.async {
+                    coordinator.state = .error(error)
+                }
+            }
+        }
     }
 
     private func statusColor(for state: SessionState) -> Color {

@@ -64,6 +64,35 @@ class LocalLLMEngine: LLMEngine {
         }
     }
     
+    func generateVisionStreaming(prompt: String, imagePath: String, onToken: @escaping (String) -> Void) async throws {
+        guard isLoaded else { 
+            print("LLM Error: Attempted to generate vision but model is not loaded")
+            throw AssistantError.inferenceFailed("Model not loaded") 
+        }
+        
+        print("LLM Info: Starting vision generation for image \(imagePath) with prompt:\n\(prompt)")
+        
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            inferenceQueue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume()
+                    return
+                }
+                var tokenCount = 0
+                let startTime = Date()
+                
+                self.wrapper.generateVisionStreaming(prompt, imagePath: imagePath, temperature: self.config.temperature, maxTokens: Int32(self.config.maxTokens)) { token in
+                    tokenCount += 1
+                    onToken(token)
+                }
+                
+                let duration = Date().timeIntervalSince(startTime)
+                print("LLM Info: Vision generation completed. Generated \(tokenCount) tokens in \(String(format: "%.2f", duration))s (\(String(format: "%.2f", duration > 0 ? Double(tokenCount) / duration : 0)) tokens/sec)")
+                continuation.resume()
+            }
+        }
+    }
+    
     func cancel() {
         wrapper.cancel()
     }
