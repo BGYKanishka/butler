@@ -47,9 +47,7 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
             throw AssistantError.initializationFailed("Invalid microphone format (channels: \(inputFormat.channelCount), sampleRate: \(inputFormat.sampleRate)). Please check your Bluetooth connection.")
         }
         
-        guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false) else {
-            throw AssistantError.initializationFailed("Failed to create target format")
-        }
+
         
         self.converter = try AudioConverter(from: nil)
         

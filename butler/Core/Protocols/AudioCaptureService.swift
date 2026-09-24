@@ -1,8 +1,9 @@
 import Foundation
 
-enum AudioSource {
+enum AudioSource: Codable, Equatable {
     case microphone
     case system
+    case assistant
 }
 
 

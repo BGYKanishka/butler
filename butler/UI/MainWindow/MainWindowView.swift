@@ -28,32 +28,34 @@ struct MainWindowView: View {
     }
     
     private var dashboardTab: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header Area - Normal size
-                VStack(spacing: 8) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 24))
-                        .foregroundColor(.blue)
-                        .padding(.top, 16)
-                    
-                    Text("Butler")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                    
-                    Text(statusText(for: coordinator.state))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundColor(statusColor(for: coordinator.state))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(statusColor(for: coordinator.state).opacity(0.1))
-                        .clipShape(Capsule())
+        VStack(spacing: 0) {
+            // Error Banner
+            if case .error(let error) = coordinator.state {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.yellow)
+                    Text(error.localizedDescription)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundColor(.white)
+                    Spacer()
                 }
+                .padding()
+                .background(Color.red.opacity(0.2))
+                .overlay(Rectangle().stroke(Color.red.opacity(0.5), lineWidth: 1))
+            }
+            
+            // Header with Start/Stop
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundColor(.blue)
+                Text("Butler")
+                    .font(.headline)
                 
-                // Compact Start/Stop Button
+                Spacer()
+                
                 Button(action: {
                     var isError = false
                     if case .error = coordinator.state { isError = true }
-                    
                     if coordinator.state != .idle && !isError {
                         coordinator.stopSession()
                     } else {
@@ -63,69 +65,42 @@ struct MainWindowView: View {
                     Text(buttonTitle(for: coordinator.state))
                         .font(.system(.body, design: .rounded, weight: .semibold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
                 }
                 .buttonStyle(.plain)
                 .background(
                     Capsule()
                         .fill(buttonColor(for: coordinator.state))
-                        .shadow(color: buttonColor(for: coordinator.state).opacity(0.4), radius: 4, x: 0, y: 2)
                 )
                 .disabled(!requiredPermissionsGranted)
-                
-                // Audio Levels
-                HStack(spacing: 40) {
-                    VStack {
-                        Text("Microphone")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        AudioLevelView(level: coordinator.micAudioLevel)
-                    }
-                    
-                    VStack {
-                        Text("System Audio")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        AudioLevelView(level: coordinator.sysAudioLevel)
-                    }
-                }
-                .padding(.top, 8)
-                
-                // Permissions
-                PermissionCardView(
-                    permissionsGateway: permissionsGateway
-                )
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .padding(.horizontal, 16)
-                
-                // AI Suggestions / Answers Area
-                OverlayContentView(viewModel: coordinator.overlayViewModel)
-                    .frame(minHeight: 120)
-                    .padding(.horizontal, 16)
-                
-                // Error Banner
-                if case .error(let error) = coordinator.state {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.yellow)
-                        Text(error.localizedDescription)
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundColor(.white)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Color.red.opacity(0.2))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.5), lineWidth: 1))
-                    .padding(.horizontal, 16)
-                }
-                
-                // Transcript View
-                TranscriptView(transcripts: coordinator.transcripts)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            
+            // Audio Levels
+            HStack(spacing: 40) {
+                VStack {
+                    Text("Microphone")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    AudioLevelView(level: coordinator.micAudioLevel)
+                }
+                
+                VStack {
+                    Text("System Audio")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    AudioLevelView(level: coordinator.sysAudioLevel)
+                }
+            }
+            .padding(.top, 16)
+            .padding(.bottom, 8)
+            
+            // Transcript View taking up the full remaining space
+            TranscriptView(transcripts: coordinator.transcripts)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
         }
     }
 

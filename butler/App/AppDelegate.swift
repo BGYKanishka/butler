@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import HotKey
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var menuBarManager: MenuBarManager?
     var sessionCoordinator = SessionCoordinator()
@@ -12,7 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var stopSessionHotKey: HotKey?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        menuBarManager = MenuBarManager()
+        menuBarManager = MenuBarManager(coordinator: sessionCoordinator)
         
         setupBindings()
         setupHotKeys()
@@ -33,7 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupBindings() {
         sessionCoordinator.$state
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in
+            .sink { @MainActor [weak self] state in
                 switch state {
                 case .idle:
                     self?.menuBarManager?.setState(.idle)

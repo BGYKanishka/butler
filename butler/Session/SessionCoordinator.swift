@@ -32,7 +32,18 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     private func setupBindings() {
         responseGenerator.onTokenGenerated = { [weak self] token in
             DispatchQueue.main.async {
-                self?.overlayViewModel.appendLLMToken(token)
+                guard let self = self else { return }
+                self.overlayViewModel.appendLLMToken(token)
+                
+                // Stream directly into transcript
+                if let last = self.transcripts.last, last.source == .assistant, !last.isFinal {
+                    var updated = last
+                    updated.text += token
+                    self.transcripts[self.transcripts.count - 1] = updated
+                } else {
+                    let newSeg = TranscriptSegment(id: UUID(), source: .assistant, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: token, isFinal: false, confidence: 1.0)
+                    self.transcripts.append(newSeg)
+                }
             }
         }
         
@@ -41,6 +52,13 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 guard let self = self, self.state == .answering else { return }
                 self.overlayViewModel.statusText = "Completed"
                 self.state = .listening // M7: Reset state so session can continue
+                
+                // Mark the last assistant segment as final
+                if let last = self.transcripts.last, last.source == .assistant, !last.isFinal {
+                    var updated = last
+                    updated.isFinal = true
+                    self.transcripts[self.transcripts.count - 1] = updated
+                }
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {

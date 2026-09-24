@@ -30,7 +30,7 @@ struct TranscriptView: View {
                     }
                 }
             }
-            .frame(height: 300)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
             .cornerRadius(16)
             .overlay(
@@ -48,23 +48,31 @@ struct ChatBubbleView: View {
         segment.source == .microphone
     }
     
+    var isAssistant: Bool {
+        segment.source == .assistant
+    }
+    
     var body: some View {
         HStack {
             if isLocal { Spacer(minLength: 40) }
             
             VStack(alignment: isLocal ? .trailing : .leading, spacing: 4) {
-                Text(isLocal ? "You" : "Remote")
+                Text(isLocal ? "You" : (isAssistant ? "Butler" : "Remote"))
                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(isAssistant ? .blue.opacity(0.8) : .secondary)
                     .padding(.horizontal, 4)
                 
                 Text(segment.text)
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .font(.system(size: isAssistant ? 16 : 14, weight: .regular, design: .rounded))
                     .foregroundColor(isLocal ? .white : .primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(isLocal ? Color.blue.opacity(0.9) : Color(NSColor.windowBackgroundColor))
+                    .background(isLocal ? Color.blue.opacity(0.9) : (isAssistant ? Color.blue.opacity(0.1) : Color(NSColor.windowBackgroundColor)))
                     .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isAssistant ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                    )
                     .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
                     .opacity(segment.isFinal ? 1.0 : 0.6)
             }

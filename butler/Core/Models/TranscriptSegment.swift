@@ -5,7 +5,7 @@ struct TranscriptSegment {
     let source: AudioSource
     let startTime: TimeInterval
     let endTime: TimeInterval
-    let text: String
-    let isFinal: Bool
+    var text: String
+    var isFinal: Bool
     let confidence: Float?
 }

@@ -1,5 +1,6 @@
 import Cocoa
 import SwiftUI
+import Combine
 
 enum MenuBarState {
     case idle
@@ -7,11 +8,21 @@ enum MenuBarState {
     case processing
 }
 
+@MainActor
 class MenuBarManager {
     var statusItem: NSStatusItem
     private var settingsWindow: NSWindow?
     
-    init() {
+    private var coordinator: SessionCoordinator
+    private var cancellables = Set<AnyCancellable>()
+    
+    // Menu Items
+    private var statusMenuItem: NSMenuItem!
+    private var micPermissionItem: NSMenuItem!
+    private var screenPermissionItem: NSMenuItem!
+    
+    init(coordinator: SessionCoordinator) {
+        self.coordinator = coordinator
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
@@ -19,15 +30,92 @@ class MenuBarManager {
         }
         
         setupMenu()
+        setupBindings()
     }
     
-    func setupMenu() {
+    private func setupMenu() {
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Show Settings", action: #selector(showSettings), keyEquivalent: ","))
+        
+        // Status Item
+        statusMenuItem = NSMenuItem(title: "Butler: Idle", action: nil, keyEquivalent: "")
+        statusMenuItem.isEnabled = false // Just a label
+        menu.addItem(statusMenuItem)
+        
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        
+        // Permissions
+        let permsHeader = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
+        permsHeader.isEnabled = false
+        menu.addItem(permsHeader)
+        
+        micPermissionItem = NSMenuItem(title: "Microphone", action: #selector(requestMic), keyEquivalent: "")
+        micPermissionItem.target = self
+        menu.addItem(micPermissionItem)
+        
+        screenPermissionItem = NSMenuItem(title: "System Audio", action: #selector(requestScreen), keyEquivalent: "")
+        screenPermissionItem.target = self
+        menu.addItem(screenPermissionItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // Settings & Quit
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        
+        menu.addItem(NSMenuItem(title: "Quit Butler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
         statusItem.menu = menu
+    }
+    
+    private func setupBindings() {
+        let permissions = coordinator.environment.permissionsGateway
+        
+        permissions.$isMicGranted
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] granted in
+                self?.micPermissionItem.state = granted ? .on : .off
+            }
+            .store(in: &cancellables)
+            
+        permissions.$isScreenGranted
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] granted in
+                self?.screenPermissionItem.state = granted ? .on : .off
+            }
+            .store(in: &cancellables)
+            
+        coordinator.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                self?.updateStatusText(state)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func updateStatusText(_ state: SessionState) {
+        switch state {
+        case .idle:
+            statusMenuItem.title = "Butler: Idle"
+        case .listening:
+            statusMenuItem.title = "Butler: Listening..."
+        case .processing:
+            statusMenuItem.title = "Butler: Processing..."
+        case .answering:
+            statusMenuItem.title = "Butler: Answering..."
+        case .error(let err):
+            statusMenuItem.title = "Butler: Error (\(err.localizedDescription))"
+        }
+    }
+    
+    @objc private func requestMic() {
+        Task {
+            await coordinator.environment.permissionsGateway.requestMicPermission()
+        }
+    }
+    
+    @objc private func requestScreen() {
+        coordinator.environment.permissionsGateway.requestScreenPermission()
     }
     
     func setState(_ state: MenuBarState) {
