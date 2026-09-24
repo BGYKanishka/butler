@@ -28,7 +28,6 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         
         let config = SCStreamConfiguration()
         config.capturesAudio = true
-        // Set to false so the internal AVPlayer test track can be captured by SCStream.
         // If set to true, the app ignores its own audio, making the test track invisible to system audio capture.
         config.excludesCurrentProcessAudio = false
         config.sampleRate = 16000
@@ -42,7 +41,7 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         
         stream = SCStream(filter: filter, configuration: config, delegate: nil)
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "SystemAudioCaptureQueue"))
-        try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "SystemAudioCaptureQueue"))
+        try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "SystemVideoCaptureQueue", qos: .background))
         
         try await stream?.startCapture()
         
@@ -64,45 +63,45 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         }
     }
     
+    private var audioConverter: AudioConverter?
+    
+    // ... inside stream method:
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio else { return }
         guard CMSampleBufferIsValid(sampleBuffer) else { return }
         
         guard let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
-        let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDesc)
-        guard let format = asbd?.pointee, format.mFormatID == kAudioFormatLinearPCM, (format.mFormatFlags & kAudioFormatFlagIsFloat) != 0 else { return }
-
-        // Query required size first
-        var ablSize = 0
-        var blockBuffer: CMBlockBuffer?
-        CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-            sampleBuffer, bufferListSizeNeededOut: &ablSize,
-            bufferListOut: nil, bufferListSize: 0,
-            blockBufferAllocator: nil, blockBufferMemoryAllocator: nil,
-            flags: kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment, blockBufferOut: nil)
-
-        guard ablSize > 0 else { return }
-        let ablPtr = UnsafeMutableRawPointer.allocate(byteCount: ablSize, alignment: 16)
-        defer { ablPtr.deallocate() }
-
-        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-            sampleBuffer, bufferListSizeNeededOut: nil,
-            bufferListOut: ablPtr.assumingMemoryBound(to: AudioBufferList.self),
-            bufferListSize: ablSize,
-            blockBufferAllocator: nil, blockBufferMemoryAllocator: nil,
-            flags: kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment,
-            blockBufferOut: &blockBuffer)
+        let format = AVAudioFormat(cmAudioFormatDescription: formatDesc)
+        
+        let frameCount = AVAudioFrameCount(CMSampleBufferGetNumSamples(sampleBuffer))
+        guard frameCount > 0 else { return }
+        
+        guard let pcmBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return }
+        pcmBuffer.frameLength = frameCount
+        
+        let status = CMSampleBufferCopyPCMDataIntoAudioBufferList(
+            sampleBuffer,
+            at: 0,
+            frameCount: Int32(frameCount),
+            into: pcmBuffer.mutableAudioBufferList
+        )
         guard status == noErr else { return }
+        
+        if audioConverter == nil {
+            audioConverter = try? AudioConverter(from: format)
+        }
+        
+        guard let outputBuffer = audioConverter?.convert(buffer: pcmBuffer) else { return }
+        guard let channelData = outputBuffer.floatChannelData?[0] else { return }
+        
+        let length = Int(outputBuffer.frameLength)
+        var samples = [Float](repeating: 0.0, count: length)
+        for i in 0..<length {
+            let sample = channelData[i]
+            samples[i] = (sample.isNaN || sample.isInfinite) ? 0.0 : sample
+        }
 
-        let abl = ablPtr.assumingMemoryBound(to: AudioBufferList.self)
-        let mBuffers = abl.pointee.mBuffers
-        guard let data = mBuffers.mData, mBuffers.mDataByteSize > 0 else { return }
-
-        let frameCount = Int(mBuffers.mDataByteSize) / MemoryLayout<Float>.size
-        let samples = Array(UnsafeBufferPointer(
-            start: data.assumingMemoryBound(to: Float.self),
-            count: frameCount))
-
+        guard !samples.isEmpty else { return }
         onSamplesCaptured?(samples)
 
         let rms = sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(max(1, samples.count)))

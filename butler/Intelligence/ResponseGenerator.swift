@@ -17,14 +17,14 @@ class ResponseGenerator {
         self.llmEngine = llmEngine
     }
     
-    func handleTranscript(_ transcript: String) {
+    func handleTranscript(_ transcript: String, source: AudioSource) {
         currentGenerationTask?.cancel()
         llmEngine.cancel()
         
         currentGenerationTask = Task { [weak self] in
             guard let self = self else { return }
             let context = await self.contextManager.getRecentContext()
-            let prompt = promptBuilder.build(context: context, question: transcript)
+            let prompt = promptBuilder.build(context: context, question: transcript, source: source)
             
             var buffer = ""
             var decisionMade = false

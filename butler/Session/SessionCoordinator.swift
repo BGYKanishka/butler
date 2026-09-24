@@ -127,7 +127,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         }
         
         // Pass every transcript directly to the ResponseGenerator to evaluate intent
-        responseGenerator.handleTranscript(segment.text)
+        responseGenerator.handleTranscript(segment.text, source: segment.source)
     }
     
     @MainActor private func sessionIsActive() -> Bool {
@@ -219,7 +219,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             self.overlayViewModel.appendSubtitle(text)
         }
         
-        responseGenerator.handleTranscript(text)
+        responseGenerator.handleTranscript(text, source: source)
     }
     
     func testWithAudioFile(path: String, forceAnswer: Bool = false) {
@@ -311,7 +311,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                             self.overlayViewModel.setQuestion(segment.text)
                             self.state = .answering
                         }
-                        self.responseGenerator.handleTranscript(segment.text)
+                        self.responseGenerator.handleTranscript(segment.text, source: segment.source)
                         
                         // Restore handler
                         self.whisperEngine.onTranscriptionCompleted = originalHandler

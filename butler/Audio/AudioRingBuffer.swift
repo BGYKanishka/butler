@@ -8,6 +8,8 @@ class AudioRingBuffer {
     private let capacity: Int
     private var lock = os_unfair_lock_s() // Real-time safe lock
     
+    private(set) var totalWritten: UInt64 = 0
+    
     init(capacity: Int) {
         self.capacity = capacity
         self.buffer = [Float](repeating: 0.0, count: capacity)
@@ -40,6 +42,7 @@ class AudioRingBuffer {
         
         head = (head + writeCount) % capacity
         count = min(capacity, count + writeCount)
+        totalWritten += UInt64(writeCount)
     }
     
     func getRecent(samplesCount: Int) -> [Float] {

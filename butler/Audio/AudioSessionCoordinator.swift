@@ -30,6 +30,11 @@ class AudioSessionCoordinator: @unchecked Sendable {
         self.micService = micService
         self.sysAudioService = sysAudioService
         
+        // System audio is often lower amplitude but has less noise.
+        // Lower the VAD threshold significantly so it doesn't miss speech.
+        self.sysVAD.speechThreshold = 0.005
+        self.sysVAD.silenceThreshold = 0.003
+        
         setupBindings()
     }
     
@@ -86,8 +91,8 @@ class AudioSessionCoordinator: @unchecked Sendable {
         vadTimer?.schedule(deadline: .now(), repeating: 0.1)
         vadTimer?.setEventHandler { [weak self] in
             guard let self = self else { return }
-            self.processVAD(for: .microphone, ringBuffer: self.micRingBuffer, vad: self.micVAD, prevSpeaking: &self.prevMicSpeaking, startTimestamp: &self.speechStartTimestamp)
-            self.processVAD(for: .system, ringBuffer: self.sysRingBuffer, vad: self.sysVAD, prevSpeaking: &self.prevSysSpeaking, startTimestamp: &self.sysSpeechStartTimestamp)
+            self.processVAD(for: .microphone, ringBuffer: self.micRingBuffer, vad: self.micVAD, prevSpeaking: &self.prevMicSpeaking, startTimestamp: &self.speechStartTimestamp, lastWritten: &self.lastMicWritten)
+            self.processVAD(for: .system, ringBuffer: self.sysRingBuffer, vad: self.sysVAD, prevSpeaking: &self.prevSysSpeaking, startTimestamp: &self.sysSpeechStartTimestamp, lastWritten: &self.lastSysWritten)
         }
         vadTimer?.resume()
     }
@@ -97,11 +102,22 @@ class AudioSessionCoordinator: @unchecked Sendable {
         vadTimer = nil
     }
     
-    private func processVAD(for source: AudioSource, ringBuffer: AudioRingBuffer, vad: VoiceActivityDetector, prevSpeaking: inout Bool, startTimestamp: inout TimeInterval?) {
-        let samples = ringBuffer.getRecent(samplesCount: 1600)
-        guard !samples.isEmpty else { return }
+    private var lastMicWritten: UInt64 = 0
+    private var lastSysWritten: UInt64 = 0
+    
+    private func processVAD(for source: AudioSource, ringBuffer: AudioRingBuffer, vad: VoiceActivityDetector, prevSpeaking: inout Bool, startTimestamp: inout TimeInterval?, lastWritten: inout UInt64) {
+        let currentWritten = ringBuffer.totalWritten
+        var rms: Float = 0.0
         
-        let rms = calculateRMS(samples)
+        // Only calculate RMS if new samples arrived. SCStream stops sending samples during silence.
+        if currentWritten > lastWritten {
+            let samples = ringBuffer.getRecent(samplesCount: 1600)
+            if !samples.isEmpty {
+                rms = calculateRMS(samples)
+            }
+            lastWritten = currentWritten
+        }
+        
         let ts = Date().timeIntervalSince1970
         let isSpeaking = vad.process(rms: rms, timestamp: ts)
         
@@ -115,7 +131,19 @@ class AudioSessionCoordinator: @unchecked Sendable {
             print("VAD Info: Speech started on \(sourceName) (RMS: \(rms))")
             startTimestamp = ts 
         }
-        if justEnded, let start = startTimestamp {
+        
+        if isSpeaking, let start = startTimestamp, ts - start > 10.0 {
+            print("VAD Info: Force slicing continuous speech on \(sourceName)...")
+            let preRollTime: TimeInterval = 0.5
+            let duration = ts - start + preRollTime
+            
+            if duration > 1.0 {
+                let count = Int(duration * 16000)
+                let captured = ringBuffer.getRecent(samplesCount: count)
+                onSpeechDetected?(captured, source)
+            }
+            startTimestamp = ts // Reset start time to now for the next slice
+        } else if justEnded, let start = startTimestamp {
             print("VAD Info: Speech ended on \(sourceName). Capturing segment...")
             startTimestamp = nil
             

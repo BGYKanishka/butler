@@ -36,6 +36,7 @@
 
 - (nullable NSString *)transcribeAudio:(const float *)samples count:(NSInteger)count {
     if (ctx == nullptr) {
+        NSLog(@"[WhisperWrapper] transcribeAudio returning nil: ctx is nullptr");
         return nil;
     }
     
@@ -72,18 +73,20 @@
     
     // Check for cancellation before processing
     if (isCancelled) {
+        NSLog(@"[WhisperWrapper] transcribeAudio returning nil: isCancelled was YES before processing");
         isCancelled = NO;
         return nil;
     }
     
     int ret = whisper_full(ctx, wparams, samples, (int)count);
     if (ret != 0) {
-        NSLog(@"[WhisperWrapper] Failed to process audio");
+        NSLog(@"[WhisperWrapper] Failed to process audio. ret = %d", ret);
         return nil;
     }
     
     // Check for cancellation after processing
     if (isCancelled) {
+        NSLog(@"[WhisperWrapper] transcribeAudio returning nil: isCancelled was YES after processing");
         isCancelled = NO;
         return nil;
     }
@@ -98,7 +101,11 @@
         }
     }
     
-    return [NSString stringWithUTF8String:result.c_str()];
+    NSString *finalString = [NSString stringWithUTF8String:result.c_str()];
+    if (finalString == nil) {
+        NSLog(@"[WhisperWrapper] transcribeAudio returning nil: stringWithUTF8String failed for string of length %zu", result.length());
+    }
+    return finalString;
 }
 
 - (void)cancelTranscription {
