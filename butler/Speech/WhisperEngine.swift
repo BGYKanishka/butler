@@ -28,7 +28,7 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
     }
     
     func unload() {
-        transcriptionQueue.sync {
+        transcriptionQueue.async {
             self.wrapper = nil // ARC will call dealloc which calls whisper_free()
             self.isLoaded = false
         }

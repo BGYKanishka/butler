@@ -71,12 +71,8 @@
     };
     wparams.new_segment_callback_user_data = (__bridge void *)self;
     
-    // Check for cancellation before processing
-    if (isCancelled) {
-        NSLog(@"[WhisperWrapper] transcribeAudio returning nil: isCancelled was YES before processing");
-        isCancelled = NO;
-        return nil;
-    }
+    // Clear any previous cancellation
+    isCancelled = NO;
     
     int ret = whisper_full(ctx, wparams, samples, (int)count);
     if (ret != 0) {

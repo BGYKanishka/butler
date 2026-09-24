@@ -3,28 +3,17 @@ import AppKit
 import ScreenCaptureKit
 
 @MainActor
-class ScreenRecordingPermission: ObservableObject {
-    @Published var isGranted: Bool = false
+class ScreenRecordingPermission: BasePermissionTracker {
     @Published var pollingGaveUp: Bool = false
-    private var observer: Any?
     
-    init() {
+    override init() {
+        super.init()
         checkPermission()
-        observer = NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkPermission()
-            }
-        }
+        startObserving()
     }
     
-    deinit {
-        if let observer = observer {
-            NotificationCenter.default.removeObserver(observer)
-        }
+    override func performCheck() {
+        checkPermission()
     }
     
     /// Checks screen recording permission silently.

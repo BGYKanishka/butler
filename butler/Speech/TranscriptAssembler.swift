@@ -37,10 +37,7 @@ class TranscriptAssembler {
         }
     }
     
-    func getTranscriptText() -> String {
-        return segments.map { $0.text }.joined(separator: " ")
-    }
-    
+
     private func mergeOverlappingStrings(s1: String, s2: String) -> String {
         let clean1 = s1.trimmingCharacters(in: .whitespacesAndNewlines)
         let clean2 = s2.trimmingCharacters(in: .whitespacesAndNewlines)

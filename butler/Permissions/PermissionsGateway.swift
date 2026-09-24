@@ -36,9 +36,7 @@ class PermissionsGateway: ObservableObject {
             .store(in: &cancellables)
     }
     
-    var allPermissionsGranted: Bool {
-        isMicGranted && isScreenGranted
-    }
+
     
     var anyPermissionGranted: Bool {
         isMicGranted || isScreenGranted

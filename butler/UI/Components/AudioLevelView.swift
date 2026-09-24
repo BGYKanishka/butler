@@ -41,8 +41,10 @@ struct AudioLevelView: View {
         .onChange(of: level) { _, newValue in
             // Normalize level (RMS usually small)
             let normalized = min(max(CGFloat(newValue) * 30.0, 0), 1.0)
-            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                animatedLevel = normalized
+            if abs(animatedLevel - normalized) > 0.05 {
+                withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
+                    animatedLevel = normalized
+                }
             }
         }
     }

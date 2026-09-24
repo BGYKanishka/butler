@@ -17,10 +17,4 @@ class ModelManager {
         }
     }
     
-    /// Automatic model download is not implemented.
-    /// Users must place models manually in Application Support.
-    func downloadModels() async throws {
-        let defaultPath = Constants.modelsDirectory?.path ?? "~/Library/Application Support/RealtimeAssistant/Models/"
-        throw AssistantError.modelNotFound("Automatic model download is not supported. Please place models manually in \(defaultPath)")
-    }
 }

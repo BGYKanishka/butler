@@ -3,27 +3,16 @@ import AppKit
 import AVFoundation
 
 @MainActor
-class MicrophonePermission: ObservableObject {
-    @Published var isGranted: Bool = false
-    private var observer: Any?
+class MicrophonePermission: BasePermissionTracker {
     
-    init() {
+    override init() {
+        super.init()
         checkPermission()
-        observer = NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkPermission()
-            }
-        }
+        startObserving()
     }
     
-    deinit {
-        if let observer = observer {
-            NotificationCenter.default.removeObserver(observer)
-        }
+    override func performCheck() {
+        checkPermission()
     }
     
     func checkPermission() {

@@ -124,10 +124,12 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             if self.transcripts.count > 100 {
                 self.transcripts.removeFirst(self.transcripts.count - 100)
             }
+            // Pass every transcript directly to the ResponseGenerator to evaluate intent
+            // ONLY if not already answering, to prevent cancelling the ongoing answer
+            if self.state != .answering {
+                self.responseGenerator.handleTranscript(segment.text, source: segment.source)
+            }
         }
-        
-        // Pass every transcript directly to the ResponseGenerator to evaluate intent
-        responseGenerator.handleTranscript(segment.text, source: segment.source)
     }
     
     @MainActor private func sessionIsActive() -> Bool {
@@ -207,123 +209,5 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         print("Session stopped.")
     }
     
-    // For testing
-    func simulateSpeechDetected(text: String, source: AudioSource) {
-        let segment = TranscriptSegment(id: UUID(), source: source, startTime: 0, endTime: 0, text: text, isFinal: true, confidence: 1.0)
-        transcriptAssembler.addSegment(segment)
-        
-        let turn = ConversationTurn(id: UUID(), source: source, type: .statement, text: text, timestamp: Date())
-        Task { await contextManager.addTurn(turn) }
-        
-        DispatchQueue.main.async {
-            self.overlayViewModel.appendSubtitle(text)
-        }
-        
-        responseGenerator.handleTranscript(text, source: source)
-    }
-    
-    func testWithAudioFile(path: String, forceAnswer: Bool = false) {
-        print("Test Info: Starting audio file test with \(path)")
-        
-        // Ensure engines are loaded
-        Task {
-            let needsLoad = await MainActor.run {
-                if !self.isLoadingModels && self.state == .idle {
-                    self.isLoadingModels = true
-                    return true
-                }
-                return false
-            }
-            
-            do {
-                if needsLoad {
-                    try await whisperEngine.load()
-                    try await llmEngine.load()
-                    await MainActor.run { self.isLoadingModels = false }
-                }
-                
-                let url = URL(fileURLWithPath: path)
-                let file = try AVAudioFile(forReading: url)
-                guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false) else {
-                    print("Test Error: Could not create target audio format")
-                    return
-                }
-                
-                let sourceFormat = file.processingFormat
-                let frameCount = AVAudioFrameCount(file.length)
-                
-                guard let sourceBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frameCount) else {
-                    print("Test Error: Could not create source buffer")
-                    return
-                }
-                try file.read(into: sourceBuffer)
-                
-                let ratio = targetFormat.sampleRate / sourceFormat.sampleRate
-                let targetCapacity = AVAudioFrameCount(Double(frameCount) * ratio)
-                
-                guard let targetBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: targetCapacity) else {
-                    print("Test Error: Could not create target buffer")
-                    return
-                }
-                
-                guard let converter = AVAudioConverter(from: sourceFormat, to: targetFormat) else {
-                    print("Test Error: Could not create converter")
-                    return
-                }
-                
-                var error: NSError?
-                var provided = false
-                let status = converter.convert(to: targetBuffer, error: &error) { inNumPackets, outStatus in
-                    if provided {
-                        outStatus.pointee = .noDataNow
-                        return nil
-                    }
-                    provided = true
-                    outStatus.pointee = .haveData
-                    return sourceBuffer
-                }
-                
-                if status == .error || error != nil {
-                    print("Test Error: Conversion failed - \(error?.localizedDescription ?? "unknown error")")
-                    return
-                }
-                
-                guard let channelData = targetBuffer.floatChannelData?[0] else {
-                    print("Test Error: No channel data in target buffer")
-                    return
-                }
-                
-                let length = Int(targetBuffer.frameLength)
-                var samples = [Float](repeating: 0.0, count: length)
-                for i in 0..<length {
-                    samples[i] = channelData[i]
-                }
-                
-                print("Test Info: Resampled to \(samples.count) samples. Transcribing...")
-                
-                if forceAnswer {
-                    // Temporarily intercept the next transcription and force it to be answered
-                    let originalHandler = self.whisperEngine.onTranscriptionCompleted
-                    self.whisperEngine.onTranscriptionCompleted = { segment in
-                        self.handleTranscription(segment: segment)
-                        print("Test Info: Forced answer for: \(segment.text)")
-                        DispatchQueue.main.async {
-                            self.overlayViewModel.setQuestion(segment.text)
-                            self.state = .answering
-                        }
-                        self.responseGenerator.handleTranscript(segment.text, source: segment.source)
-                        
-                        // Restore handler
-                        self.whisperEngine.onTranscriptionCompleted = originalHandler
-                    }
-                }
-                
-                try await whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: .microphone)
-                print("Test Info: Transcription request sent.")
-                
-            } catch {
-                print("Test Error: \(error)")
-            }
-        }
-    }
+
 }
