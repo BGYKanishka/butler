@@ -191,7 +191,7 @@ struct MainWindowView: View {
         coordinator.state = .answering
         
         // Add prompt to main chat transcript
-        let userSeg = TranscriptSegment(id: UUID(), source: .user, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "[Image Analyzed] " + prompt, isFinal: true, confidence: 1.0)
+        let userSeg = TranscriptSegment(id: UUID(), source: .microphone, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "[Image Analyzed] " + prompt, isFinal: true, confidence: 1.0)
         coordinator.transcripts.append(userSeg)
         
         let aiSegId = UUID()

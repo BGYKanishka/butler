@@ -242,7 +242,7 @@
                     batch.embd = embd;
                     for (size_t j = 0; j < n_img_tokens; j++) {
                         batch.token[j]    = 0;
-                        batch.pos[j]      = j;
+                        batch.pos[j]      = (llama_pos)j;
                         batch.n_seq_id[j] = 1;
                         batch.seq_id[j][0] = 0;
                         batch.logits[j]   = false;

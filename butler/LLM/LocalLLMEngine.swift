@@ -1,6 +1,6 @@
 import Foundation
 
-class LocalLLMEngine: LLMEngine {
+class LocalLLMEngine: LLMEngine, @unchecked Sendable {
     private let wrapper = LlamaWrapper()
     private let config = LLMConfiguration()
     private var isLoaded = false
