@@ -27,13 +27,13 @@ enum ModelProfile: String, CaseIterable {
     var configuration: ModelConfiguration {
         switch self {
         case .fast:
-            return ModelConfiguration(name: "Fast", fileName: "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+            return ModelConfiguration(name: "Fast", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
                                        contextSize: 8192, temperature: 0.3, maxTokens: 200, gpuLayers: 999, threads: 4)
         case .balanced:
-            return ModelConfiguration(name: "Balanced", fileName: "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+            return ModelConfiguration(name: "Balanced", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
                                        contextSize: 8192, temperature: 0.3, maxTokens: 200, gpuLayers: 999, threads: 4)
         case .quality:
-            return ModelConfiguration(name: "Quality", fileName: "Qwen2.5-14B-Instruct-Q4_K_M.gguf",
+            return ModelConfiguration(name: "Quality", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
                                        contextSize: 8192, temperature: 0.3, maxTokens: 250, gpuLayers: 999, threads: 6)
         }
     }

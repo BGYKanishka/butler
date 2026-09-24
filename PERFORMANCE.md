@@ -17,9 +17,8 @@ We use `os_signpost` to trace pipeline latency. The goal is to provide answers b
 - **Audio Capture to VAD:** < 10ms
 - **VAD Trigger to Whisper Start:** < 50ms
 - **Whisper Transcription (per segment):** < 400ms (using `ggml-base.en`)
-- **Question Detection NLP:** < 5ms
-- **LLM Time-To-First-Token (TTFT):** < 800ms
-- **LLM Generation Speed:** > 30 tokens/second (using 4-bit quantized Qwen2.5 7B)
+- **Intent Evaluation (LLM TTFT):** < 800ms
+- **LLM Generation Speed:** > 30 tokens/second (using 4-bit quantized Qwen2.5-VL 7B)
 
 Total End-to-End Latency (Speech End -> First Answer Token): **< 1.5 Seconds**
 

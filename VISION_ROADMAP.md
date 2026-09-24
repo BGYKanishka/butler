@@ -18,7 +18,7 @@ Butler will be able to answer questions about what is actively being shared on s
 
 ### 3. OCR & Understanding (`VisionEngine.swift`)
 - Pass the changed frame through Apple's native `Vision` framework (VNRecognizeTextRequest) for fast text extraction.
-- For complex diagrams or UI elements, dynamically unload the default `Llama-3.2` text model and pass the frame into the multimodal LLM (`Qwen2.5-VL`) via the `mmproj` vision projector.
+- For complex diagrams or UI elements, pass the frame into our default multimodal LLM (`Qwen2.5-VL`) via the `mmproj` vision projector.
 
 ### 4. Trigger Policies (`VisionTriggerPolicy.swift`)
 - Vision inference is extremely heavy. We cannot stream video into the LLM at 30fps.

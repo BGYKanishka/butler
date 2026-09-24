@@ -18,14 +18,15 @@ Butler is built with a strictly unidirectional, asynchronous pipeline designed f
    - Uses `whisper.cpp` with Metal acceleration.
    - Assembles text segments using `TranscriptAssembler` to handle stutters and mid-sentence corrections.
 
-4. **Question Detection** (`QuestionDetector`)
-   - Fast, heuristics-based NLP checks if the final transcript segment ends in a question mark, contains interrogative keywords ("what", "how", "why"), or has rising intonation markers.
-   - If a question is detected from a REMOTE source, it triggers the LLM.
+4. **Intent Evaluation** (`ResponseGenerator`)
+   - Every transcribed segment is sent to the `LocalLLMEngine`.
+   - A `PromptBuilder` formats the conversation context and transcript, prompting the model to decide if a response is required (answering with `YES|` or `NO`).
+   - If the model determines intent, it seamlessly continues generating the answer in the same stream.
 
 5. **Inference** (`LocalLLMEngine`)
    - Uses `llama.cpp` with a local GGUF model.
-   - Text inference uses `Llama-3.2-3B-Instruct.gguf` by default for performance and RAM constraints.
-   - Multimodal tasks (future V2) will dynamically load `Qwen2.5-VL`.
+   - Text inference currently defaults to the `Qwen2.5-VL-7B-Instruct` model for robust text processing and upcoming multimodal vision capabilities.
+   - Multimodal tasks (future V2) will dynamically load the `mmproj` vision projector.
    - Injected with conversation history via `ContextManager`.
    - Streams tokens via callbacks to the UI thread.
 

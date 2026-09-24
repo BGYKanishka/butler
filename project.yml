@@ -18,6 +18,7 @@ targets:
       properties:
         NSMicrophoneUsageDescription: "Butler needs access to your microphone to transcribe your speech."
         NSScreenCaptureUsageDescription: "Butler needs screen capture access to transcribe system and meeting audio."
+        LSUIElement: YES
     entitlements:
       path: butler/Resources/butler.entitlements
     settings:
