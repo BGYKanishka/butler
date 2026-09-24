@@ -4,6 +4,7 @@
 #pragma clang diagnostic ignored "-Weverything"
 #import "llama.h"
 #include "mtmd.h"
+#include "mtmd-helper.h"
 #pragma clang diagnostic pop
 #include <string>
 #include <vector>
@@ -221,38 +222,14 @@
     if (mem) llama_memory_clear(mem, true);
     _isCancelled = NO;
     
-    size_t num_chunks = mtmd_input_chunks_size(chunks);
-    for (size_t i = 0; i < num_chunks; i++) {
-        const mtmd_input_chunk * chunk = mtmd_input_chunks_get(chunks, i);
-        if (mtmd_input_chunk_get_type(chunk) == MTMD_INPUT_CHUNK_TYPE_TEXT) {
-            size_t n_tokens_output = 0;
-            const llama_token * tokens = mtmd_input_chunk_get_tokens_text(chunk, &n_tokens_output);
-            if (n_tokens_output > 0) {
-                llama_batch batch = llama_batch_get_one((llama_token*)tokens, (int32_t)n_tokens_output);
-                if (llama_decode(_ctx, batch)) break;
-            }
-        } else if (mtmd_input_chunk_get_type(chunk) == MTMD_INPUT_CHUNK_TYPE_IMAGE) {
-            mtmd_batch * mbatch = mtmd_batch_init(_mtmd_ctx);
-            if (mtmd_batch_add_chunk(mbatch, chunk) == 0) {
-                if (mtmd_batch_encode(mbatch) == 0) {
-                    float * embd = mtmd_batch_get_output_embd(mbatch, chunk);
-                    size_t n_img_tokens = mtmd_input_chunk_get_n_tokens(chunk);
-                    
-                    llama_batch batch = llama_batch_init((int32_t)n_img_tokens, 1, 1);
-                    batch.embd = embd;
-                    for (size_t j = 0; j < n_img_tokens; j++) {
-                        batch.token[j]    = 0;
-                        batch.pos[j]      = (llama_pos)j;
-                        batch.n_seq_id[j] = 1;
-                        batch.seq_id[j][0] = 0;
-                        batch.logits[j]   = false;
-                    }
-                    if (llama_decode(_ctx, batch)) {}
-                    llama_batch_free(batch);
-                }
-            }
-            mtmd_batch_free(mbatch);
-        }
+    llama_pos new_n_past = 0;
+    int32_t n_batch = 2048; // A reasonable batch size
+    
+    int eval_res = mtmd_helper_eval_chunks(_mtmd_ctx, _ctx, chunks, 0, 0, n_batch, true, &new_n_past);
+    if (eval_res != 0) {
+        mtmd_input_chunks_free(chunks);
+        [self generateStreaming:prompt temperature:temperature maxTokens:maxTokens onToken:onToken];
+        return;
     }
     
     mtmd_input_chunks_free(chunks);

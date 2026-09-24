@@ -78,7 +78,8 @@ struct MainWindowView: View {
                 Button(action: {
                     InteractiveCaptureService.shared.captureRegion { fileUrl in
                         guard let imagePath = fileUrl?.path else { return }
-                        promptUserForVisionTask(imagePath: imagePath)
+                        let defaultPrompt = "Analyze this image and provide a solution, explanation, or relevant instructions."
+                        processVisionRequest(prompt: defaultPrompt, imagePath: imagePath)
                     }
                 }) {
                     Image(systemName: "viewfinder")
@@ -162,26 +163,6 @@ struct MainWindowView: View {
             }
         }
         .animation(.easeInOut, value: coordinator.isLoadingModels)
-    }
-
-    private func promptUserForVisionTask(imagePath: String) {
-        let alert = NSAlert()
-        alert.messageText = "Analyze Screen Region"
-        alert.informativeText = "What do you want to ask about this screenshot?"
-        
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        textField.placeholderString = "e.g., Explain this diagram, Fix this error..."
-        textField.stringValue = "Explain what is shown in this image."
-        alert.accessoryView = textField
-        
-        alert.addButton(withTitle: "Ask Butler")
-        alert.addButton(withTitle: "Cancel")
-        
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            let prompt = textField.stringValue
-            processVisionRequest(prompt: prompt, imagePath: imagePath)
-        }
     }
     
     private func processVisionRequest(prompt: String, imagePath: String) {

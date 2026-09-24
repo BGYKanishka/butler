@@ -38,10 +38,12 @@ targets:
         - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-metal"
         - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-blas"
         - "$(SRCROOT)/Vendor/llama.cpp/build/tools/mtmd"
+        - "$(SRCROOT)/Vendor/llama.cpp/build/vendor/hash"
       OTHER_LDFLAGS:
         - "-lwhisper"
         - "-lllama"
         - "-lmtmd"
+        - "-lvendor-hash"
         - "-lggml"
         - "-lggml-base"
         - "-lggml-cpu"
@@ -51,6 +53,9 @@ targets:
         - "-framework Foundation"
         - "-framework Metal"
         - "-framework MetalKit"
+        - "-framework CoreAudio"
+        - "-framework CoreAudioTypes"
+        - "-framework SwiftUI"
       OTHER_CFLAGS:
         - "-Wno-documentation"
       OTHER_CPLUSPLUSFLAGS:
