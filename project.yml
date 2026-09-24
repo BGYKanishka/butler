@@ -30,15 +30,18 @@ targets:
         - "$(SRCROOT)/Vendor/whisper.cpp/include"
         - "$(SRCROOT)/Vendor/llama.cpp/include"
         - "$(SRCROOT)/Vendor/llama.cpp/ggml/include"
+        - "$(SRCROOT)/Vendor/llama.cpp/tools/mtmd"
       LIBRARY_SEARCH_PATHS:
         - "$(SRCROOT)/Vendor/whisper.cpp/build/src"
         - "$(SRCROOT)/Vendor/llama.cpp/build/src"
         - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src"
         - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-metal"
         - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-blas"
+        - "$(SRCROOT)/Vendor/llama.cpp/build/tools/mtmd"
       OTHER_LDFLAGS:
         - "-lwhisper"
         - "-lllama"
+        - "-lmtmd"
         - "-lggml"
         - "-lggml-base"
         - "-lggml-cpu"
