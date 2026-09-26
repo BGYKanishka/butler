@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AVFoundation
+import AppKit
 
 final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     let environment: AppEnvironment
@@ -17,14 +18,15 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     
     lazy var responseGenerator = ResponseGenerator(contextManager: contextManager, promptBuilder: promptBuilder, llmEngine: llmEngine)
     
+    var onHideMainWindow: (() -> Void)?
+    var onShowMainWindow: (() -> Void)?
+    
     @Published var overlayViewModel = OverlayViewModel()
     @Published var state: SessionState = .idle
     @Published var transcripts: [TranscriptSegment] = []
     @Published var isLoadingModels: Bool = false
     @Published var micAudioLevel: Float = 0.0
     @Published var sysAudioLevel: Float = 0.0
-    
-    let visionAnswerPublisher = PassthroughSubject<String, Never>()
     
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
@@ -127,8 +129,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 self.transcripts.removeFirst(self.transcripts.count - 100)
             }
             
-            let recentTexts = self.transcripts.suffix(3).map { $0.text }.joined(separator: " ")
-            self.whisperEngine.updateContext(recentTexts)
+            // (Removed whisper context update to prevent hallucination loops where Whisper repeats old inputs)
             
             // Pass every transcript directly to the ResponseGenerator to evaluate intent
             // ONLY if not already answering, to prevent cancelling the ongoing answer
@@ -210,7 +211,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     }
     
     func triggerVisionAnalysis() {
-        // Prevent vision request if we are already answering, error, or idle, or loading
+        // Prevent vision request if we are already answering, error, idle, or loading
         if isLoadingModels || state == .idle {
             print("Cannot analyze screen in current state.")
             return
@@ -220,10 +221,22 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             return
         }
         
-        InteractiveCaptureService.shared.captureRegion { fileUrl in
-            guard let imagePath = fileUrl?.path else { return }
-            let defaultPrompt = "Analyze this image and provide a solution, explanation, or relevant instructions. CRITICAL RULE: If and ONLY if the image contains a multiple-choice question with clear options, you must start your response exactly with [Answer: X] where X is the correct option. If the image is NOT a multiple-choice question (e.g. a diagram, code, or log), DO NOT output the [Answer: X] tag."
-            self.processVisionRequest(prompt: defaultPrompt, imagePath: imagePath)
+        // Hide the UI window before taking the screenshot
+        DispatchQueue.main.async {
+            self.onHideMainWindow?()
+        }
+        
+        InteractiveCaptureService.shared.captureRegion { [weak self] fileUrl in
+            guard let self = self else { return }
+            
+            // Show the UI window again
+            DispatchQueue.main.async {
+                self.onShowMainWindow?()
+                
+                guard let imagePath = fileUrl?.path else { return }
+                let defaultPrompt = "Analyze this image. If it contains a multiple-choice question or a direct problem, you MUST state the final answer clearly in the very first sentence. After that, provide your step-by-step solution and explanation."
+                self.processVisionRequest(prompt: defaultPrompt, imagePath: imagePath)
+            }
         }
     }
     
@@ -252,9 +265,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                             var updated = self.transcripts[lastIdx]
                             updated.text += token
                             self.transcripts[lastIdx] = updated
-                            
-                            // Stream instantly to the toast
-                            self.visionAnswerPublisher.send(self.transcripts[lastIdx].text)
                         }
                     }
                 }

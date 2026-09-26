@@ -28,6 +28,13 @@ struct TranscriptView: View {
                             }
                         }
                     }
+                    .onChange(of: transcripts.last?.text) { oldValue, newValue in
+                        if let last = transcripts.last {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                proxy.scrollTo(last.id, anchor: .bottom)
+                            }
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

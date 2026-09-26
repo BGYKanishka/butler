@@ -16,8 +16,9 @@ struct MainWindowView: View {
 
     var body: some View {
         dashboardTab
-            .frame(minWidth: 550, minHeight: 650)
+            .frame(width: 550, height: 650)
             .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: anyPermissionGranted)
             .onChange(of: requiredPermissionsGranted) { _, granted in
                 if granted && coordinator.state == .idle {
@@ -90,6 +91,19 @@ struct MainWindowView: View {
                 )
                 .foregroundColor(.white)
                 .disabled(isVisionDisabled(state: coordinator.state, loading: coordinator.isLoadingModels))
+                
+                Button(action: {
+                    coordinator.onHideMainWindow?()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 8)
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)

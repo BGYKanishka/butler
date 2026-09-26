@@ -16,7 +16,10 @@ class MenuBarManager {
     private var coordinator: SessionCoordinator
     private var cancellables = Set<AnyCancellable>()
     
+    var onToggleMainWindow: (() -> Void)?
+    
     // Menu Items
+    private var customMenu: NSMenu!
     private var statusMenuItem: NSMenuItem!
     private var micPermissionItem: NSMenuItem!
     private var screenPermissionItem: NSMenuItem!
@@ -27,10 +30,29 @@ class MenuBarManager {
         
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "butler")
+            button.action = #selector(statusItemClicked(_:))
+            button.target = self
+            // Respond immediately on mouse down for a snappier feel, like standard macOS menus.
+            button.sendAction(on: [.leftMouseDown, .rightMouseDown])
         }
         
         setupMenu()
         setupBindings()
+    }
+    
+    @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+        guard let event = NSApp.currentEvent else { 
+            onToggleMainWindow?()
+            return 
+        }
+        
+        let isRightClick = event.type == .rightMouseUp || event.type == .rightMouseDown || event.modifierFlags.contains(.control)
+        
+        if isRightClick {
+            customMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 5), in: sender)
+        } else {
+            onToggleMainWindow?()
+        }
     }
     
     private func setupMenu() {
@@ -80,7 +102,7 @@ class MenuBarManager {
         
         menu.addItem(NSMenuItem(title: "Quit Butler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
-        statusItem.menu = menu
+        self.customMenu = menu
     }
     
     private func setupBindings() {
@@ -106,29 +128,9 @@ class MenuBarManager {
                 self?.updateStatusText(state)
             }
             .store(in: &cancellables)
-            
-        coordinator.visionAnswerPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] answer in
-                self?.showTemporaryTitle(answer)
-            }
-            .store(in: &cancellables)
     }
     
-    private func showTemporaryTitle(_ text: String) {
-        let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !cleanText.isEmpty {
-            if let range = cleanText.range(of: #"(?<=\[Answer:)[^\]]+"#, options: .regularExpression) {
-                // Extracted the MCQ answer successfully!
-                let answer = cleanText[range].trimmingCharacters(in: .whitespaces)
-                ToastManager.shared.showToast(text: "Answer: \(answer)", duration: 5.0)
-            } else if cleanText.starts(with: "[Answer:") {
-                // It's currently typing out the answer tag
-                ToastManager.shared.showToast(text: "Thinking...", duration: 5.0)
-            }
-            // If it doesn't start with [Answer:, it's not an MCQ, so we show nothing in the Toast.
-        }
-    }
+
     
     private func updateStatusText(_ state: SessionState) {
         switch state {
