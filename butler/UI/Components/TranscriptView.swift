@@ -62,11 +62,21 @@ struct ChatBubbleView: View {
                     .foregroundColor(isAssistant ? .blue.opacity(0.8) : .secondary)
                     .padding(.horizontal, 4)
                 
-                Group {
-                    if let attrStr = try? AttributedString(markdown: segment.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-                        Text(attrStr)
-                    } else {
-                        Text(segment.text)
+                VStack(alignment: isLocal ? .trailing : .leading, spacing: 8) {
+                    if let imagePath = segment.imagePath, let nsImage = NSImage(contentsOfFile: imagePath) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 300, maxHeight: 250)
+                            .cornerRadius(8)
+                    }
+                    
+                    Group {
+                        if let attrStr = try? AttributedString(markdown: segment.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                            Text(attrStr)
+                        } else {
+                            Text(segment.text)
+                        }
                     }
                 }
                     .font(.system(size: 14, weight: .regular, design: .rounded))

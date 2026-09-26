@@ -10,7 +10,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     private var cancellables = Set<AnyCancellable>()
     private var toggleSessionHotKey: HotKey?
-    private var stopSessionHotKey: HotKey?
     private var analyzeScreenHotKey: HotKey?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -53,8 +52,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func setupHotKeys() {
-        // Option + Command + Space: Toggle Session
-        toggleSessionHotKey = HotKey(key: .space, modifiers: [.option, .command])
+        // Shift + Option + S: Toggle Session
+        toggleSessionHotKey = HotKey(key: .s, modifiers: [.shift, .option])
         toggleSessionHotKey?.keyDownHandler = { [weak self] in
             guard let self = self else { return }
             if self.sessionCoordinator.state == .idle {
@@ -64,14 +63,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // Option + Command + S: Stop Session
-        stopSessionHotKey = HotKey(key: .s, modifiers: [.option, .command])
-        stopSessionHotKey?.keyDownHandler = { [weak self] in
-            self?.sessionCoordinator.stopSession()
-        }
-        
-        // Option + Command + A: Analyze Screen
-        analyzeScreenHotKey = HotKey(key: .a, modifiers: [.option, .command])
+        // Shift + Option + A: Analyze Screen
+        analyzeScreenHotKey = HotKey(key: .a, modifiers: [.shift, .option])
         analyzeScreenHotKey?.keyDownHandler = { [weak self] in
             self?.sessionCoordinator.triggerVisionAnalysis()
         }

@@ -8,4 +8,5 @@ struct TranscriptSegment {
     var text: String
     var isFinal: Bool
     let confidence: Float?
+    var imagePath: String? = nil
 }

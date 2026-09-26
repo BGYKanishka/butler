@@ -52,15 +52,22 @@ class MenuBarManager {
         micPermissionItem.target = self
         menu.addItem(micPermissionItem)
         
-        screenPermissionItem = NSMenuItem(title: "System Audio", action: #selector(requestScreen), keyEquivalent: "")
+        screenPermissionItem = NSMenuItem(title: "Screen & System Audio", action: #selector(requestScreen), keyEquivalent: "")
         screenPermissionItem.target = self
         menu.addItem(screenPermissionItem)
         
         menu.addItem(NSMenuItem.separator())
         
         // Actions
-        let analyzeItem = NSMenuItem(title: "Analyze Screen", action: #selector(analyzeScreen), keyEquivalent: "a")
-        analyzeItem.keyEquivalentModifierMask = [.option, .command]
+        let toggleItem = NSMenuItem(title: "Toggle Session", action: #selector(toggleSession), keyEquivalent: "S")
+        toggleItem.keyEquivalentModifierMask = [.shift, .option]
+        toggleItem.target = self
+        menu.addItem(toggleItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        let analyzeItem = NSMenuItem(title: "Analyze Screen", action: #selector(analyzeScreen), keyEquivalent: "A")
+        analyzeItem.keyEquivalentModifierMask = [.shift, .option]
         analyzeItem.target = self
         menu.addItem(analyzeItem)
         
@@ -99,6 +106,28 @@ class MenuBarManager {
                 self?.updateStatusText(state)
             }
             .store(in: &cancellables)
+            
+        coordinator.visionAnswerPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] answer in
+                self?.showTemporaryTitle(answer)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func showTemporaryTitle(_ text: String) {
+        let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanText.isEmpty {
+            if let range = cleanText.range(of: #"(?<=\[Answer:)[^\]]+"#, options: .regularExpression) {
+                // Extracted the MCQ answer successfully!
+                let answer = cleanText[range].trimmingCharacters(in: .whitespaces)
+                ToastManager.shared.showToast(text: "Answer: \(answer)", duration: 5.0)
+            } else if cleanText.starts(with: "[Answer:") {
+                // It's currently typing out the answer tag
+                ToastManager.shared.showToast(text: "Thinking...", duration: 5.0)
+            }
+            // If it doesn't start with [Answer:, it's not an MCQ, so we show nothing in the Toast.
+        }
     }
     
     private func updateStatusText(_ state: SessionState) {
@@ -128,6 +157,14 @@ class MenuBarManager {
     
     @objc private func analyzeScreen() {
         coordinator.triggerVisionAnalysis()
+    }
+    
+    @objc private func toggleSession() {
+        if coordinator.state == .idle {
+            coordinator.startSession()
+        } else {
+            coordinator.stopSession()
+        }
     }
     
     func setState(_ state: MenuBarState) {

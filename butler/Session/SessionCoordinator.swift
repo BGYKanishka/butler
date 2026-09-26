@@ -24,6 +24,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     @Published var micAudioLevel: Float = 0.0
     @Published var sysAudioLevel: Float = 0.0
     
+    let visionAnswerPublisher = PassthroughSubject<String, Never>()
+    
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
         setupBindings()
@@ -192,7 +194,9 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         
         audioSessionCoordinator.stop()
         whisperEngine.cancel()
+        whisperEngine.unload()
         llmEngine.cancel()
+        llmEngine.unload()
         MemoryMonitor.shared.stopMonitoring()
         
         DispatchQueue.main.async {
@@ -218,7 +222,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         
         InteractiveCaptureService.shared.captureRegion { fileUrl in
             guard let imagePath = fileUrl?.path else { return }
-            let defaultPrompt = "Analyze this image and provide a solution, explanation, or relevant instructions."
+            let defaultPrompt = "Analyze this image and provide a solution, explanation, or relevant instructions. CRITICAL RULE: If and ONLY if the image contains a multiple-choice question with clear options, you must start your response exactly with [Answer: X] where X is the correct option. If the image is NOT a multiple-choice question (e.g. a diagram, code, or log), DO NOT output the [Answer: X] tag."
             self.processVisionRequest(prompt: defaultPrompt, imagePath: imagePath)
         }
     }
@@ -229,8 +233,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         overlayViewModel.setQuestion(prompt)
         state = .answering
         
-        // Add prompt to main chat transcript
-        let userSeg = TranscriptSegment(id: UUID(), source: .microphone, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "[Image Analyzed] " + prompt, isFinal: true, confidence: 1.0)
+        // Add prompt to main chat transcript but hide the long text and show the image instead
+        let userSeg = TranscriptSegment(id: UUID(), source: .microphone, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "Image Analyzed", isFinal: true, confidence: 1.0, imagePath: imagePath)
         transcripts.append(userSeg)
         
         let aiSegId = UUID()
@@ -248,6 +252,9 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                             var updated = self.transcripts[lastIdx]
                             updated.text += token
                             self.transcripts[lastIdx] = updated
+                            
+                            // Stream instantly to the toast
+                            self.visionAnswerPublisher.send(self.transcripts[lastIdx].text)
                         }
                     }
                 }

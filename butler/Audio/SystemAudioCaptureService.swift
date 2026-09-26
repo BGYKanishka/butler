@@ -37,11 +37,13 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         // to capture audio if the width and height are too small (e.g., 1x1).
         config.width = display.width
         config.height = display.height
-        config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+        // Set minimumFrameInterval to an extremely large value (1 frame per hour).
+        // Since we removed the .screen output to avoid capturing video, macOS complains internally
+        // about dropping frames. By throttling the frame rate, we stop the infinite log loop.
+        config.minimumFrameInterval = CMTime(value: 3600, timescale: 1)
         
         stream = SCStream(filter: filter, configuration: config, delegate: nil)
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "SystemAudioCaptureQueue"))
-        try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "SystemVideoCaptureQueue", qos: .background))
         
         try await stream?.startCapture()
         
