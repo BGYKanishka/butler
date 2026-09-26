@@ -75,11 +75,7 @@ struct MainWindowView: View {
                 )
                 
                 Button(action: {
-                    InteractiveCaptureService.shared.captureRegion { fileUrl in
-                        guard let imagePath = fileUrl?.path else { return }
-                        let defaultPrompt = "Analyze this image and provide a solution, explanation, or relevant instructions."
-                        processVisionRequest(prompt: defaultPrompt, imagePath: imagePath)
-                    }
+                    coordinator.triggerVisionAnalysis()
                 }) {
                     Image(systemName: "viewfinder")
                     Text("Analyze Screen")
@@ -165,48 +161,7 @@ struct MainWindowView: View {
         .animation(.easeInOut, value: coordinator.isLoadingModels)
     }
     
-    private func processVisionRequest(prompt: String, imagePath: String) {
-        // Clear old overlays
-        coordinator.overlayViewModel.clearLLMResponse()
-        coordinator.overlayViewModel.setQuestion(prompt)
-        coordinator.state = .answering
-        
-        // Add prompt to main chat transcript
-        let userSeg = TranscriptSegment(id: UUID(), source: .microphone, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "[Image Analyzed] " + prompt, isFinal: true, confidence: 1.0)
-        coordinator.transcripts.append(userSeg)
-        
-        let aiSegId = UUID()
-        let initialAiSeg = TranscriptSegment(id: aiSegId, source: .assistant, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "", isFinal: false, confidence: 1.0)
-        coordinator.transcripts.append(initialAiSeg)
-        
-        Task {
-            do {
-                try await coordinator.llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { token in
-                    DispatchQueue.main.async {
-                        coordinator.overlayViewModel.appendLLMToken(token)
-                        
-                        // Stream into the chat view
-                        if let lastIdx = coordinator.transcripts.indices.last {
-                            var updated = coordinator.transcripts[lastIdx]
-                            updated.text += token
-                            coordinator.transcripts[lastIdx] = updated
-                        }
-                    }
-                }
-                DispatchQueue.main.async {
-                    if let lastIdx = coordinator.transcripts.indices.last {
-                        coordinator.transcripts[lastIdx].isFinal = true
-                    }
-                    coordinator.state = .listening
-                }
-            } catch {
-                print("Vision error: \(error)")
-                DispatchQueue.main.async {
-                    coordinator.state = .error(error)
-                }
-            }
-        }
-    }
+
 
     private func statusColor(for state: SessionState) -> Color {
         switch state {

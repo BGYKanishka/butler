@@ -58,6 +58,14 @@ class MenuBarManager {
         
         menu.addItem(NSMenuItem.separator())
         
+        // Actions
+        let analyzeItem = NSMenuItem(title: "Analyze Screen", action: #selector(analyzeScreen), keyEquivalent: "a")
+        analyzeItem.keyEquivalentModifierMask = [.option, .command]
+        analyzeItem.target = self
+        menu.addItem(analyzeItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
         // Settings & Quit
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
@@ -116,6 +124,10 @@ class MenuBarManager {
     
     @objc private func requestScreen() {
         coordinator.environment.permissionsGateway.requestScreenPermission()
+    }
+    
+    @objc private func analyzeScreen() {
+        coordinator.triggerVisionAnalysis()
     }
     
     func setState(_ state: MenuBarState) {

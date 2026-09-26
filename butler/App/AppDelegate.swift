@@ -11,6 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var toggleSessionHotKey: HotKey?
     private var stopSessionHotKey: HotKey?
+    private var analyzeScreenHotKey: HotKey?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBarManager = MenuBarManager(coordinator: sessionCoordinator)
@@ -67,6 +68,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         stopSessionHotKey = HotKey(key: .s, modifiers: [.option, .command])
         stopSessionHotKey?.keyDownHandler = { [weak self] in
             self?.sessionCoordinator.stopSession()
+        }
+        
+        // Option + Command + A: Analyze Screen
+        analyzeScreenHotKey = HotKey(key: .a, modifiers: [.option, .command])
+        analyzeScreenHotKey?.keyDownHandler = { [weak self] in
+            self?.sessionCoordinator.triggerVisionAnalysis()
         }
     }
 }

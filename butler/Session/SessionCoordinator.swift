@@ -205,5 +205,66 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         print("Session stopped.")
     }
     
+    func triggerVisionAnalysis() {
+        // Prevent vision request if we are already answering, error, or idle, or loading
+        if isLoadingModels || state == .idle {
+            print("Cannot analyze screen in current state.")
+            return
+        }
+        if case .error = state {
+            print("Cannot analyze screen in current state.")
+            return
+        }
+        
+        InteractiveCaptureService.shared.captureRegion { fileUrl in
+            guard let imagePath = fileUrl?.path else { return }
+            let defaultPrompt = "Analyze this image and provide a solution, explanation, or relevant instructions."
+            self.processVisionRequest(prompt: defaultPrompt, imagePath: imagePath)
+        }
+    }
+    
+    private func processVisionRequest(prompt: String, imagePath: String) {
+        // Clear old overlays
+        overlayViewModel.clearLLMResponse()
+        overlayViewModel.setQuestion(prompt)
+        state = .answering
+        
+        // Add prompt to main chat transcript
+        let userSeg = TranscriptSegment(id: UUID(), source: .microphone, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "[Image Analyzed] " + prompt, isFinal: true, confidence: 1.0)
+        transcripts.append(userSeg)
+        
+        let aiSegId = UUID()
+        let initialAiSeg = TranscriptSegment(id: aiSegId, source: .assistant, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "", isFinal: false, confidence: 1.0)
+        transcripts.append(initialAiSeg)
+        
+        Task {
+            do {
+                try await llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { token in
+                    DispatchQueue.main.async {
+                        self.overlayViewModel.appendLLMToken(token)
+                        
+                        // Stream into the chat view
+                        if let lastIdx = self.transcripts.indices.last {
+                            var updated = self.transcripts[lastIdx]
+                            updated.text += token
+                            self.transcripts[lastIdx] = updated
+                        }
+                    }
+                }
+                DispatchQueue.main.async {
+                    if let lastIdx = self.transcripts.indices.last {
+                        self.transcripts[lastIdx].isFinal = true
+                    }
+                    self.state = .listening
+                }
+            } catch {
+                print("Vision error: \(error)")
+                DispatchQueue.main.async {
+                    self.state = .error(error)
+                }
+            }
+        }
+    }
+    
 
 }
