@@ -158,19 +158,35 @@ struct MainWindowView: View {
                     Color.black.opacity(0.6).ignoresSafeArea()
 
                     VStack(spacing: 24) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                            .tint(.white)
+                        if coordinator.modelDownloader.isDownloading {
+                            ProgressView(value: coordinator.modelDownloader.progress)
+                                .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                                .frame(width: 200)
 
-                        VStack(spacing: 8) {
-                            Text("Waking up AI engines...")
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .foregroundColor(.white)
+                            VStack(spacing: 8) {
+                                Text(coordinator.modelDownloader.statusText)
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.white)
+                                
+                                Text("\(Int(coordinator.modelDownloader.progress * 100))%")
+                                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                                    .foregroundColor(.gray)
+                            }
+                        } else {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                                .tint(.white)
 
-                            Text("Loading Llama model into Metal unified memory.\nThis may take a few seconds.")
-                                .font(.system(size: 13, weight: .regular, design: .rounded))
-                                .foregroundColor(.gray)
-                                .multilineTextAlignment(.center)
+                            VStack(spacing: 8) {
+                                Text("Waking up AI engines...")
+                                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.white)
+
+                                Text("Loading Llama model into Metal unified memory.\nThis may take a few seconds.")
+                                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                            }
                         }
                     }
                     .padding(40)

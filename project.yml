@@ -1,6 +1,7 @@
 name: butler
 options:
   bundleIdPrefix: com.example
+  xcodeVersion: "15.4"
 packages:
   HotKey:
     url: https://github.com/soffes/HotKey
@@ -19,12 +20,18 @@ targets:
         NSMicrophoneUsageDescription: "Butler needs access to your microphone to transcribe your speech."
         NSScreenCaptureUsageDescription: "Butler needs screen capture access to transcribe system and meeting audio."
         LSUIElement: YES
+        LSApplicationCategoryType: "public.app-category.productivity"
     entitlements:
       path: butler/Resources/butler.entitlements
     settings:
+      ARCHS: arm64
+      EXCLUDED_ARCHS: x86_64
+      VALID_ARCHITECTURES: arm64
+      ONLY_ACTIVE_ARCH: YES
       CODE_SIGN_IDENTITY: "-"
       DEVELOPMENT_TEAM: ""
       ENABLE_USER_SCRIPT_SANDBOXING: false
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       SWIFT_OBJC_BRIDGING_HEADER: "butler/Speech/WhisperBridge/BridgingHeader.h"
       HEADER_SEARCH_PATHS:
         - "$(SRCROOT)/Vendor/whisper.cpp/include"
@@ -54,7 +61,6 @@ targets:
         - "-framework Metal"
         - "-framework MetalKit"
         - "-framework CoreAudio"
-        - "-framework SwiftUI"
       OTHER_CFLAGS:
         - "-Wno-documentation"
       OTHER_CPLUSPLUSFLAGS:

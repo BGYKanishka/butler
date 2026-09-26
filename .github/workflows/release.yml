@@ -1,0 +1,76 @@
+name: Build and Release Mac App
+
+on:
+  push:
+    tags:
+      - 'v*' 
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    env:
+      RELEASE_VERSION: "v1.0.0"
+    steps:
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: 'latest-stable'
+        
+    - name: Checkout Repository
+      uses: actions/checkout@v5
+      with:
+        submodules: recursive
+        
+    - name: Install Dependencies
+      run: brew install xcodegen
+        
+    - name: Build AI Engines
+      run: |
+        chmod +x Scripts/build_whisper.sh Scripts/build_llama.sh
+        ./Scripts/build_whisper.sh
+        ./Scripts/build_llama.sh
+        
+    - name: Generate Xcode Project
+      run: xcodegen generate
+      
+    - name: Build Application
+      run: |
+        xcodebuild archive \
+          -project butler.xcodeproj \
+          -scheme butler \
+          -configuration Release \
+          -archivePath build/butler.xcarchive
+          
+    - name: Package Application (DMG)
+      run: |
+        cd build/butler.xcarchive/Products/Applications/
+        hdiutil create -volname Butler -srcfolder butler.app -ov -format UDZO ../../../../Butler.dmg
+        
+    - name: Determine Version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+        else
+          echo "RELEASE_VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v3
+      with:
+        tag_name: ${{ env.RELEASE_VERSION }}
+        name: Butler ${{ env.RELEASE_VERSION }}
+        body: "Automated release of Butler via GitHub Actions. Download the DMG, open it, and drag `butler.app` into your Applications folder.\n\n*Note: Because this is not signed with a paid Apple Developer account, macOS will flag it as damaged. To run it, open your Terminal and execute: `xattr -cr /Applications/butler.app` before opening the app.*"
+        files: Butler.dmg
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

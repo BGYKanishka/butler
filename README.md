@@ -57,6 +57,7 @@ graph TD
     Llama -- "Token Stream" --> MainWindow
 ```
 
+
 ## 💻 System Requirements
 
 Because Butler runs heavy AI models fully on-device, it requires robust hardware to ensure real-time performance.
@@ -97,6 +98,15 @@ Because Butler runs heavy AI models fully on-device, it requires robust hardware
 ## 🔒 Permissions
 
 On the first run, Butler will request **Microphone** and **Screen Recording** permissions. These are essential for capturing your voice and system audio. No audio or visual data is ever saved to disk or transmitted externally.
+
+## ⚠️ Disclaimer
+
+**Butler is an open-source project.** 
+**🤖 AI Limitations:** The on-device AI models used by Butler can make mistakes, hallucinate facts, or misinterpret audio. Always independently verify important information and action items.
+
+Running local AI models (especially Vision-Language Models) is incredibly resource-intensive. This software will consume significant RAM and CPU/GPU power, which may cause your machine to run hot or drain battery quickly. 
+
+By using this software, you acknowledge that it is provided "as is" without any warranties. The creator is not liable for any hardware issues, data loss, or system instability that may occur. Additionally, please ensure you comply with your local recording laws and corporate privacy policies when using this tool in meetings.
 
 ## 📄 License
 

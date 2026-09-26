@@ -22,6 +22,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     var onShowMainWindow: (() -> Void)?
     var onShowSettings: (() -> Void)?
     
+    @Published var modelDownloader = ModelDownloader()
+    
     @Published var state: SessionState = .idle
     @Published var transcripts: [TranscriptSegment] = []
     @Published var isLoadingModels: Bool = false
@@ -164,6 +166,22 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         state = .listening
         isLoadingModels = true
         
+        let modelManager = ModelManager()
+        if modelManager.areModelsMissing() {
+            modelDownloader.startDownload { [weak self] in
+                self?.continueStartingSession(micGranted: micGranted)
+            } error: { [weak self] error in
+                DispatchQueue.main.async {
+                    self?.isLoadingModels = false
+                    self?.state = .error(error)
+                }
+            }
+        } else {
+            continueStartingSession(micGranted: micGranted)
+        }
+    }
+    
+    private func continueStartingSession(micGranted: Bool) {
         Task {
             do {
                 let modelManager = ModelManager()

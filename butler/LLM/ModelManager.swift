@@ -17,4 +17,16 @@ class ModelManager {
         }
     }
     
+    func areModelsMissing() -> Bool {
+        let fileManager = FileManager.default
+        let whisperPath = WhisperConfiguration().getModelPath()
+        let llmPath = LLMConfiguration().getModelPath()
+        let visionPath = LLMConfiguration().getVisionModelPath()
+        
+        if !fileManager.fileExists(atPath: whisperPath) { return true }
+        if !fileManager.fileExists(atPath: llmPath) { return true }
+        if visionPath == nil || !fileManager.fileExists(atPath: visionPath!) { return true }
+        
+        return false
+    }
 }
