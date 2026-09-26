@@ -21,13 +21,15 @@ public class InteractiveCaptureService {
         task.arguments = ["-i", "-x", tempFileUrl.path]
         
         task.terminationHandler = { process in
-            if process.terminationStatus == 0 {
+            if process.terminationStatus == 0,
+               let attr = try? FileManager.default.attributesOfItem(atPath: tempFileUrl.path),
+               let size = attr[.size] as? UInt64, size > 0 {
                 // Success - execute completion on main thread as UI might update
                 DispatchQueue.main.async {
                     completion(tempFileUrl)
                 }
             } else {
-                // Cancelled or failed
+                // Cancelled, failed, or 0-size image created
                 DispatchQueue.main.async {
                     completion(nil)
                 }

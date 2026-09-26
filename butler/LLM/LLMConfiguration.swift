@@ -49,4 +49,15 @@ struct LLMConfiguration {
         // 4. Nothing found — return the profile path so the error message is informative
         return profilePath
     }
+    func getVisionModelPath() -> String? {
+        guard let llmDir = Constants.llmModelsDirectory else { return nil }
+        
+        // Try to find an mmproj file in the llm models directory
+        if let contents = try? FileManager.default.contentsOfDirectory(atPath: llmDir) {
+            if let firstMMProj = contents.first(where: { $0.hasSuffix(".gguf") && $0.contains("mmproj") }) {
+                return (llmDir as NSString).appendingPathComponent(firstMMProj)
+            }
+        }
+        return nil
+    }
 }

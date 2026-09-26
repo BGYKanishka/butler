@@ -149,18 +149,10 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         Task { @MainActor in
             let gateway = self.environment.permissionsGateway
             
-            // Allow starting a session as long as ANY hardware permission is granted.
-            // If they only have System Audio or Vision, we can still run those pipelines.
-            if gateway.anyPermissionGranted {
-                self.startSessionInternal(micGranted: gateway.isMicGranted)
-            } else {
-                let granted = await gateway.requestMicPermission()
-                if granted {
-                    self.startSessionInternal(micGranted: true)
-                } else {
-                    self.state = .error(AssistantError.permissionDenied("At least one permission (Mic or System Audio) is required to start a session"))
-                }
-            }
+            // Allow starting a session regardless of permissions.
+            // If they only want Vision, they don't need any permissions.
+            // The audio engines will just not receive samples if permissions are missing.
+            self.startSessionInternal(micGranted: gateway.isMicGranted)
         }
     }
     

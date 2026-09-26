@@ -73,7 +73,6 @@ struct MainWindowView: View {
                     Capsule()
                         .fill(buttonColor(for: coordinator.state))
                 )
-                .disabled(!requiredPermissionsGranted)
                 
                 Button(action: {
                     InteractiveCaptureService.shared.captureRegion { fileUrl in
@@ -91,9 +90,10 @@ struct MainWindowView: View {
                 .padding(.vertical, 6)
                 .background(
                     Capsule()
-                        .fill(Color.purple)
+                        .fill(isVisionDisabled(state: coordinator.state, loading: coordinator.isLoadingModels) ? Color.gray : Color.purple)
                 )
                 .foregroundColor(.white)
+                .disabled(isVisionDisabled(state: coordinator.state, loading: coordinator.isLoadingModels))
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -236,6 +236,13 @@ struct MainWindowView: View {
     private func buttonColor(for state: SessionState) -> Color {
         if case .error = state { return .blue }
         return state != .idle ? .red : .blue
+    }
+    
+    private func isVisionDisabled(state: SessionState, loading: Bool) -> Bool {
+        if loading { return true }
+        if case .idle = state { return true }
+        if case .error = state { return true }
+        return false
     }
 }
 

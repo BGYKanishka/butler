@@ -18,7 +18,17 @@ class LocalLLMEngine: LLMEngine, @unchecked Sendable {
         do {
             print("LLM Info: Loading model from \(modelPath)...")
             let startTime = Date()
-            try wrapper.loadModel(modelPath, contextSize: Int32(config.contextSize))
+            if let visionPath = config.getVisionModelPath(), FileManager.default.fileExists(atPath: visionPath) {
+                print("LLM Info: Loading vision model projector from \(visionPath)...")
+                do {
+                    try wrapper.loadVisionModel(modelPath, mmprojPath: visionPath, contextSize: Int32(config.contextSize))
+                } catch {
+                    print("LLM Warning: Failed to load vision model projector. Falling back to text-only mode. Error: \(error.localizedDescription)")
+                    try wrapper.loadModel(modelPath, contextSize: Int32(config.contextSize))
+                }
+            } else {
+                try wrapper.loadModel(modelPath, contextSize: Int32(config.contextSize))
+            }
             print("LLM Info: Model loaded successfully in \(String(format: "%.2f", Date().timeIntervalSince(startTime)))s")
         } catch {
             print("LLM Error: Failed to load model: \(error.localizedDescription)")

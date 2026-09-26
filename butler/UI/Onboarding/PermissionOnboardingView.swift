@@ -62,36 +62,34 @@ struct PermissionOnboardingView: View {
                     )
                 }
                 
-                if permissionsGateway.anyPermissionGranted {
-                    if permissionsGateway.isMicGranted {
-                        VStack(spacing: 8) {
-                            Text("Microphone Input")
-                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.gray)
-                            
-                            Text("Microphone Ready")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundColor(.green)
-                                .padding(.top, 4)
-                        }
-                        .padding(.top, 20)
-                        .transition(.opacity)
+                if permissionsGateway.isMicGranted {
+                    VStack(spacing: 8) {
+                        Text("Microphone Input")
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.gray)
+                        
+                        Text("Microphone Ready")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundColor(.green)
+                            .padding(.top, 4)
                     }
-                    
-                    Button(action: {
-                        NotificationCenter.default.post(name: NSNotification.Name("SkipOnboarding"), object: nil)
-                    }) {
-                        Text("Continue & Start")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(width: 160, height: 44)
-                            .background(Color.blue)
-                            .cornerRadius(22)
-                    }
-                    .buttonStyle(.plain)
                     .padding(.top, 20)
                     .transition(.opacity)
                 }
+                
+                Button(action: {
+                    NotificationCenter.default.post(name: NSNotification.Name("SkipOnboarding"), object: nil)
+                }) {
+                    Text(permissionsGateway.anyPermissionGranted ? "Continue & Start" : "Skip (Vision Only)")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(permissionsGateway.anyPermissionGranted ? .white : .gray)
+                        .frame(width: 180, height: 44)
+                        .background(permissionsGateway.anyPermissionGranted ? Color.blue : Color.white.opacity(0.1))
+                        .cornerRadius(22)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 20)
+                .transition(.opacity)
             }
             .padding(50)
             .background(
