@@ -29,7 +29,7 @@ class LocalLLMEngine: LLMEngine, @unchecked Sendable {
     }
     
     func unload() {
-        inferenceQueue.async {
+        inferenceQueue.sync {
             self.wrapper.unload()
             self.isLoaded = false
         }

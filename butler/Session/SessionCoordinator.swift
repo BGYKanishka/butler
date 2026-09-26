@@ -124,6 +124,10 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             if self.transcripts.count > 100 {
                 self.transcripts.removeFirst(self.transcripts.count - 100)
             }
+            
+            let recentTexts = self.transcripts.suffix(3).map { $0.text }.joined(separator: " ")
+            self.whisperEngine.updateContext(recentTexts)
+            
             // Pass every transcript directly to the ResponseGenerator to evaluate intent
             // ONLY if not already answering, to prevent cancelling the ongoing answer
             if self.state != .answering {

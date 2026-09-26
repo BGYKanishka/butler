@@ -54,7 +54,6 @@ targets:
         - "-framework Metal"
         - "-framework MetalKit"
         - "-framework CoreAudio"
-        - "-framework CoreAudioTypes"
         - "-framework SwiftUI"
       OTHER_CFLAGS:
         - "-Wno-documentation"

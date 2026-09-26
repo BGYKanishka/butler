@@ -4,6 +4,11 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
     private var wrapper: WhisperWrapper?
     private var isLoaded = false
     private let transcriptionQueue = DispatchQueue(label: "com.butler.whisperQueue")
+    private var currentContext: String = ""
+    
+    func updateContext(_ text: String) {
+        self.currentContext = text
+    }
     
     func load() async throws {
         guard !isLoaded else { return }
@@ -17,18 +22,16 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         }
         
         wrapper = WhisperWrapper(modelPath: modelPath)
-        guard let wrapper = wrapper else {
+        guard wrapper != nil else {
             throw AssistantError.modelNotFound("Failed to initialize whisper context with model: \(modelPath)")
         }
         
-        // Add context for programming/meeting terminology to improve transcription accuracy
-        wrapper.initialPrompt = "Transcript of a software engineering meeting discussing React hooks, programming, variables, functions, and code."
         
         isLoaded = true
     }
     
     func unload() {
-        transcriptionQueue.async {
+        transcriptionQueue.sync {
             self.wrapper = nil // ARC will call dealloc which calls whisper_free()
             self.isLoaded = false
         }
@@ -61,6 +64,11 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         
         let result: String? = await withCheckedContinuation { continuation in
             transcriptionQueue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
                 wrapper.onPartialTranscript = { [weak self] partialText in
                     guard let self = self else { return }
                     let text = partialText
@@ -79,7 +87,8 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
                 }
                 
                 let text = samples.withUnsafeBufferPointer { ptr in
-                    wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
+                    wrapper.initialPrompt = self.currentContext
+                    return wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
                 }
                 continuation.resume(returning: text)
             }

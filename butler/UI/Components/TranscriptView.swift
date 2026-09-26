@@ -62,8 +62,14 @@ struct ChatBubbleView: View {
                     .foregroundColor(isAssistant ? .blue.opacity(0.8) : .secondary)
                     .padding(.horizontal, 4)
                 
-                Text(segment.text)
-                    .font(.system(size: isAssistant ? 16 : 14, weight: .regular, design: .rounded))
+                Group {
+                    if let attrStr = try? AttributedString(markdown: segment.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                        Text(attrStr)
+                    } else {
+                        Text(segment.text)
+                    }
+                }
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(isLocal ? .white : .primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
