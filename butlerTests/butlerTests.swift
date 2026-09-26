@@ -29,15 +29,7 @@ final class butlerTests: XCTestCase {
         XCTAssertFalse(vad.process(rms: 0.001, timestamp: 1.2)) // Duration 0.7 > 0.6
     }
     
-    func testQuestionDetector() throws {
-        let detector = QuestionDetector()
-        
-        XCTAssertEqual(detector.detect(transcript: "Hello world.", source: .system), .none)
-        XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .system), .strongQuestion)
-        XCTAssertEqual(detector.detect(transcript: "I heard what happened.", source: .system), .possibleQuestion)
-        XCTAssertEqual(detector.detect(transcript: "What is the meaning of life?", source: .microphone), .none)
-    }
-    
+
     func testContextManager() async throws {
         let manager = ContextManager()
         

@@ -20,8 +20,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     
     var onHideMainWindow: (() -> Void)?
     var onShowMainWindow: (() -> Void)?
+    var onShowSettings: (() -> Void)?
     
-    @Published var overlayViewModel = OverlayViewModel()
     @Published var state: SessionState = .idle
     @Published var transcripts: [TranscriptSegment] = []
     @Published var isLoadingModels: Bool = false
@@ -40,7 +40,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         responseGenerator.onTokenGenerated = { [weak self] token in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                self.overlayViewModel.appendLLMToken(token)
                 
                 // Stream directly into transcript
                 if let last = self.transcripts.last, last.source == .assistant, !last.isFinal {
@@ -57,7 +56,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         responseGenerator.onResponseCompleted = { [weak self] in
             DispatchQueue.main.async {
                 guard let self = self, self.state == .answering else { return }
-                self.overlayViewModel.statusText = "Completed"
                 self.lastAnswerEndTime = Date()
                 self.state = .listening // M7: Reset state so session can continue
                 
@@ -69,12 +67,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 }
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
-                // Clear the UI if a new question hasn't started
-                if self?.overlayViewModel.statusText == "Completed" {
-                    self?.overlayViewModel.clearLLMResponse()
-                }
-            }
+            // Delay logic removed
         }
         
         audioSessionCoordinator.micService.onAudioLevelChanged = { [weak self] level in
@@ -107,8 +100,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         whisperEngine.onPartialTranscriptionCompleted = { [weak self] segment in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                // For partials, update the UI
-                self.overlayViewModel.appendSubtitle(segment.text)
                 
                 // Allow model to evaluate intent early on incomplete sentences!
                 if self.state != .answering && Date().timeIntervalSince(self.lastAnswerEndTime) > 3.0 {
@@ -125,7 +116,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         responseGenerator.onIntentConfirmed = { [weak self] question in
             print("Session Info: Intent confirmed by LLM! -> \(question)")
             DispatchQueue.main.async {
-                self?.overlayViewModel.setQuestion(question)
                 self?.state = .answering
             }
         }
@@ -138,18 +128,15 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         Task { await contextManager.addTurn(turn) }
         
         DispatchQueue.main.async {
-            self.overlayViewModel.appendSubtitle(segment.text)
             self.transcripts.append(segment)
             if self.transcripts.count > 100 {
                 self.transcripts.removeFirst(self.transcripts.count - 100)
             }
             
-            // Intentionally NOT passing old transcripts to Whisper to prevent hallucination loops where it repeats old phrases.
-            // Whisper will rely exclusively on the user-configured Vocabulary in Settings.
+            // Clear context to prevent Whisper hallucination loops. It relies on the user-configured Vocabulary.
             self.whisperEngine.updateContext("")
             
-            // Pass every transcript directly to the ResponseGenerator to evaluate intent
-            // ONLY if not already answering, to prevent cancelling the ongoing answer
+            // Evaluate intent if not currently answering to prevent cancelling the ongoing response.
             if self.state != .answering && Date().timeIntervalSince(self.lastAnswerEndTime) > 3.0 {
                 self.responseGenerator.handleTranscript(segment.text, source: segment.source)
             }
@@ -169,9 +156,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         Task { @MainActor in
             let gateway = self.environment.permissionsGateway
             
-            // Allow starting a session regardless of permissions.
-            // If they only want Vision, they don't need any permissions.
-            // The audio engines will just not receive samples if permissions are missing.
+            // Sessions can start without permissions for Vision-only mode. Audio capture fails gracefully.
             self.startSessionInternal(micGranted: gateway.isMicGranted)
         }
     }
@@ -219,8 +204,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         
         DispatchQueue.main.async {
             self.transcripts.removeAll()
-            self.overlayViewModel.clearLLMResponse()
-            self.overlayViewModel.subtitles.removeAll()
         }
         
         state = .idle
@@ -268,11 +251,9 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     
     private func processVisionRequest(prompt: String, imagePath: String) {
         // Clear old overlays
-        overlayViewModel.clearLLMResponse()
-        overlayViewModel.setQuestion(prompt)
         state = .answering
         
-        // Add prompt to main chat transcript but hide the long text and show the image instead
+        // Display image instead of long text prompt in chat transcript
         let userSeg = TranscriptSegment(id: UUID(), source: .microphone, startTime: Date().timeIntervalSince1970, endTime: Date().timeIntervalSince1970, text: "Image Analyzed", isFinal: true, confidence: 1.0, imagePath: imagePath)
         transcripts.append(userSeg)
         
@@ -284,8 +265,6 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             do {
                 try await llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { token in
                     DispatchQueue.main.async {
-                        self.overlayViewModel.appendLLMToken(token)
-                        
                         // Stream into the chat view
                         if let lastIdx = self.transcripts.indices.last {
                             var updated = self.transcripts[lastIdx]

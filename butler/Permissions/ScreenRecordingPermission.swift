@@ -16,8 +16,7 @@ class ScreenRecordingPermission: BasePermissionTracker {
         checkPermission()
     }
     
-    /// Checks screen recording permission silently.
-    /// Uses CGPreflightScreenCaptureAccess() and falls back to SCShareableContent on failure if allowFallback is true.
+    /// Checks screen recording permission silently. Uses CGPreflight and optionally falls back to SCShareableContent.
     func checkPermission(allowFallback: Bool = false) {
         if isGranted { return }
         
@@ -29,9 +28,7 @@ class ScreenRecordingPermission: BasePermissionTracker {
         }
     }
     
-    /// Async fallback check using SCShareableContent.
-    /// This CAN trigger a dialog on some macOS versions if permission isn't granted,
-    /// so we only call it during polling (after the user has explicitly tapped Grant).
+    /// Async fallback using SCShareableContent. Only called during polling as it can trigger system dialogs.
     private func verifySilentlyWithSCShareableContent() {
         SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { [weak self] content, error in
             Task { @MainActor in
@@ -42,14 +39,12 @@ class ScreenRecordingPermission: BasePermissionTracker {
         }
     }
     
-    /// Called when the user explicitly taps "Grant Access" in the permission card.
-    /// Shows the system dialog once, then opens System Settings and polls.
+    /// Called on "Grant Access" tap. Shows dialog once, then opens Settings and polls.
     func requestPermission() {
         if isGranted { return }
         pollingGaveUp = false
         
-        // CGRequestScreenCaptureAccess() shows the system prompt once per app launch.
-        // Subsequent calls are no-ops that return false immediately.
+        // Shows the system prompt once per app launch. Subsequent calls are no-ops.
         let alreadyGranted = CGRequestScreenCaptureAccess()
         if alreadyGranted {
             isGranted = true
@@ -67,8 +62,7 @@ class ScreenRecordingPermission: BasePermissionTracker {
         pollPermission(attempts: 60)
     }
     
-    /// Polls using only CGPreflight (silent) + SCShareableContent fallback.
-    /// No CGRequestScreenCaptureAccess() — that would re-trigger the dialog.
+    /// Polls using silent checks to avoid re-triggering the dialog.
     private func pollPermission(attempts: Int) {
         guard attempts > 0 && !isGranted else {
             if !isGranted { self.pollingGaveUp = true }
@@ -79,8 +73,7 @@ class ScreenRecordingPermission: BasePermissionTracker {
                 guard let self = self else { return }
                 self.checkPermission(allowFallback: true)
                 
-                // checkPermission is partially async (SCShareableContent), so wait
-                // a beat before checking if we need to continue polling.
+                // Wait briefly for async SCShareableContent before continuing polling.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     Task { @MainActor in
                         if self.isGranted == false {

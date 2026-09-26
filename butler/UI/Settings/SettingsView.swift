@@ -17,130 +17,94 @@ class SettingsViewModel: ObservableObject {
             UserDefaults.standard.set(first.uniqueID, forKey: ConfigKey.selectedMicrophoneID)
         }
     }
-    
-    func selectWhisperModel() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.data]
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url {
-            UserDefaults.standard.set(url.path, forKey: ConfigKey.whisperModelPath)
-        }
-    }
-    
-    func selectLlamaModel() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.data]
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url {
-            UserDefaults.standard.set(url.path, forKey: ConfigKey.llamaModelPath)
-        }
-    }
 }
 
 struct SettingsView: View {
+    @ObservedObject var permissionsGateway: PermissionsGateway
     @StateObject private var viewModel = SettingsViewModel()
     
     @AppStorage(ConfigKey.selectedMicrophoneID) private var selectedMicrophoneID: String = ""
-    @AppStorage(ConfigKey.whisperModelPath) private var whisperModelPath: String = ""
-    @AppStorage(ConfigKey.llamaModelPath) private var llamaModelPath: String = ""
-    
-    @AppStorage(ConfigKey.llmTemperature) private var llmTemperature: Double = 0.3
-    @AppStorage(ConfigKey.llmMaxTokens) private var llmMaxTokens: Int = 200
-    @AppStorage(ConfigKey.saveTranscripts) private var saveTranscripts: Bool = false
-    @AppStorage(ConfigKey.modelProfile) private var modelProfile: ModelProfile = .fast
-    @AppStorage(ConfigKey.whisperVocabulary) private var whisperVocabulary: String = ""
     
     var body: some View {
-        TabView {
-            // MARK: - General Settings
-            Form {
-                Section(header: Text("Audio").font(.headline)) {
-                    Picker("Microphone:", selection: $selectedMicrophoneID) {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Settings")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Spacer()
+                Button(action: {
+                    NSApp.sendAction(#selector(NSWindow.close), to: nil, from: nil)
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(20)
+            
+            VStack(alignment: .leading, spacing: 24) {
+                // Audio
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("AUDIO").font(.caption).foregroundColor(.secondary)
+                    Picker("Microphone", selection: $selectedMicrophoneID) {
                         ForEach(viewModel.availableMicrophones, id: \.uniqueID) { mic in
                             Text(mic.localizedName).tag(mic.uniqueID)
                         }
                     }
-                    
-                    TextField("Speech Vocabulary (comma-separated):", text: $whisperVocabulary)
-                        .help("Add domain-specific words to help Whisper guess better (e.g., Sandbox, API, variables)")
+                    .pickerStyle(.menu)
                 }
                 
-                Divider().padding(.vertical)
+                // Permissions
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("PERMISSIONS").font(.caption).foregroundColor(.secondary)
+                    
+                    HStack {
+                        Text("Microphone")
+                            .foregroundColor(.white)
+                        Spacer()
+                        Button(permissionsGateway.isMicGranted ? "Granted" : "Request") {
+                            Task { await permissionsGateway.requestMicPermission() }
+                        }
+                        .disabled(permissionsGateway.isMicGranted)
+                    }
+                    
+                    HStack {
+                        Text("Screen & System Audio")
+                            .foregroundColor(.white)
+                        Spacer()
+                        Button(permissionsGateway.isScreenGranted ? "Granted" : "Request") {
+                            permissionsGateway.requestScreenPermission()
+                        }
+                        .disabled(permissionsGateway.isScreenGranted)
+                    }
+                }
                 
-                Section(header: Text("Models").font(.headline)) {
-                    HStack {
-                        Text("Whisper:")
-                        TextField("Select .bin model", text: $whisperModelPath)
-                            .disabled(true)
-                        Button("Browse...") {
-                            viewModel.selectWhisperModel()
-                        }
-                    }
-                    
-                    HStack {
-                        Text("LLM:")
-                        TextField("Select .gguf model", text: $llamaModelPath)
-                            .disabled(true)
-                        Button("Browse...") {
-                            viewModel.selectLlamaModel()
-                        }
-                    }
+                Spacer()
+                
+                // Quit
+                Button(action: {
+                    NSApplication.shared.terminate(nil)
+                }) {
+                    Text("Quit Butler")
+                        .font(.system(.body, design: .rounded, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                 }
+                .buttonStyle(.plain)
+                .background(Color.red.opacity(0.8))
+                .cornerRadius(8)
             }
-            .padding()
-            .tabItem {
-                Label("General", systemImage: "gearshape")
-            }
-            
-            // MARK: - AI Settings
-            Form {
-                Section(header: Text("Generation").font(.headline)) {
-                    HStack {
-                        Text("Temperature:")
-                        Slider(value: $llmTemperature, in: 0.0...1.0, step: 0.1)
-                        Text(String(format: "%.1f", llmTemperature))
-                            .frame(width: 40)
-                    }
-                    
-                    HStack {
-                        Text("Max Tokens:")
-                        Slider(value: Binding(get: {
-                            Double(llmMaxTokens)
-                        }, set: {
-                            llmMaxTokens = Int($0)
-                        }), in: 50...1000, step: 10)
-                        Text("\(llmMaxTokens)")
-                            .frame(width: 40)
-                    }
-                    
-                    Picker("Model Profile:", selection: $modelProfile) {
-                        ForEach(ModelProfile.allCases, id: \.self) { profile in
-                            Text(profile.rawValue.capitalized).tag(profile)
-                        }
-                    }
-                }
-            }
-            .padding()
-            .tabItem {
-                Label("AI Tuning", systemImage: "brain.head.profile")
-            }
-            
-            // MARK: - Privacy Settings
-            Form {
-                Section(header: Text("Data").font(.headline)) {
-                    Toggle("Save Transcripts to Disk", isOn: $saveTranscripts)
-                    Text("If enabled, conversation transcripts will be saved locally. By default, Butler processes everything in memory and discards it.")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-            }
-            .padding()
-            .tabItem {
-                Label("Privacy", systemImage: "hand.raised")
-            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
         }
-        .frame(width: 550, height: 350)
+        .frame(width: 350, height: 350)
+        .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }

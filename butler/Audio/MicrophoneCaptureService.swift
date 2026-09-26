@@ -37,8 +37,12 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         }
     }
     
+    private var isStarting = false
+    
     func start() async throws {
-        guard !isRunning else { return }
+        guard !isRunning, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
         
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
@@ -51,7 +55,7 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         
         self.converter = try AudioConverter(from: nil)
         
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] (buffer, time) in
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] (buffer, time) in
             guard let self = self else { return }
             
             guard let outputBuffer = self.converter?.convert(buffer: buffer) else { return }
@@ -78,9 +82,14 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
         }
         
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            throw error
+        }
         
-        DispatchQueue.main.async {
+        await MainActor.run {
             self.isRunning = true
         }
     }

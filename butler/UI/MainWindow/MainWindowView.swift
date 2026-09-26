@@ -93,6 +93,20 @@ struct MainWindowView: View {
                 .disabled(isVisionDisabled(state: coordinator.state, loading: coordinator.isLoadingModels))
                 
                 Button(action: {
+                    coordinator.onShowSettings?()
+                }) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.borderless)
+                .padding(.leading, 8)
+                
+                Button(action: {
                     coordinator.onHideMainWindow?()
                 }) {
                     Image(systemName: "xmark")
@@ -101,8 +115,9 @@ struct MainWindowView: View {
                         .padding(8)
                         .background(Color.white.opacity(0.1))
                         .clipShape(Circle())
+                        .contentShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
                 .padding(.leading, 8)
             }
             .padding(.horizontal, 16)

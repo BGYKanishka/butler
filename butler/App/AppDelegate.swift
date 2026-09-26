@@ -3,30 +3,34 @@ import SwiftUI
 import Combine
 import HotKey
 
+class KeyPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var menuBarManager: MenuBarManager?
     var sessionCoordinator = SessionCoordinator()
     
     private var cancellables = Set<AnyCancellable>()
     private var toggleSessionHotKey: HotKey?
     private var analyzeScreenHotKey: HotKey?
+    private var toggleWindowHotKey: HotKey?
     
     var mainWindow: NSPanel?
+    var settingsWindow: NSWindow?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory) // Hide from dock
-        
-        menuBarManager = MenuBarManager(coordinator: sessionCoordinator)
-        menuBarManager?.onToggleMainWindow = { [weak self] in
-            self?.toggleMainWindow()
-        }
         
         sessionCoordinator.onHideMainWindow = { [weak self] in
             self?.mainWindow?.orderOut(nil)
         }
         sessionCoordinator.onShowMainWindow = { [weak self] in
             self?.mainWindow?.makeKeyAndOrderFront(nil)
+        }
+        sessionCoordinator.onShowSettings = { [weak self] in
+            self?.showSettings()
         }
         
         setupMainWindow()
@@ -35,10 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        // Explicitly stop the session and unload ML engines before exit().
-        // This ensures llama_free / whisper_free are called while the Metal
-        // device is still alive, draining residency sets and preventing the
-        // GGML_ASSERT([rsets->data count] == 0) crash in ggml_metal_device_free.
+        // Stop session and unload ML engines before exit to prevent Metal resource leaks and crashes.
         if sessionCoordinator.state != .idle {
             sessionCoordinator.stopSession()
         }
@@ -46,11 +47,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         sessionCoordinator.whisperEngine.unload()
     }
     
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            toggleMainWindow()
+        }
+        return true
+    }
+    
     private func setupMainWindow() {
         let view = MainWindowView(coordinator: sessionCoordinator, permissionsGateway: sessionCoordinator.environment.permissionsGateway)
         let hostingView = NSHostingView(rootView: view)
         
-        let panel = NSPanel(
+        let panel = KeyPanel(
             contentRect: NSRect(x: 0, y: 0, width: 550, height: 650),
             styleMask: [.nonactivatingPanel],
             backing: .buffered,
@@ -104,24 +112,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    @objc func showSettings() {
+        if settingsWindow == nil {
+            let panel = KeyPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 350, height: 350),
+                styleMask: [.nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            panel.isFloatingPanel = true
+            panel.level = .floating
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            panel.titleVisibility = .hidden
+            panel.titlebarAppearsTransparent = true
+            panel.isMovableByWindowBackground = true
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = true
+            panel.isReleasedWhenClosed = false
+            
+            panel.standardWindowButton(.closeButton)?.isHidden = true
+            panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            panel.standardWindowButton(.zoomButton)?.isHidden = true
+            
+            panel.center()
+            panel.setFrameAutosaveName("ButlerSettings")
+            panel.contentView = NSHostingView(rootView: SettingsView(permissionsGateway: sessionCoordinator.environment.permissionsGateway))
+            settingsWindow = panel
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
     private func setupBindings() {
-        sessionCoordinator.$state
-            .receive(on: DispatchQueue.main)
-            .sink { @MainActor [weak self] state in
-                switch state {
-                case .idle:
-                    self?.menuBarManager?.setState(.idle)
-                case .listening:
-                    self?.menuBarManager?.setState(.listening)
-                case .processing:
-                    self?.menuBarManager?.setState(.processing)
-                case .answering:
-                    self?.menuBarManager?.setState(.processing)
-                case .error:
-                    self?.menuBarManager?.setState(.idle)
-                }
-            }
-            .store(in: &cancellables)
+        // No bindings needed here right now
     }
     
     private func setupHotKeys() {
@@ -140,6 +164,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         analyzeScreenHotKey = HotKey(key: .a, modifiers: [.shift, .option])
         analyzeScreenHotKey?.keyDownHandler = { [weak self] in
             self?.sessionCoordinator.triggerVisionAnalysis()
+        }
+        
+        // Shift + Option + W: Toggle Main Window
+        toggleWindowHotKey = HotKey(key: .w, modifiers: [.shift, .option])
+        toggleWindowHotKey?.keyDownHandler = { [weak self] in
+            self?.toggleMainWindow()
         }
     }
 }

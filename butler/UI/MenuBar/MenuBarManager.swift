@@ -182,16 +182,31 @@ class MenuBarManager {
     
     @objc func showSettings() {
         if settingsWindow == nil {
-            let win = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 550, height: 350),
-                styleMask: [.titled, .closable, .miniaturizable],
-                backing: .buffered, defer: false)
-            win.center()
-            win.setFrameAutosaveName("ButlerSettings")
-            win.title = "Butler Settings"
-            win.contentView = NSHostingView(rootView: SettingsView())
-            win.isReleasedWhenClosed = false
-            settingsWindow = win
+            let panel = KeyPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 350, height: 350),
+                styleMask: [.nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            panel.isFloatingPanel = true
+            panel.level = .floating
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            panel.titleVisibility = .hidden
+            panel.titlebarAppearsTransparent = true
+            panel.isMovableByWindowBackground = true
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = true
+            panel.isReleasedWhenClosed = false
+            
+            panel.standardWindowButton(.closeButton)?.isHidden = true
+            panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            panel.standardWindowButton(.zoomButton)?.isHidden = true
+            
+            panel.center()
+            panel.setFrameAutosaveName("ButlerSettings")
+            panel.contentView = NSHostingView(rootView: SettingsView(permissionsGateway: coordinator.environment.permissionsGateway))
+            settingsWindow = panel
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

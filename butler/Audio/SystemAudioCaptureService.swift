@@ -9,37 +9,32 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
     var onSamplesCaptured: (([Float]) -> Void)?
     var onAudioLevelChanged: ((Float) -> Void)?
     private var stream: SCStream?
+    private var isStarting = false
     
     func start() async throws {
-        guard !isRunning else { return }
+        guard !isRunning, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
         
-        // Note: We intentionally do NOT guard with CGPreflightScreenCaptureAccess() here.
-        // CGPreflight returns false when running from Xcode with ad-hoc code signing,
-        // even when the user has granted permission in System Settings. Instead, we let
-        // SCShareableContent.excludingDesktopWindows throw if permission is truly denied.
-        // AudioSessionCoordinator catches this and falls back to mic-only capture.
+        // Bypass CGPreflightScreenCaptureAccess() due to Xcode ad-hoc signing bugs.
+        // Missing permissions will throw and fallback to mic-only capture.
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first else { return }
         
-        // Note: Currently, we exclude no applications and no windows, which means we capture
-        // the entire display's audio output (including notifications and other apps). 
-        // This is a known privacy consideration for V1. Future iterations may filter to specific meeting apps.
+        // Captures all system audio. Future iterations may filter to specific meeting apps.
         let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
         
         let config = SCStreamConfiguration()
         config.capturesAudio = true
-        // If set to true, the app ignores its own audio, making the test track invisible to system audio capture.
+        // Include the app's own audio in the capture.
         config.excludesCurrentProcessAudio = false
         config.sampleRate = 16000
         config.channelCount = 1
         
-        // Use the display's actual dimensions. Some macOS versions silently fail 
-        // to capture audio if the width and height are too small (e.g., 1x1).
+        // Use actual dimensions to prevent silent audio capture failures on some macOS versions.
         config.width = display.width
         config.height = display.height
-        // Set minimumFrameInterval to an extremely large value (1 frame per hour).
-        // Since we removed the .screen output to avoid capturing video, macOS complains internally
-        // about dropping frames. By throttling the frame rate, we stop the infinite log loop.
+        // Throttle frame rate (1 frame/hr) to suppress macOS dropped frame logs when video output is removed.
         config.minimumFrameInterval = CMTime(value: 3600, timescale: 1)
         
         stream = SCStream(filter: filter, configuration: config, delegate: nil)
@@ -47,7 +42,7 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
         
         try await stream?.startCapture()
         
-        DispatchQueue.main.async {
+        await MainActor.run {
             self.isRunning = true
         }
     }
