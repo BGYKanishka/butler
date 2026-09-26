@@ -1,9 +1,9 @@
-# Vision Roadmap (v2.0)
+# Vision Architecture
 
-Version 1.0 of Butler focuses strictly on audio intelligence. Version 2.0 will introduce contextual screen awareness using `ScreenCaptureKit` and Vision Language Models (VLM).
+Butler features contextual screen awareness using `ScreenCaptureKit` and Vision Language Models (VLM).
 
 ## The Goal
-Butler will be able to answer questions about what is actively being shared on screen during a meeting (e.g. "What does that diagram mean?", "Can you summarize the slide?", "Is there a bug in the code being presented?").
+Butler is able to answer questions about what is actively being shared on screen during a meeting (e.g. "What does that diagram mean?", "Can you summarize the slide?", "Is there a bug in the code being presented?").
 
 ## Planned Architecture
 

@@ -38,10 +38,13 @@ class LocalLLMEngine: LLMEngine, @unchecked Sendable {
         isLoaded = true
     }
     
-    func unload() {
-        inferenceQueue.sync {
-            self.wrapper.unload()
-            self.isLoaded = false
+    func unload() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            inferenceQueue.async {
+                self.wrapper.unload()
+                self.isLoaded = false
+                continuation.resume()
+            }
         }
     }
     

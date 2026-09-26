@@ -58,7 +58,7 @@ struct MainWindowView: View {
                     var isError = false
                     if case .error = coordinator.state { isError = true }
                     if coordinator.state != .idle && !isError {
-                        coordinator.stopSession()
+                        Task { await coordinator.stopSession() }
                     } else {
                         coordinator.startSession()
                     }

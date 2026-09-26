@@ -97,7 +97,9 @@ class ResponseGenerator {
                 print("LLM generation failed: \(error)")
             }
             
-            self.isEvaluating = false
+            await MainActor.run {
+                self.isEvaluating = false
+            }
         }
     }
 }

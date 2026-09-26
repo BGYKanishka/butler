@@ -122,23 +122,22 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     }
     
     private func handleTranscription(segment: TranscriptSegment) {
-        transcriptAssembler.addSegment(segment)
-        
-        let turn = ConversationTurn(id: UUID(), source: segment.source, type: .statement, text: segment.text, timestamp: Date())
-        Task { await contextManager.addTurn(turn) }
-        
-        DispatchQueue.main.async {
-            self.transcripts.append(segment)
-            if self.transcripts.count > 100 {
-                self.transcripts.removeFirst(self.transcripts.count - 100)
-            }
+        Task {
+            await transcriptAssembler.addSegment(segment)
             
-            // Clear context to prevent Whisper hallucination loops. It relies on the user-configured Vocabulary.
-            self.whisperEngine.updateContext("")
+            let turn = ConversationTurn(id: UUID(), source: segment.source, type: .statement, text: segment.text, timestamp: Date())
+            await contextManager.addTurn(turn)
             
-            // Evaluate intent if not currently answering to prevent cancelling the ongoing response.
-            if self.state != .answering && Date().timeIntervalSince(self.lastAnswerEndTime) > 3.0 {
-                self.responseGenerator.handleTranscript(segment.text, source: segment.source)
+            DispatchQueue.main.async {
+                self.transcripts.append(segment)
+                if self.transcripts.count > 100 {
+                    self.transcripts.removeFirst(self.transcripts.count - 100)
+                }
+                
+                // Evaluate intent if not currently answering to prevent cancelling the ongoing response.
+                if self.state != .answering && Date().timeIntervalSince(self.lastAnswerEndTime) > 3.0 {
+                    self.responseGenerator.handleTranscript(segment.text, source: segment.source)
+                }
             }
         }
     }
@@ -192,22 +191,25 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         }
     }
     
-    func stopSession() {
-        guard state != .idle else { return }
-        
-        audioSessionCoordinator.stop()
-        whisperEngine.cancel()
-        whisperEngine.unload()
-        llmEngine.cancel()
-        llmEngine.unload()
-        MemoryMonitor.shared.stopMonitoring()
-        
-        DispatchQueue.main.async {
-            self.transcripts.removeAll()
+    func stopSession() async {
+        await MainActor.run {
+            guard state != .idle else { return }
+            
+            audioSessionCoordinator.stop()
+            whisperEngine.cancel()
+            llmEngine.cancel()
+            MemoryMonitor.shared.stopMonitoring()
+            
+            state = .idle
         }
         
-        state = .idle
-        print("Session stopped.")
+        await whisperEngine.unload()
+        await llmEngine.unload()
+        
+        await MainActor.run {
+            self.transcripts.removeAll()
+            print("Session stopped.")
+        }
     }
     
     func triggerVisionAnalysis() {
@@ -237,7 +239,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 
                 Task {
                     let recentContext = await self.contextManager.getRecentContext()
-                    let basePrompt = "Analyze this image. If it contains a multiple-choice question or a direct problem, you MUST state the final answer clearly in the very first sentence. After that, provide your step-by-step solution and explanation."
+                    let basePrompt = "Analyze this image. If it contains a multiple-choice question or a direct problem, state the final answer clearly in the first sentence, followed by a step-by-step solution. If it's a general image, simply explain or describe it naturally as a helpful AI assistant."
                     
                     let finalPrompt = recentContext.isEmpty ? basePrompt : "\(basePrompt)\n\nRecent voice/chat context:\n\(recentContext)\n\nPlease answer the user's latest query considering the image."
                     

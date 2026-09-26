@@ -4,11 +4,7 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
     private var wrapper: WhisperWrapper?
     private var isLoaded = false
     private let transcriptionQueue = DispatchQueue(label: "com.butler.whisperQueue")
-    private var currentContext: String = ""
-    
-    func updateContext(_ text: String) {
-        self.currentContext = text
-    }
+
     
     func load() async throws {
         guard !isLoaded else { return }
@@ -30,10 +26,13 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         isLoaded = true
     }
     
-    func unload() {
-        transcriptionQueue.sync {
-            self.wrapper = nil // ARC will call dealloc which calls whisper_free()
-            self.isLoaded = false
+    func unload() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            transcriptionQueue.async {
+                self.wrapper = nil // ARC will call dealloc which calls whisper_free()
+                self.isLoaded = false
+                continuation.resume()
+            }
         }
     }
     
@@ -59,7 +58,9 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
     var onPartialTranscriptionCompleted: ((TranscriptSegment) -> Void)?
     
     func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
-        guard let wrapper = wrapper else { return }
+        guard let wrapper = wrapper else {
+            throw AssistantError.inferenceFailed("Whisper engine not loaded")
+        }
         guard !samples.isEmpty else { return }
         
         let result: String? = await withCheckedContinuation { continuation in
@@ -88,7 +89,7 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
                 
                 let text = samples.withUnsafeBufferPointer { ptr in
                     let userVocab = UserDefaults.standard.string(forKey: ConfigKey.whisperVocabulary) ?? ""
-                    let fullPrompt = userVocab.isEmpty ? self.currentContext : "The following terms are discussed: \(userVocab). \(self.currentContext)"
+                    let fullPrompt = userVocab.isEmpty ? "" : "The following terms are discussed: \(userVocab)."
                     wrapper.initialPrompt = fullPrompt
                     return wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
                 }

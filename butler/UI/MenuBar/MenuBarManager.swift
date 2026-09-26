@@ -165,7 +165,7 @@ class MenuBarManager {
         if coordinator.state == .idle {
             coordinator.startSession()
         } else {
-            coordinator.stopSession()
+            Task { await coordinator.stopSession() }
         }
     }
     

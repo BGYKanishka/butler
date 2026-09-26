@@ -39,12 +39,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        // Stop session and unload ML engines before exit to prevent Metal resource leaks and crashes.
-        if sessionCoordinator.state != .idle {
-            sessionCoordinator.stopSession()
+        let semaphore = DispatchSemaphore(value: 0)
+        Task {
+            if sessionCoordinator.state != .idle {
+                await sessionCoordinator.stopSession()
+            } else {
+                await sessionCoordinator.llmEngine.unload()
+                await sessionCoordinator.whisperEngine.unload()
+            }
+            semaphore.signal()
         }
-        sessionCoordinator.llmEngine.unload()
-        sessionCoordinator.whisperEngine.unload()
+        _ = semaphore.wait(timeout: .now() + 2.0)
     }
     
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -156,7 +161,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if self.sessionCoordinator.state == .idle {
                 self.sessionCoordinator.startSession()
             } else {
-                self.sessionCoordinator.stopSession()
+                Task { await self.sessionCoordinator.stopSession() }
             }
         }
         

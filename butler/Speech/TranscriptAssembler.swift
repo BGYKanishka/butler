@@ -1,6 +1,6 @@
 import Foundation
 
-class TranscriptAssembler {
+actor TranscriptAssembler {
     private var segments: [TranscriptSegment] = []
     
     func addSegment(_ segment: TranscriptSegment) {

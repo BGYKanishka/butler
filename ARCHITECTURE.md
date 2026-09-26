@@ -25,8 +25,8 @@ Butler is built with a strictly unidirectional, asynchronous pipeline designed f
 
 5. **Inference** (`LocalLLMEngine`)
    - Uses `llama.cpp` with a local GGUF model.
-   - Text inference currently defaults to the `Qwen2.5-VL-7B-Instruct` model for robust text processing and upcoming multimodal vision capabilities.
-   - Multimodal tasks (future V2) will dynamically load the `mmproj` vision projector.
+   - Text inference currently defaults to the `Qwen2.5-VL-7B-Instruct` model for robust text processing and multimodal vision capabilities.
+   - Multimodal tasks dynamically load the `mmproj` vision projector.
    - Injected with conversation history via `ContextManager`.
    - Streams tokens via callbacks to the UI thread.
 
