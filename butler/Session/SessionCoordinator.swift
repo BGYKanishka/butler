@@ -28,6 +28,9 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     @Published var micAudioLevel: Float = 0.0
     @Published var sysAudioLevel: Float = 0.0
     
+    private var lastPartialEvalTime: Date = .distantPast
+    private var lastAnswerEndTime: Date = .distantPast
+    
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
         setupBindings()
@@ -55,6 +58,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             DispatchQueue.main.async {
                 guard let self = self, self.state == .answering else { return }
                 self.overlayViewModel.statusText = "Completed"
+                self.lastAnswerEndTime = Date()
                 self.state = .listening // M7: Reset state so session can continue
                 
                 // Mark the last assistant segment as final
@@ -102,8 +106,19 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         
         whisperEngine.onPartialTranscriptionCompleted = { [weak self] segment in
             DispatchQueue.main.async {
-                // For partials, we might just update the UI
-                self?.overlayViewModel.appendSubtitle(segment.text)
+                guard let self = self else { return }
+                // For partials, update the UI
+                self.overlayViewModel.appendSubtitle(segment.text)
+                
+                // Allow model to evaluate intent early on incomplete sentences!
+                if self.state != .answering && Date().timeIntervalSince(self.lastAnswerEndTime) > 3.0 {
+                    let now = Date()
+                    // Throttle to give the LLM time to generate "YES" before cancelling it again
+                    if now.timeIntervalSince(self.lastPartialEvalTime) > 1.5 {
+                        self.lastPartialEvalTime = now
+                        self.responseGenerator.handleTranscript(segment.text, source: segment.source)
+                    }
+                }
             }
         }
         
@@ -129,11 +144,13 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 self.transcripts.removeFirst(self.transcripts.count - 100)
             }
             
-            // (Removed whisper context update to prevent hallucination loops where Whisper repeats old inputs)
+            // Intentionally NOT passing old transcripts to Whisper to prevent hallucination loops where it repeats old phrases.
+            // Whisper will rely exclusively on the user-configured Vocabulary in Settings.
+            self.whisperEngine.updateContext("")
             
             // Pass every transcript directly to the ResponseGenerator to evaluate intent
             // ONLY if not already answering, to prevent cancelling the ongoing answer
-            if self.state != .answering {
+            if self.state != .answering && Date().timeIntervalSince(self.lastAnswerEndTime) > 3.0 {
                 self.responseGenerator.handleTranscript(segment.text, source: segment.source)
             }
         }
@@ -234,8 +251,17 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 self.onShowMainWindow?()
                 
                 guard let imagePath = fileUrl?.path else { return }
-                let defaultPrompt = "Analyze this image. If it contains a multiple-choice question or a direct problem, you MUST state the final answer clearly in the very first sentence. After that, provide your step-by-step solution and explanation."
-                self.processVisionRequest(prompt: defaultPrompt, imagePath: imagePath)
+                
+                Task {
+                    let recentContext = await self.contextManager.getRecentContext()
+                    let basePrompt = "Analyze this image. If it contains a multiple-choice question or a direct problem, you MUST state the final answer clearly in the very first sentence. After that, provide your step-by-step solution and explanation."
+                    
+                    let finalPrompt = recentContext.isEmpty ? basePrompt : "\(basePrompt)\n\nRecent voice/chat context:\n\(recentContext)\n\nPlease answer the user's latest query considering the image."
+                    
+                    await MainActor.run {
+                        self.processVisionRequest(prompt: finalPrompt, imagePath: imagePath)
+                    }
+                }
             }
         }
     }

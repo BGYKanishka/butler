@@ -9,6 +9,7 @@ enum ConfigKey {
     static let selectedMicrophoneID = "selectedMicrophoneID"
     static let saveTranscripts = "saveTranscripts"
     static let modelProfile = "modelProfile"
+    static let whisperVocabulary = "whisperVocabulary"
 }
 
 struct ModelConfiguration {

@@ -28,6 +28,7 @@ final class PromptBuilder {
         - Distinguish the user's speech from the other person's speech.
         - Detect questions, problems, requests, confusion, and moments where the user needs help.
         - Ignore filler, repetition, noise, irrelevant speech, and background conversation.
+        - If the user explicitly addresses you, asks if you are there, or says they are asking a question (e.g. "I'm asking you", "Can you help me?"), YOU MUST RESPOND.
         - Do not respond to every transcript update.
         - If no useful assistance is needed, output exactly: NO
 

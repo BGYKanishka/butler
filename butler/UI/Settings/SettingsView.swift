@@ -50,6 +50,7 @@ struct SettingsView: View {
     @AppStorage(ConfigKey.llmMaxTokens) private var llmMaxTokens: Int = 200
     @AppStorage(ConfigKey.saveTranscripts) private var saveTranscripts: Bool = false
     @AppStorage(ConfigKey.modelProfile) private var modelProfile: ModelProfile = .fast
+    @AppStorage(ConfigKey.whisperVocabulary) private var whisperVocabulary: String = ""
     
     var body: some View {
         TabView {
@@ -61,6 +62,9 @@ struct SettingsView: View {
                             Text(mic.localizedName).tag(mic.uniqueID)
                         }
                     }
+                    
+                    TextField("Speech Vocabulary (comma-separated):", text: $whisperVocabulary)
+                        .help("Add domain-specific words to help Whisper guess better (e.g., Sandbox, API, variables)")
                 }
                 
                 Divider().padding(.vertical)

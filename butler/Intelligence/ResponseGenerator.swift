@@ -5,6 +5,7 @@ class ResponseGenerator {
     private let promptBuilder: PromptBuilder
     private let llmEngine: LLMEngine
     private var currentGenerationTask: Task<Void, Never>?
+    private var isEvaluating: Bool = false
     
     var onIntentConfirmed: ((String) -> Void)?
     var onTokenGenerated: ((String) -> Void)?
@@ -18,8 +19,8 @@ class ResponseGenerator {
     }
     
     func handleTranscript(_ transcript: String, source: AudioSource) {
-        currentGenerationTask?.cancel()
-        llmEngine.cancel()
+        guard !isEvaluating else { return }
+        isEvaluating = true
         
         currentGenerationTask = Task { [weak self] in
             guard let self = self else { return }
@@ -95,6 +96,8 @@ class ResponseGenerator {
             } catch {
                 print("LLM generation failed: \(error)")
             }
+            
+            self.isEvaluating = false
         }
     }
 }

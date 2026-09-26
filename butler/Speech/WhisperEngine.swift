@@ -87,7 +87,9 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
                 }
                 
                 let text = samples.withUnsafeBufferPointer { ptr in
-                    wrapper.initialPrompt = self.currentContext
+                    let userVocab = UserDefaults.standard.string(forKey: ConfigKey.whisperVocabulary) ?? ""
+                    let fullPrompt = userVocab.isEmpty ? self.currentContext : "The following terms are discussed: \(userVocab). \(self.currentContext)"
+                    wrapper.initialPrompt = fullPrompt
                     return wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
                 }
                 continuation.resume(returning: text)

@@ -142,7 +142,8 @@ class AudioSessionCoordinator: @unchecked Sendable {
                 let captured = ringBuffer.getRecent(samplesCount: count)
                 onSpeechDetected?(captured, source)
             }
-            startTimestamp = ts // Reset start time to now for the next slice
+            // Retain the last 1.5 seconds to overlap with the next chunk, ensuring no words are cut in half
+            startTimestamp = ts - 1.5
         } else if justEnded, let start = startTimestamp {
             print("VAD Info: Speech ended on \(sourceName). Capturing segment...")
             startTimestamp = nil
