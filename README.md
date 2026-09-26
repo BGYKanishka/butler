@@ -1,10 +1,25 @@
-# Butler
+# Butler: Local AI Meeting Assistant for macOS
 
-Butler is a real-time, privacy-first meeting assistant for macOS that runs entirely locally. It uses Apple's native APIs (`AVFoundation`, `ScreenCaptureKit`) alongside state-of-the-art quantized C++ engines (`whisper.cpp`, `llama.cpp`) to listen to your meetings, transcribe speech, evaluate intent in real-time using an LLM, and provide instantaneous AI answers directly on your screen.
+Butler is a privacy-first, fully on-device meeting assistant engineered for macOS. It leverages Apple's native APIs (`AVFoundation`, `ScreenCaptureKit`) alongside state-of-the-art quantized C++ engines (`whisper.cpp`, `llama.cpp`) to listen to your meetings, transcribe speech, evaluate intent in real-time, and provide instantaneous multimodal AI answers directly on your screen.
 
-**Zero data leaves your machine.**
+**Zero data leaves your machine. Your meetings remain entirely yours.**
 
-## Architecture Overview
+## 🌟 Key Features
+
+### 100% On-Device & Privacy-First
+- **Local Inference**: Uses a quantized Qwen2.5-VL-7B model via `llama.cpp` and Whisper via `whisper.cpp` optimized specifically for Apple Silicon (Metal).
+- **No Cloud APIs**: Absolutely no external API keys are required. All processing (audio transcription and LLM generation) happens locally on your machine.
+
+### Stealth UI (Invisible to Screen Sharing)
+- **Undetectable Interface**: Butler's floating UI is engineered using native macOS window APIs (`NSWindow.SharingType.none`). This guarantees that the assistant window is **completely invisible to screen-sharing applications** like Zoom, Microsoft Teams, and Google Meet.
+- **Unobtrusive Design**: Runs as a lightweight Menu Bar accessory, allowing you to seamlessly pull up answers without disrupting your workflow or compromising privacy during presentations.
+
+### Multimodal Context & Real-Time Intelligence
+- **Audio Intelligence**: Real-time microphone and system audio capture with Voice Activity Detection (VAD)-gated speech recognition.
+- **Vision Capabilities**: Contextual screen awareness. Take interactive screenshots (`Shift + Option + A`) and seamlessly ask questions about the screen content using the multimodal vision model (`mmproj`).
+- **Low-Latency Partial Evaluation**: Supports custom speech vocabulary for domain-specific jargon and evaluates incomplete transcripts mid-sentence for ultra-low latency responses.
+
+## 🏗 Architecture Overview
 
 ```mermaid
 graph TD
@@ -42,41 +57,47 @@ graph TD
     Llama -- "Token Stream" --> MainWindow
 ```
 
-## Key Features
-- **Local AI Inference**: Uses Qwen2.5-VL-7B (quantized) via `llama.cpp` and Whisper via `whisper.cpp` optimized for Apple Silicon (Metal).
-- **Audio Intelligence**: Real-time microphone and system audio capture (Zoom/Teams/Meet) with VAD-gated speech recognition.
-- **Vision Capabilities**: Contextual screen awareness. Take interactive screenshots (`Shift + Option + A`) and seamlessly ask questions about the screen content using the multimodal vision model (`mmproj`).
-- **Custom Vocabulary & Partial Evaluation**: Supports custom speech vocabulary for domain-specific jargon and evaluates incomplete transcripts mid-sentence for ultra-low latency response.
-- **Unobtrusive UI**: Menu bar accessory design with a floating SwiftUI window that remains hidden from your screen sharing sessions.
+## 💻 System Requirements
 
-## Requirements
-- Apple Silicon Mac (M1/M2/M3/M4)
-- macOS 14.0 (Sonoma) or newer
-- Xcode 15+ 
+Because Butler runs heavy AI models fully on-device, it requires robust hardware to ensure real-time performance.
 
-## Setup
-1. Clone the repository and initialize submodules:
+- **Processor**: Apple Silicon Mac (M1, M2, M3, M4, M5 series)
+- **Memory (RAM)**: Minimum 16GB Unified Memory (Recommended to run Qwen2.5-VL-7B comfortably alongside macOS).
+- **OS**: macOS 14.0 (Sonoma) or newer.
+- **Development**: Xcode 15+ (if building from source).
+
+## 🚀 Installation & Setup
+
+1. **Clone the repository and initialize submodules:**
    ```bash
    git clone --recursive https://github.com/BGYKanishka/butler.git
-   ```
-2. Run the bootstrap script to compile `whisper.cpp` and `llama.cpp` for Metal acceleration:
-   ```bash
    cd butler
+   ```
+
+2. **Download Models & Build Dependencies:**
+   Run the bootstrap script to compile `whisper.cpp` and `llama.cpp` for Metal acceleration and automatically download the required Whisper and Llama/Qwen models into your Application Support directory.
+   ```bash
    ./Scripts/bootstrap.sh
    ```
-   *(Note: The bootstrap script will automatically run `download_models.sh` to download the necessary Whisper and Llama/Qwen models.)*
-   
-3. Open the project and build:
+
+3. **Build the Project:**
+   Open the Xcode project and build.
    ```bash
    open butler.xcodeproj
    ```
-   *(Note: You can also use `xcodegen generate` if needed, which the bootstrap script already handles.)*
+   *(Note: The app is designed to decouple model files from the main bundle to keep the `.app` size small and efficient.)*
 
-## Usage
-- Press `Shift + Option + S` anywhere to start/stop the listening session.
-- Press `Shift + Option + W` to toggle the AI floating window.
-- Press `Shift + Option + A` to trigger screen vision analysis.
-- Navigate to the Menu Bar icon to access Settings, where you can select your microphone, tune the AI temperature, choose the model profile (Fast / Balanced / Quality — these adjust inference parameters such as temperature, max tokens, and thread count, all using the same `Qwen2.5-VL-7B Q4_K_M` model), and manage privacy settings.
+## 🕹 Usage
 
-## Permissions
-On the first run, Butler will request Microphone and Screen Recording permissions. These are required to capture your voice and the system audio (from Zoom/Teams/Meet). No audio is saved to disk unless explicitly enabled in Preferences.
+- **`Shift + Option + S`**: Start or stop the listening session anywhere.
+- **`Shift + Option + W`**: Toggle the AI floating window.
+- **`Shift + Option + A`**: Trigger screen vision analysis (take a partial screenshot to feed context to the AI).
+- **Menu Bar**: Access Settings to configure your microphone, tune the AI temperature, choose performance profiles (Fast / Balanced / Quality), and manage privacy permissions.
+
+## 🔒 Permissions
+
+On the first run, Butler will request **Microphone** and **Screen Recording** permissions. These are essential for capturing your voice and system audio. No audio or visual data is ever saved to disk or transmitted externally.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
