@@ -15,23 +15,25 @@ actor ProjectAnalyzer: ProjectAnalyzerService {
         var techStack = Set<String>()
         
         let fileManager = FileManager.default
-        let ignoredDirs = Set(["node_modules", "Pods", "build", ".build", ".git", "vendor", "dist", "target"])
+        let ignoredDirs = Set(["node_modules", "Pods", "build", ".build", ".git", "vendor", "dist", "target", "out", "bin"])
         
         guard let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else {
             return ProjectContextData(vocabulary: [], summary: "")
         }
         
-        var fileCount = 0
+        var filePaths = [String]()
         var readmeContent = ""
         var configContent = ""
         var sourceCodeContent = ""
-        var maxSourceChars = 60000 // Roughly 15k-20k tokens
+        let maxSourceChars = 60000 
+        var fileCount = 0
         
-        for case let fileURL as URL in enumerator {
-            // Check if we need to skip ignored directories
+        var importantFiles = [(String, String)]() // (filename, content)
+        var generalFiles = [(String, String)]()
+        
+        while let fileURL = enumerator.nextObject() as? URL {
             let resourceValues = try? fileURL.resourceValues(forKeys: [.isDirectoryKey])
             let isDirectory = resourceValues?.isDirectory ?? false
-            
             let filename = fileURL.lastPathComponent
             
             if isDirectory && ignoredDirs.contains(filename) {
@@ -40,6 +42,9 @@ actor ProjectAnalyzer: ProjectAnalyzerService {
             }
             
             if !isDirectory {
+                let relativePath = fileURL.path.replacingOccurrences(of: url.path + "/", with: "")
+                filePaths.append(relativePath)
+                
                 let ext = fileURL.pathExtension.lowercased()
                 
                 // Read README for project context
@@ -58,10 +63,19 @@ actor ProjectAnalyzer: ProjectAnalyzerService {
                 
                 let isSourceFile = ["swift", "js", "ts", "tsx", "jsx", "py", "go", "java", "kt", "rs", "cpp", "h", "c", "mm", "m"].contains(ext)
                 
-                if isSourceFile && sourceCodeContent.count < maxSourceChars {
+                if isSourceFile {
                     if let text = try? String(contentsOf: fileURL, encoding: .utf8) {
-                        sourceCodeContent += "\n--- \(filename) ---\n"
-                        sourceCodeContent += String(text.prefix(4000)) // Max 4000 chars per file to get diverse files
+                        // Prioritize main, index, app, core files
+                        let isImportant = filename.lowercased().contains("main") || filename.lowercased().contains("index") || filename.lowercased().contains("app") || filename.lowercased().contains("core")
+                        
+                        if isImportant {
+                            importantFiles.append((relativePath, String(text.prefix(4000))))
+                        } else {
+                            // Random sample of other files
+                            if generalFiles.count < 20 {
+                                generalFiles.append((relativePath, String(text.prefix(2000))))
+                            }
+                        }
                     }
                 }
                 
@@ -92,14 +106,28 @@ actor ProjectAnalyzer: ProjectAnalyzerService {
                 
                 fileCount += 1
                 if fileCount > 3000 {
-                    break // Prevent hanging on massive repos
+                    break 
                 }
+            }
+        }
+        
+        for (path, content) in importantFiles {
+            if sourceCodeContent.count < maxSourceChars {
+                sourceCodeContent += "\n--- \(path) ---\n\(content)"
+            }
+        }
+        for (path, content) in generalFiles {
+            if sourceCodeContent.count < maxSourceChars {
+                sourceCodeContent += "\n--- \(path) ---\n\(content)"
             }
         }
         
         let projectName = url.lastPathComponent
         let stackString = techStack.isEmpty ? "unknown technologies" : techStack.joined(separator: ", ")
-        var summary = "The user is actively working in a codebase/project named '\(projectName)' which relies on the following technologies: \(stackString)."
+        var summary = "The candidate's project is named '\(projectName)' and relies on: \(stackString)."
+        
+        let treeSummary = filePaths.prefix(150).joined(separator: "\n")
+        summary += "\n\nPROJECT STRUCTURE (Top files):\n\(treeSummary)"
         
         if !readmeContent.isEmpty {
             summary += "\n\nPROJECT README EXCERPT:\n\(readmeContent)"
@@ -111,8 +139,9 @@ actor ProjectAnalyzer: ProjectAnalyzerService {
             summary += "\n\nSOURCE CODE EXCERPTS:\n\(sourceCodeContent)"
         }
         
-        // Filter out short or unhelpful vocabulary words
         let filteredVocab = vocabulary.filter { $0.count > 3 }
+        
+        summary += "\n\nPROJECT VOCABULARY (Use this to correct phonetic transcription errors):\n\(filteredVocab.prefix(150).joined(separator: ", "))"
         
         return ProjectContextData(vocabulary: Array(filteredVocab), summary: summary)
     }
