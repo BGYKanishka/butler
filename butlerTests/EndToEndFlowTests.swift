@@ -25,6 +25,9 @@ class MockLLMEngine: LLMEngine {
         onToken("Mock vision answer")
     }
     
+    func saveState(to path: String, prompt: String) async throws {}
+    func loadState(from path: String) async throws {}
+    
     func cancel() {}
 }
 
