@@ -67,8 +67,12 @@ struct SettingsView: View {
                     HStack {
                         if projectContextManager.isAnalyzing {
                             Text("Analyzing...").font(.caption).foregroundColor(.secondary)
-                        } else if let vocabCount = projectContextManager.currentContext?.vocabulary.count {
-                            Text("\(vocabCount) keywords extracted").font(.caption).foregroundColor(.secondary)
+                        } else if let context = projectContextManager.currentContext {
+                            Text("\(context.vocabulary.count) keywords, \(context.summary.count) characters analyzed")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
                         }
                         Spacer()
                         Button("Analyze") {

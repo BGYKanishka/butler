@@ -79,6 +79,14 @@ class AudioSessionCoordinator: @unchecked Sendable {
         startVADPolling()
     }
     
+    func stopMic() {
+        micService.stop()
+    }
+    
+    func stopSystemAudio() {
+        sysAudioService.stop()
+    }
+    
     func stop() {
         micService.stop()
         sysAudioService.stop()

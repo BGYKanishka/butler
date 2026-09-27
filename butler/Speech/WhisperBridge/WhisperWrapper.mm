@@ -47,7 +47,7 @@
     wparams.print_timestamps = false;
     wparams.translate        = false;
     wparams.language         = "en";
-    wparams.n_threads        = (int)MIN(4, [[NSProcessInfo processInfo] activeProcessorCount]);
+    wparams.n_threads        = (int)MIN(8, [[NSProcessInfo processInfo] activeProcessorCount]);
     wparams.single_segment   = true;
     
     if (self.initialPrompt != nil) {

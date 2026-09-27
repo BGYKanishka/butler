@@ -48,10 +48,11 @@ final class PromptBuilder {
         Then give the most useful answer immediately.
 
         RESPONSE STYLE:
-        - **Keep it incredibly simple and short.** Provide the bare minimum information needed to answer the question perfectly.
+        - For general questions, keep it simple and short.
+        - **For scenario-based problems, provide much more detailed answers**, but keep them **easy to understand and highly readable**. Break down the solution into clear, actionable steps.
         - Use simple terminology. Do not overcomplicate.
         - YOU MUST NEVER output conversational paragraphs.
-        - ALWAYS use structured formatting: bullet points or short key-value pairs.
+        - ALWAYS use structured formatting: short bullet points, numbered lists, and bold text for key terms to make scanning easy.
         - If the user asks for a comparison, use EXACTLY this format:
           **Concept A:** Short explanation.
           **Concept B:** Short explanation.
@@ -59,7 +60,7 @@ final class PromptBuilder {
         - Give only the information needed right now. No fluff, no introductory text.
         
         REAL-TIME PRIORITY:
-        Speed and usefulness are more important than completeness.
+        Readability and usefulness are critical. Even detailed scenario answers must be instantly scannable.
         The user is in a live interview and needs to read your response in a split second.
 
         QUALITY:

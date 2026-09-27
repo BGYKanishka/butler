@@ -29,6 +29,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     @Published var isLoadingModels: Bool = false
     @Published var micAudioLevel: Float = 0.0
     @Published var sysAudioLevel: Float = 0.0
+    @Published var isMicMuted: Bool = false
+    @Published var isSysAudioMuted: Bool = false
     
     private var lastPartialEvalTime: Date = .distantPast
     private var lastAnswerEndTime: Date = .distantPast
@@ -233,6 +235,8 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
             MemoryMonitor.shared.stopMonitoring()
             
             state = .idle
+            isMicMuted = false
+            isSysAudioMuted = false
         }
         
         await whisperEngine.unload()
@@ -241,6 +245,30 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         await MainActor.run {
             self.transcripts.removeAll()
             print("Session stopped.")
+        }
+    }
+    
+    func toggleMic() {
+        if isMicMuted {
+            Task {
+                try? await micService.start()
+                await MainActor.run { self.isMicMuted = false }
+            }
+        } else {
+            audioSessionCoordinator.stopMic()
+            isMicMuted = true
+        }
+    }
+
+    func toggleSystemAudio() {
+        if isSysAudioMuted {
+            Task {
+                try? await sysAudioService.start()
+                await MainActor.run { self.isSysAudioMuted = false }
+            }
+        } else {
+            audioSessionCoordinator.stopSystemAudio()
+            isSysAudioMuted = true
         }
     }
     

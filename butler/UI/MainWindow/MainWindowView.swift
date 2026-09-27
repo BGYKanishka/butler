@@ -124,20 +124,46 @@ struct MainWindowView: View {
             .padding(.horizontal, 16)
             .padding(.top, 16)
             
-            // Audio Levels
+            // Audio Levels & Toggles
             HStack(spacing: 40) {
                 VStack {
-                    Text("Microphone")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    AudioLevelView(level: coordinator.micAudioLevel)
+                    HStack {
+                        Text("Microphone")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: {
+                            coordinator.toggleMic()
+                        }) {
+                            Image(systemName: coordinator.isMicMuted ? "mic.slash.fill" : "mic.fill")
+                                .foregroundColor(coordinator.isMicMuted ? .red : .secondary)
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(coordinator.state == .idle)
+                    }
+                    AudioLevelView(level: coordinator.isMicMuted ? 0 : coordinator.micAudioLevel)
+                        .opacity(coordinator.isMicMuted ? 0.3 : 1.0)
                 }
                 
                 VStack {
-                    Text("System Audio")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    AudioLevelView(level: coordinator.sysAudioLevel)
+                    HStack {
+                        Text("System Audio")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: {
+                            coordinator.toggleSystemAudio()
+                        }) {
+                            Image(systemName: coordinator.isSysAudioMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                .foregroundColor(coordinator.isSysAudioMuted ? .red : .secondary)
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(coordinator.state == .idle)
+                    }
+                    AudioLevelView(level: coordinator.isSysAudioMuted ? 0 : coordinator.sysAudioLevel)
+                        .opacity(coordinator.isSysAudioMuted ? 0.3 : 1.0)
                 }
             }
             .padding(.top, 16)
