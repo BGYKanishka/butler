@@ -41,10 +41,9 @@ struct SettingsView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.secondary)
                         .padding(8)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
+                        .contentShape(Circle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(IconButtonStyle())
             }
             .padding(20)
             
@@ -116,8 +115,10 @@ struct SettingsView: View {
                                     }) {
                                         Image(systemName: "trash")
                                             .foregroundColor(.red)
+                                            .padding(4)
+                                            .contentShape(Rectangle())
                                     }
-                                    .buttonStyle(.borderless)
+                                    .buttonStyle(PlainHoverButtonStyle())
                                     .disabled(projectContextManager.isAnalyzing)
                                 }
                                 .padding(.vertical, 4)
@@ -157,24 +158,12 @@ struct SettingsView: View {
                 
                 Spacer()
                 
-                // Quit
-                Button(action: {
-                    NSApplication.shared.terminate(nil)
-                }) {
-                    Text("Quit Butler")
-                        .font(.system(.body, design: .rounded, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                }
-                .buttonStyle(.plain)
-                .background(Color.red.opacity(0.8))
-                .cornerRadius(8)
+
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
-        .frame(width: 350, height: 560) // Increased height for list
+        .frame(width: 350, height: 480) // Reduced height after removing Quit button
         .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }

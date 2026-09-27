@@ -77,6 +77,12 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                     var updated = last
                     updated.isFinal = true
                     self.transcripts[self.transcripts.count - 1] = updated
+                    
+                    let finalAnswer = updated.text
+                    Task {
+                        let turn = ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: finalAnswer, timestamp: Date())
+                        await self.contextManager.addTurn(turn)
+                    }
                 }
             }
             
@@ -338,6 +344,12 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 DispatchQueue.main.async {
                     if let lastIdx = self.transcripts.indices.last {
                         self.transcripts[lastIdx].isFinal = true
+                        
+                        let finalAnswer = self.transcripts[lastIdx].text
+                        Task {
+                            let turn = ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: finalAnswer, timestamp: Date())
+                            await self.contextManager.addTurn(turn)
+                        }
                     }
                     self.state = .listening
                 }

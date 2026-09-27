@@ -6,6 +6,7 @@ struct MainWindowView: View {
     @ObservedObject var projectContextManager: ProjectContextManager
 
     @AppStorage(ConfigKey.isVisionEnabled) private var isVisionEnabled = false
+    @State private var isQuitting = false
 
     private var requiredPermissionsGranted: Bool {
         permissionsGateway.anyPermissionGranted
@@ -70,26 +71,20 @@ struct MainWindowView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
-                .background(
-                    Capsule()
-                        .fill(buttonColor(for: coordinator.state))
-                )
+                .buttonStyle(CapsuleButtonStyle(backgroundColor: buttonColor(for: coordinator.state)))
                 
                 Button(action: {
                     coordinator.triggerVisionAnalysis()
                 }) {
-                    Image(systemName: "viewfinder")
-                    Text("Analyze Screen")
-                        .font(.system(.body, design: .rounded, weight: .semibold))
+                    HStack(spacing: 4) {
+                        Image(systemName: "viewfinder")
+                        Text("Analyze Screen")
+                            .font(.system(.body, design: .rounded, weight: .semibold))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(isVisionDisabled(state: coordinator.state, loading: coordinator.isLoadingModels) ? Color.gray : Color.purple)
-                )
+                .buttonStyle(CapsuleButtonStyle(backgroundColor: isVisionDisabled(state: coordinator.state, loading: coordinator.isLoadingModels) ? Color.gray : Color.purple))
                 .foregroundColor(.white)
                 .disabled(isVisionDisabled(state: coordinator.state, loading: coordinator.isLoadingModels))
                 
@@ -100,11 +95,24 @@ struct MainWindowView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.secondary)
                         .padding(8)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
                         .contentShape(Circle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(IconButtonStyle())
+                .padding(.leading, 8)
+                
+                Button(action: {
+                    isQuitting = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NSApplication.shared.terminate(nil)
+                    }
+                }) {
+                    Image(systemName: "power")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.red)
+                        .padding(8)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(IconButtonStyle())
                 .padding(.leading, 8)
                 
                 Button(action: {
@@ -114,11 +122,9 @@ struct MainWindowView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.secondary)
                         .padding(8)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
                         .contentShape(Circle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(IconButtonStyle())
                 .padding(.leading, 8)
             }
             .padding(.horizontal, 16)
@@ -138,8 +144,10 @@ struct MainWindowView: View {
                             Image(systemName: coordinator.isMicMuted ? "mic.slash.fill" : "mic.fill")
                                 .foregroundColor(coordinator.isMicMuted ? .red : .secondary)
                                 .font(.caption)
+                                .contentShape(Rectangle())
+                                .padding(4)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PlainHoverButtonStyle())
                         .disabled(coordinator.state == .idle)
                     }
                     AudioLevelView(level: coordinator.isMicMuted ? 0 : coordinator.micAudioLevel)
@@ -158,8 +166,10 @@ struct MainWindowView: View {
                             Image(systemName: coordinator.isSysAudioMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                                 .foregroundColor(coordinator.isSysAudioMuted ? .red : .secondary)
                                 .font(.caption)
+                                .contentShape(Rectangle())
+                                .padding(4)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PlainHoverButtonStyle())
                         .disabled(coordinator.state == .idle)
                     }
                     AudioLevelView(level: coordinator.isSysAudioMuted ? 0 : coordinator.sysAudioLevel)
@@ -180,7 +190,39 @@ struct MainWindowView: View {
     @ViewBuilder
     private var loadingOverlay: some View {
         Group {
-            if coordinator.isLoadingModels {
+            if isQuitting {
+                ZStack {
+                    Color.black.opacity(0.6).ignoresSafeArea()
+                    
+                    VStack(spacing: 24) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .tint(.white)
+                        
+                        VStack(spacing: 8) {
+                            Text("Shutting down AI engines...")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                            
+                            Text("Safely unloading models from unified memory.\nClosing active connections.")
+                                .font(.system(size: 13, weight: .regular, design: .rounded))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(40)
+                    .background(
+                        VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                            .cornerRadius(24)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 15)
+                }
+                .transition(.opacity)
+            } else if coordinator.isLoadingModels {
                 ZStack {
                     Color.black.opacity(0.6).ignoresSafeArea()
 
@@ -262,7 +304,7 @@ struct MainWindowView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut, value: coordinator.isLoadingModels || projectContextManager.isAnalyzing)
+        .animation(.easeInOut, value: coordinator.isLoadingModels || projectContextManager.isAnalyzing || isQuitting)
     }
     
 

@@ -16,7 +16,12 @@ actor ContextManager {
     
     func getRecentContext() -> String {
         return turns.map { turn in
-            let prefix = turn.source == .microphone ? "[USER]:" : "[OTHER]:"
+            let prefix: String
+            switch turn.source {
+            case .microphone: prefix = "[CANDIDATE (USER)]:"
+            case .system: prefix = "[INTERVIEWER]:"
+            case .assistant: prefix = "[ASSISTANT]:"
+            }
             return "\(prefix) \(turn.text)"
         }.joined(separator: "\n")
     }
