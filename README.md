@@ -14,10 +14,16 @@ Butler is a privacy-first, fully on-device meeting assistant engineered for macO
 - **Undetectable Interface**: Butler's floating UI is engineered using native macOS window APIs (`NSWindow.SharingType.none`). This guarantees that the assistant window is **completely invisible to screen-sharing applications** like Zoom, Microsoft Teams, and Google Meet.
 - **Unobtrusive Design**: Runs as a lightweight Menu Bar accessory, allowing you to seamlessly pull up answers without disrupting your workflow or compromising privacy during presentations.
 
-### Multimodal Context & Real-Time Intelligence
-- **Audio Intelligence**: Real-time microphone and system audio capture with Voice Activity Detection (VAD)-gated speech recognition.
+### Multimodal Context, Codebase Understanding & Real-Time Intelligence
+- **Audio Intelligence**: Real-time microphone and system audio capture with Voice Activity Detection (VAD)-gated speech recognition. Includes granular UI toggles to select specific audio sources.
+- **Deep Codebase Context**: Includes `ProjectAnalyzer` for deep source extraction, enabling the assistant to understand and answer questions about local repositories seamlessly without context truncation.
 - **Vision Capabilities**: Contextual screen awareness. Take interactive screenshots (`Shift + Option + A`) and seamlessly ask questions about the screen content using the multimodal vision model (`mmproj`).
 - **Low-Latency Partial Evaluation**: Supports custom speech vocabulary for domain-specific jargon and evaluates incomplete transcripts mid-sentence for ultra-low latency responses.
+- **Advanced State Saving**: Implements intelligent KV Cache saving (`saveState` / `loadState`) to avoid constantly reprocessing static context like project codebase summaries.
+
+### Automated Setup & CI/CD
+- **One-Click Model Downloads**: The app now handles automated model downloading natively (`ModelDownloader`), removing the need for manual setup scripts.
+- **CI/CD Pipeline**: GitHub Actions workflows are integrated for automated testing and release deployment.
 
 ## 🏗 Architecture Overview
 
@@ -35,8 +41,9 @@ graph TD
     RingBuffer[("Audio Ring Buffer\n(Lock-free)")]:::logic
 
     VAD{"VAD Gate\n(RMS Threshold)"}:::logic
-    Whisper["Whisper.cpp\n(Metal Accelerated)"]:::engine
+    Whisper["Whisper.cpp\n(small.en / Metal)"]:::engine
     Context["Context Manager\n(Conversation History)"]:::logic
+    ProjectAnalyzer["Project Analyzer\n(Codebase Context)"]:::logic
 
     Intent{"Response Generator\n(Intent Evaluation)"}:::logic
     Llama["Llama.cpp\n(Qwen2.5-VL-7B Q4_K_M)"]:::engine
@@ -51,6 +58,7 @@ graph TD
     Whisper -- "Transcripts" --> Context
     Whisper -- "Segments" --> Intent
     Context --> Intent
+    ProjectAnalyzer -- "Source Code" --> Intent
     Intent -- "Intent Confirmed (YES)" --> Llama
     ScreenCap -- "Image Region" --> Mmproj
     Mmproj --> Llama
@@ -75,18 +83,12 @@ Because Butler runs heavy AI models fully on-device, it requires robust hardware
    cd butler
    ```
 
-2. **Download Models & Build Dependencies:**
-   Run the bootstrap script to compile `whisper.cpp` and `llama.cpp` for Metal acceleration and automatically download the required Whisper and Llama/Qwen models into your Application Support directory.
-   ```bash
-   ./Scripts/bootstrap.sh
-   ```
-
-3. **Build the Project:**
+2. **Build the Project:**
    Open the Xcode project and build.
    ```bash
    open butler.xcodeproj
    ```
-   *(Note: The app is designed to decouple model files from the main bundle to keep the `.app` size small and efficient.)*
+   *(Note: The app will automatically handle downloading the models securely when you first configure it in settings.)*
 
 ## 🕹 Usage
 
