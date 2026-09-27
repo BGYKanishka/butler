@@ -37,7 +37,7 @@ class ModelDownloader: NSObject, ObservableObject, URLSessionDownloadDelegate {
         try? FileManager.default.createDirectory(at: llmDir, withIntermediateDirectories: true)
         
         self.queue = [
-            ModelFile(url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin")!, destinationDir: whisperDir, filename: "ggml-base.en.bin"),
+            ModelFile(url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin")!, destinationDir: whisperDir, filename: "ggml-small.en.bin"),
             ModelFile(url: URL(string: "https://huggingface.co/bartowski/Qwen_Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf")!, destinationDir: llmDir, filename: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf"),
             ModelFile(url: URL(string: "https://huggingface.co/bartowski/Qwen_Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen2.5-VL-7B-Instruct-f16.gguf")!, destinationDir: llmDir, filename: "mmproj-Qwen_Qwen2.5-VL-7B-Instruct-f16.gguf")
         ]
@@ -87,18 +87,21 @@ class ModelDownloader: NSObject, ObservableObject, URLSessionDownloadDelegate {
     }
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        DispatchQueue.main.async {
-            guard let current = self.queue.first else { return }
-            let destinationURL = current.destinationDir.appendingPathComponent(current.filename)
+        guard let current = self.queue.first else { return }
+        let destinationURL = current.destinationDir.appendingPathComponent(current.filename)
+        
+        do {
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.moveItem(at: location, to: destinationURL)
             
-            do {
-                if FileManager.default.fileExists(atPath: destinationURL.path) {
-                    try FileManager.default.removeItem(at: destinationURL)
-                }
-                try FileManager.default.moveItem(at: location, to: destinationURL)
+            DispatchQueue.main.async {
                 self.queue.removeFirst()
                 self.downloadNext()
-            } catch {
+            }
+        } catch {
+            DispatchQueue.main.async {
                 self.isDownloading = false
                 self.onError?(error)
             }

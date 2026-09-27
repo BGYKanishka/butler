@@ -11,7 +11,7 @@ struct Constants {
     }
     
     static var whisperModelPath: String? {
-        return modelsDirectory?.appendingPathComponent("whisper/ggml-base.en.bin").path
+        return modelsDirectory?.appendingPathComponent("whisper/ggml-small.en.bin").path
     }
     
     static var llmModelsDirectory: String? {

@@ -2,6 +2,7 @@ import Foundation
 
 class ResponseGenerator {
     private let contextManager: ContextManager
+    private let projectContextManager: ProjectContextManager?
     private let promptBuilder: PromptBuilder
     private let llmEngine: LLMEngine
     private var currentGenerationTask: Task<Void, Never>?
@@ -12,8 +13,9 @@ class ResponseGenerator {
     var onResponseCompleted: (() -> Void)?
     var onResponseIgnored: (() -> Void)?
     
-    init(contextManager: ContextManager, promptBuilder: PromptBuilder, llmEngine: LLMEngine) {
+    init(contextManager: ContextManager, projectContextManager: ProjectContextManager? = nil, promptBuilder: PromptBuilder, llmEngine: LLMEngine) {
         self.contextManager = contextManager
+        self.projectContextManager = projectContextManager
         self.promptBuilder = promptBuilder
         self.llmEngine = llmEngine
     }
@@ -25,7 +27,8 @@ class ResponseGenerator {
         currentGenerationTask = Task { [weak self] in
             guard let self = self else { return }
             let context = await self.contextManager.getRecentContext()
-            let prompt = promptBuilder.build(context: context, question: transcript, source: source)
+            let projectSummary = self.projectContextManager?.currentContext?.summary
+            let prompt = promptBuilder.build(context: context, projectSummary: projectSummary, question: transcript, source: source)
             
             var buffer = ""
             var decisionMade = false

@@ -2,8 +2,22 @@ import Foundation
 
 final class PromptBuilder {
 
+    func buildSystemPrefix(projectSummary: String?) -> String {
+        let projectContextBlock = projectSummary != nil ? "\n        PROJECT CONTEXT:\n        \(projectSummary!)\n" : ""
+        return """
+        <|im_start|>system
+        You are Butler, a fast real-time AI conversation copilot.
+
+        Listen to both sides of the conversation and understand what is happening.
+        Your job is to proactively assist the user with any problems, questions, or confusion.
+        \(projectContextBlock)
+        SOURCE:
+        """
+    }
+
     func build(
         context: String,
+        projectSummary: String? = nil,
         question: String,
         source: AudioSource
     ) -> String {
@@ -11,15 +25,11 @@ final class PromptBuilder {
         let sourceStr = source == .microphone
             ? "USER"
             : "OTHER"
+            
+        let prefix = buildSystemPrefix(projectSummary: projectSummary)
 
         return """
-        <|im_start|>system
-        You are Butler, a fast real-time AI conversation copilot.
-
-        Listen to both sides of the conversation and understand what is happening.
-        Your job is to help the user only when your help is useful.
-
-        SOURCE:
+        \(prefix)
         \(sourceStr) = who produced the current transcript.
 
         CORE BEHAVIOR:
@@ -27,10 +37,13 @@ final class PromptBuilder {
         - Use previous context to understand short or incomplete questions.
         - Distinguish the user's speech from the other person's speech.
         - Detect questions, problems, requests, confusion, and moments where the user needs help.
+        - You MUST RESPOND to general inquiries, technical concepts, or complex/vague problems (e.g., "tell me about spring", "how do we fix this architecture"), providing a helpful baseline answer or suggestion even if the user hasn't fully articulated the problem yet.
+        - You MUST RESPOND to direct questions (e.g., "What do you know about X") even if X appears to be a speech-to-text error (like "spring boat" instead of Spring Boot).
         - Ignore filler, repetition, noise, irrelevant speech, and background conversation.
         - If the user explicitly addresses you, asks if you are there, or says they are asking a question (e.g. "I'm asking you", "Can you help me?"), YOU MUST RESPOND.
         - Do not respond to every transcript update.
-        - If no useful assistance is needed, output exactly: NO
+        - If the transcript is purely conversational with no problems or questions, output exactly: NO
+        - When in doubt, default to answering (YES|).
 
         WHEN HELP IS NEEDED:
         Start with exactly:
@@ -61,7 +74,7 @@ final class PromptBuilder {
         - Be accurate.
         - Do not invent information.
         - Correct important misconceptions briefly.
-        - If the transcript contains obvious speech-to-text errors (e.g., "tp" instead of "TCP", "duck or" instead of "Docker"), intelligently infer what the user actually meant based on context.
+        - If the transcript contains obvious speech-to-text errors (e.g., "spring boat" instead of "Spring Boot", "printboard" instead of "Springboard", "tp" instead of "TCP"), intelligently infer what the user actually meant based on context and ANSWER THE QUESTION.
         - Do not expose your reasoning.
         - Do not repeat information unnecessarily.
         - Do not use introductions or filler.

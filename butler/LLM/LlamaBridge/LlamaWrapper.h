@@ -12,6 +12,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)generateStreaming:(NSString *)prompt temperature:(float)temperature maxTokens:(int32_t)maxTokens onToken:(void (^)(NSString *))onToken;
 - (void)generateVisionStreaming:(NSString *)prompt imagePath:(NSString *)imagePath temperature:(float)temperature maxTokens:(int32_t)maxTokens onToken:(void (^)(NSString *))onToken;
 
+- (BOOL)saveStateToPath:(NSString *)path prompt:(NSString *)prompt error:(NSError **)error;
+- (BOOL)loadStateFromPath:(NSString *)path error:(NSError **)error;
+
 - (void)cancel;
 
 @end

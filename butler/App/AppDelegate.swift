@@ -60,7 +60,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func setupMainWindow() {
-        let view = MainWindowView(coordinator: sessionCoordinator, permissionsGateway: sessionCoordinator.environment.permissionsGateway)
+        let view = MainWindowView(
+            coordinator: sessionCoordinator,
+            permissionsGateway: sessionCoordinator.environment.permissionsGateway,
+            projectContextManager: sessionCoordinator.environment.projectContextManager
+        )
         let hostingView = NSHostingView(rootView: view)
         
         let panel = KeyPanel(
@@ -142,7 +146,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             panel.center()
             panel.setFrameAutosaveName("ButlerSettings")
-            panel.contentView = NSHostingView(rootView: SettingsView(permissionsGateway: sessionCoordinator.environment.permissionsGateway))
+            panel.contentView = NSHostingView(rootView: SettingsView(permissionsGateway: sessionCoordinator.environment.permissionsGateway, projectContextManager: sessionCoordinator.environment.projectContextManager))
             settingsWindow = panel
         }
         settingsWindow?.makeKeyAndOrderFront(nil)

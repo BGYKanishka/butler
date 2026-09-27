@@ -33,12 +33,21 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     private var lastPartialEvalTime: Date = .distantPast
     private var lastAnswerEndTime: Date = .distantPast
     
+    private var cancellables = Set<AnyCancellable>()
+    
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
         setupBindings()
     }
     
     private func setupBindings() {
+        modelDownloader.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+            
         responseGenerator.onTokenGenerated = { [weak self] token in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -152,7 +161,12 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     }
     
     func startSession() {
-        guard state == .idle else { return }
+        switch state {
+        case .idle, .error:
+            break
+        default:
+            return
+        }
         
         Task { @MainActor in
             let gateway = self.environment.permissionsGateway

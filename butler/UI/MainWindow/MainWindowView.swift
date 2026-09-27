@@ -3,6 +3,7 @@ import SwiftUI
 struct MainWindowView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @ObservedObject var permissionsGateway: PermissionsGateway
+    @ObservedObject var projectContextManager: ProjectContextManager
 
     @AppStorage(ConfigKey.isVisionEnabled) private var isVisionEnabled = false
 
@@ -201,9 +202,41 @@ struct MainWindowView: View {
                     .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 15)
                 }
                 .transition(.opacity)
+            } else if projectContextManager.isAnalyzing {
+                ZStack {
+                    Color.black.opacity(0.6).ignoresSafeArea()
+
+                    VStack(spacing: 24) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .tint(.white)
+
+                        VStack(spacing: 8) {
+                            Text("Analyzing Project...")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+
+                            Text("Generating and caching binary memory state for your project.\nThis might take a while depending on project size.")
+                                .font(.system(size: 13, weight: .regular, design: .rounded))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(40)
+                    .background(
+                        VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                            .cornerRadius(24)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 15)
+                }
+                .transition(.opacity)
             }
         }
-        .animation(.easeInOut, value: coordinator.isLoadingModels)
+        .animation(.easeInOut, value: coordinator.isLoadingModels || projectContextManager.isAnalyzing)
     }
     
 

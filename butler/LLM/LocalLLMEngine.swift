@@ -36,6 +36,19 @@ class LocalLLMEngine: LLMEngine, @unchecked Sendable {
         }
         
         isLoaded = true
+        
+        // Attempt to load binary project memory if it exists
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let binaryPath = docs.appendingPathComponent("butler_project_memory.bin").path
+        if FileManager.default.fileExists(atPath: binaryPath) {
+            print("LLM Info: Found existing binary project memory. Loading...")
+            do {
+                try wrapper.loadState(fromPath: binaryPath)
+                print("LLM Info: Successfully loaded binary project memory")
+            } catch {
+                print("LLM Warning: Failed to load binary project memory: \(error)")
+            }
+        }
     }
     
     func unload() async {
@@ -102,6 +115,52 @@ class LocalLLMEngine: LLMEngine, @unchecked Sendable {
                 let duration = Date().timeIntervalSince(startTime)
                 print("LLM Info: Vision generation completed. Generated \(tokenCount) tokens in \(String(format: "%.2f", duration))s (\(String(format: "%.2f", duration > 0 ? Double(tokenCount) / duration : 0)) tokens/sec)")
                 continuation.resume()
+            }
+        }
+    }
+    
+    func saveState(to path: String, prompt: String) async throws {
+        guard isLoaded else { throw AssistantError.inferenceFailed("Model not loaded") }
+        print("LLM Info: Generating binary memory state for project...")
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            inferenceQueue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume(throwing: AssistantError.inferenceFailed("Engine deallocated"))
+                    return
+                }
+                
+                do {
+                    try self.wrapper.saveState(toPath: path, prompt: prompt)
+                    print("LLM Info: Successfully saved binary memory state to \(path)")
+                    continuation.resume()
+                } catch {
+                    print("LLM Error: Failed to save binary memory state: \(error.localizedDescription)")
+                    continuation.resume(throwing: AssistantError.inferenceFailed(error.localizedDescription))
+                }
+            }
+        }
+    }
+    
+    func loadState(from path: String) async throws {
+        guard isLoaded else { throw AssistantError.inferenceFailed("Model not loaded") }
+        print("LLM Info: Loading binary memory state from \(path)...")
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            inferenceQueue.async { [weak self] in
+                guard let self = self else {
+                    continuation.resume(throwing: AssistantError.inferenceFailed("Engine deallocated"))
+                    return
+                }
+                
+                do {
+                    try self.wrapper.loadState(fromPath: path)
+                    print("LLM Info: Successfully loaded binary memory state")
+                    continuation.resume()
+                } catch {
+                    print("LLM Error: Failed to load binary memory state: \(error.localizedDescription)")
+                    continuation.resume(throwing: AssistantError.inferenceFailed(error.localizedDescription))
+                }
             }
         }
     }

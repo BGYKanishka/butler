@@ -10,6 +10,7 @@ enum ConfigKey {
     static let saveTranscripts = "saveTranscripts"
     static let modelProfile = "modelProfile"
     static let whisperVocabulary = "whisperVocabulary"
+    static let projectPaths = "projectPaths"
 }
 
 struct ModelConfiguration {
@@ -32,10 +33,10 @@ enum ModelProfile: String, CaseIterable {
                                        contextSize: 8192, temperature: 0.3, maxTokens: 200, gpuLayers: 999, threads: 4)
         case .balanced:
             return ModelConfiguration(name: "Balanced", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
-                                       contextSize: 8192, temperature: 0.3, maxTokens: 200, gpuLayers: 999, threads: 4)
+                                       contextSize: 16384, temperature: 0.3, maxTokens: 200, gpuLayers: 999, threads: 4)
         case .quality:
             return ModelConfiguration(name: "Quality", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
-                                       contextSize: 8192, temperature: 0.3, maxTokens: 250, gpuLayers: 999, threads: 6)
+                                       contextSize: 32768, temperature: 0.3, maxTokens: 250, gpuLayers: 999, threads: 6)
         }
     }
 }

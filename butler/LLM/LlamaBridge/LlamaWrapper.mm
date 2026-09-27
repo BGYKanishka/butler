@@ -16,6 +16,8 @@
     BOOL _isCancelled;
     
     struct mtmd_context *_mtmd_ctx;
+    
+    std::vector<llama_token> _last_tokens;
 }
 
 - (instancetype)init {
@@ -92,11 +94,6 @@
 - (void)generateStreaming:(NSString *)prompt temperature:(float)temperature maxTokens:(int)maxTokens onToken:(void (^)(NSString *token))onToken {
     if (!_model || !_ctx || !_vocab) return;
     _isCancelled = NO;
-    llama_memory_t mem = llama_get_memory(_ctx);
-    if (mem) {
-        llama_memory_clear(mem, true);
-    }
-    
     // Tokenize
     const char *c_prompt = [prompt UTF8String];
     if (!c_prompt) return;
@@ -110,22 +107,50 @@
     }
     tokens_list.resize(n_tokens);
     
+    // Find common prefix with previous generation to reuse KV cache
+    int n_past = 0;
+    while (n_past < _last_tokens.size() && n_past < tokens_list.size() && _last_tokens[n_past] == tokens_list[n_past]) {
+        n_past++;
+    }
+    
+    // Clear the divergent part of the memory
+    llama_memory_t mem = llama_get_memory(_ctx);
+    if (mem && n_past < _last_tokens.size()) {
+        llama_memory_seq_rm(mem, -1, n_past, -1);
+    }
+    
     // Sampler setup
     llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
     struct llama_sampler * smpl = llama_sampler_chain_init(sparams);
     llama_sampler_chain_add(smpl, llama_sampler_init_temp(temperature));
     llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
     
-    // Evaluate prompt
-    llama_batch batch = llama_batch_get_one(tokens_list.data(), n_tokens);
-    
-    if (llama_decode(_ctx, batch)) {
-        llama_sampler_free(smpl);
-        return; // Error decoding
+    // Evaluate only the NEW tokens
+    int n_eval = n_tokens - n_past;
+    if (n_eval > 0) {
+        llama_batch batch = llama_batch_init(n_eval, 0, 1);
+        batch.n_tokens = n_eval;
+        for (int i = 0; i < n_eval; i++) {
+            batch.token[i] = tokens_list[n_past + i];
+            batch.pos[i] = n_past + i;
+            batch.seq_id[i][0] = 0;
+            batch.n_seq_id[i] = 1;
+            batch.logits[i] = false;
+        }
+        batch.logits[n_eval - 1] = true;
+        
+        if (llama_decode(_ctx, batch)) {
+            llama_sampler_free(smpl);
+            return; // Error decoding
+        }
+        llama_batch_free(batch);
     }
     
     int n_cur = n_tokens;
     int n_generated = 0;
+    
+    // Save prompt tokens to last tokens
+    _last_tokens = tokens_list;
     
     while (n_generated < maxTokens) {
         if (_isCancelled) break;
@@ -136,6 +161,8 @@
         if (llama_vocab_is_eog(_vocab, new_token_id)) {
             break;
         }
+        
+        _last_tokens.push_back(new_token_id);
         
         char buf[128];
         int n_chars = llama_token_to_piece(_vocab, new_token_id, buf, sizeof(buf), 0, true);
@@ -148,7 +175,8 @@
         }
         
         // Prepare next batch with the single generated token
-        batch = llama_batch_get_one(&new_token_id, 1);
+        llama_batch batch = llama_batch_get_one(&new_token_id, 1);
+        
         if (llama_decode(_ctx, batch)) {
             break;
         }
@@ -266,6 +294,98 @@
 
 - (void)cancel {
     _isCancelled = YES;
+}
+
+- (BOOL)saveStateToPath:(NSString *)path prompt:(NSString *)prompt error:(NSError **)error {
+    if (!_model || !_ctx || !_vocab) return NO;
+    _isCancelled = NO;
+    
+    // Tokenize the prompt
+    const char *c_prompt = [prompt UTF8String];
+    if (!c_prompt) return NO;
+    std::string prompt_str = c_prompt;
+    std::vector<llama_token> tokens_list(prompt_str.length() + 2);
+    
+    int n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), (int32_t)prompt_str.length(), tokens_list.data(), (int32_t)tokens_list.size(), true, true);
+    if (n_tokens < 0) {
+        tokens_list.resize(-n_tokens);
+        n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), (int32_t)prompt_str.length(), tokens_list.data(), (int32_t)tokens_list.size(), true, true);
+    }
+    tokens_list.resize(n_tokens);
+    
+    int max_context = llama_n_ctx(_ctx);
+    int safe_limit = max_context - 512;
+    if (safe_limit < 512) safe_limit = 512;
+    
+    if (n_tokens > safe_limit) {
+        tokens_list.resize(safe_limit);
+        n_tokens = safe_limit;
+    }
+    
+    // Find common prefix with previous generation
+    int n_past = 0;
+    while (n_past < _last_tokens.size() && n_past < tokens_list.size() && _last_tokens[n_past] == tokens_list[n_past]) {
+        n_past++;
+    }
+    
+    // Clear divergent memory
+    llama_memory_t mem = llama_get_memory(_ctx);
+    if (mem && n_past < _last_tokens.size()) {
+        llama_memory_seq_rm(mem, -1, n_past, -1);
+    }
+    
+    // Decode new tokens
+    int n_eval = n_tokens - n_past;
+    if (n_eval > 0) {
+        // Evaluate in chunks to avoid blowing up memory if prompt is huge
+        int batch_size = 512;
+        for (int i = 0; i < n_eval; i += batch_size) {
+            if (_isCancelled) return NO;
+            int chunk_size = std::min(batch_size, n_eval - i);
+            llama_batch batch = llama_batch_init(chunk_size, 0, 1);
+            batch.n_tokens = chunk_size;
+            for (int j = 0; j < chunk_size; j++) {
+                batch.token[j] = tokens_list[n_past + i + j];
+                batch.pos[j] = n_past + i + j;
+                batch.seq_id[j][0] = 0;
+                batch.n_seq_id[j] = 1;
+                batch.logits[j] = false; // We don't need logits just for saving context
+            }
+            if (llama_decode(_ctx, batch)) {
+                llama_batch_free(batch);
+                if (error) *error = [NSError errorWithDomain:@"Llama" code:4 userInfo:@{NSLocalizedDescriptionKey: @"Failed to decode context batch"}];
+                return NO;
+            }
+            llama_batch_free(batch);
+        }
+    }
+    
+    _last_tokens = tokens_list;
+    
+    // Save to binary file
+    bool success = llama_state_save_file(_ctx, [path UTF8String], _last_tokens.data(), _last_tokens.size());
+    if (!success) {
+        if (error) *error = [NSError errorWithDomain:@"Llama" code:5 userInfo:@{NSLocalizedDescriptionKey: @"Failed to save binary state"}];
+    }
+    return success;
+}
+
+- (BOOL)loadStateFromPath:(NSString *)path error:(NSError **)error {
+    if (!_ctx) return NO;
+    
+    uint32_t n_ctx = llama_n_ctx(_ctx);
+    std::vector<llama_token> tokens_out(n_ctx);
+    size_t count = 0;
+    
+    bool success = llama_state_load_file(_ctx, [path UTF8String], tokens_out.data(), tokens_out.size(), &count);
+    if (success) {
+        tokens_out.resize(count);
+        _last_tokens = tokens_out;
+        return YES;
+    }
+    
+    if (error) *error = [NSError errorWithDomain:@"Llama" code:6 userInfo:@{NSLocalizedDescriptionKey: @"Failed to load binary state"}];
+    return NO;
 }
 
 @end

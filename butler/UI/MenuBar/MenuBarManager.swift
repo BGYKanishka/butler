@@ -205,7 +205,7 @@ class MenuBarManager {
             
             panel.center()
             panel.setFrameAutosaveName("ButlerSettings")
-            panel.contentView = NSHostingView(rootView: SettingsView(permissionsGateway: coordinator.environment.permissionsGateway))
+            panel.contentView = NSHostingView(rootView: SettingsView(permissionsGateway: coordinator.environment.permissionsGateway, projectContextManager: coordinator.environment.projectContextManager))
             settingsWindow = panel
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
