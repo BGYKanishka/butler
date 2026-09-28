@@ -174,12 +174,19 @@
             }
         }
         
-        // Prepare next batch with the single generated token
-        llama_batch batch = llama_batch_get_one(&new_token_id, 1);
+        llama_batch batch = llama_batch_init(1, 0, 1);
+        batch.n_tokens = 1;
+        batch.token[0] = new_token_id;
+        batch.pos[0] = n_cur;
+        batch.seq_id[0][0] = 0;
+        batch.n_seq_id[0] = 1;
+        batch.logits[0] = true;
         
         if (llama_decode(_ctx, batch)) {
+            llama_batch_free(batch);
             break;
         }
+        llama_batch_free(batch);
         
         n_cur += 1;
         n_generated += 1;
@@ -283,8 +290,21 @@
             if (tokenStr && onToken) onToken(tokenStr);
         }
         
-        llama_batch batch = llama_batch_get_one(&new_token_id, 1);
-        if (llama_decode(_ctx, batch)) break;
+        llama_batch batch = llama_batch_init(1, 0, 1);
+        batch.n_tokens = 1;
+        batch.token[0] = new_token_id;
+        batch.pos[0] = new_n_past;
+        batch.seq_id[0][0] = 0;
+        batch.n_seq_id[0] = 1;
+        batch.logits[0] = true;
+        
+        if (llama_decode(_ctx, batch)) {
+            llama_batch_free(batch);
+            break;
+        }
+        llama_batch_free(batch);
+        
+        new_n_past += 1;
         
         n_generated += 1;
     }
