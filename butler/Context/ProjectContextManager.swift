@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import os
+
+private let logger = Logger(subsystem: "com.butler", category: "ProjectContext")
 
 class ProjectContextManager: ObservableObject {
     @Published var currentContext: ProjectContextData?
@@ -38,7 +41,7 @@ class ProjectContextManager: ObservableObject {
         let urls = projectURLs
         if urls.isEmpty { return }
         Task {
-            print("ProjectContextManager: Start Analyzing Project...")
+            logger.info("Starting project analysis")
             await MainActor.run { self.isAnalyzing = true }
             do {
                 var combinedVocabulary = Set<String>()
@@ -63,7 +66,7 @@ class ProjectContextManager: ObservableObject {
                 }
                 
                 await MainActor.run {
-                    print("ProjectContextManager: Finished Analyzing Project!")
+                    logger.info("Project analysis finished")
                     self.currentContext = finalContext
                     self.isAnalyzing = false
                     
@@ -72,10 +75,10 @@ class ProjectContextManager: ObservableObject {
                     UserDefaults.standard.set(vocabString, forKey: ConfigKey.whisperVocabulary)
                 }
             } catch {
-                print("ProjectContextManager: Failed to analyze projects: \(error)")
-                await MainActor.run { 
-                    self.isAnalyzing = false 
-                    print("ProjectContextManager: Finished Analyzing Project with error.")
+                logger.error("Failed to analyse projects: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.isAnalyzing = false
+                    logger.debug("Analysis finished with error")
                 }
             }
         }

@@ -2,6 +2,9 @@ import Foundation
 import Combine
 import AVFoundation
 import AppKit
+import os
+
+private let logger = Logger(subsystem: "com.butler", category: "Session")
 
 final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     let environment: AppEnvironment
@@ -100,11 +103,11 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         audioSessionCoordinator.onSpeechDetected = { [weak self] samples, source in
             Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self = self, await self.sessionIsActive() else { return }
-                print("Session Info: Speech detected from \(source), transcribing...")
+                logger.info("Speech detected from \(String(describing: source)) — transcribing")
                 do {
                     try await self.whisperEngine.transcribe(samples: samples, sampleRate: 16000, source: source)
                 } catch {
-                    print("Session Error: Transcription failed: \(error)")
+                    logger.error("Transcription failed: \(error.localizedDescription)")
                     await MainActor.run {
                         self.state = .error(error)
                     }
@@ -133,7 +136,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         }
         
         responseGenerator.onIntentConfirmed = { [weak self] question in
-            print("Session Info: Intent confirmed by LLM! -> \(question)")
+            logger.info("Intent confirmed by LLM for: \(question)")
             DispatchQueue.main.async {
                 self?.state = .answering
             }
@@ -220,9 +223,9 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                 DispatchQueue.main.async {
                     self.isLoadingModels = false
                 }
-                print("Session started.")
+                logger.info("Session started")
             } catch {
-                print("Failed to start session: \(error)")
+                logger.error("Failed to start session: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.isLoadingModels = false
                     self.state = .error(error)
@@ -250,7 +253,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
         
         await MainActor.run {
             self.transcripts.removeAll()
-            print("Session stopped.")
+            logger.info("Session stopped")
         }
     }
     
@@ -281,11 +284,11 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
     func triggerVisionAnalysis() {
         // Prevent vision request if we are already answering, error, idle, or loading
         if isLoadingModels || state == .idle {
-            print("Cannot analyze screen in current state.")
+            logger.warning("Vision analysis requested but session is not active")
             return
         }
         if case .error = state {
-            print("Cannot analyze screen in current state.")
+            logger.warning("Vision analysis requested but session is in error state")
             return
         }
         
@@ -354,7 +357,7 @@ final class SessionCoordinator: ObservableObject, @unchecked Sendable {
                     self.state = .listening
                 }
             } catch {
-                print("Vision error: \(error)")
+                logger.error("Vision analysis failed: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.state = .error(error)
                 }
