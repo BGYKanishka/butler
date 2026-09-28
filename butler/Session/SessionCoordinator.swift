@@ -138,6 +138,42 @@ final class SessionCoordinator: ObservableObject {
             logger.info("Intent confirmed by LLM for: \(question)")
             self.state = .answering
         }
+
+        environment.permissionsGateway.$isMicGranted
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] granted in
+                guard let self = self, self.sessionIsActive() else { return }
+                if granted {
+                    Task {
+                        try? await self.micService.start()
+                        self.isMicMuted = false
+                    }
+                } else {
+                    self.audioSessionCoordinator.stopMic()
+                    self.isMicMuted = true
+                }
+            }
+            .store(in: &cancellables)
+
+        environment.permissionsGateway.$isScreenGranted
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] granted in
+                guard let self = self, self.sessionIsActive() else { return }
+                if granted {
+                    Task {
+                        try? await self.sysAudioService.start()
+                        self.isSysAudioMuted = false
+                        self.audioSessionCoordinator.systemAudioAvailable = true
+                    }
+                } else {
+                    self.audioSessionCoordinator.stopSystemAudio()
+                    self.isSysAudioMuted = true
+                    self.audioSessionCoordinator.systemAudioAvailable = false
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func handleTranscription(segment: TranscriptSegment) {
@@ -170,6 +206,11 @@ final class SessionCoordinator: ObservableObject {
         default: return
         }
         let gateway = environment.permissionsGateway
+        guard gateway.isMicGranted || gateway.isScreenGranted else {
+            logger.warning("Cannot start session: neither microphone nor system audio permissions are granted.")
+            onShowSettings?()
+            return
+        }
         startSessionInternal(micGranted: gateway.isMicGranted)
     }
 

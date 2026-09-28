@@ -83,6 +83,9 @@ actor ProjectAnalyzer: ProjectAnalyzerService {
                 if ext == "swift" {
                     techStack.insert("Swift")
                     vocabulary.insert(fileURL.deletingPathExtension().lastPathComponent)
+                } else if ["mm", "m", "cpp", "c", "h"].contains(ext) {
+                    techStack.insert("C/C++/Obj-C")
+                    vocabulary.insert(fileURL.deletingPathExtension().lastPathComponent)
                 } else if ext == "js" || ext == "ts" || ext == "tsx" || ext == "jsx" {
                     techStack.insert(ext.contains("ts") ? "TypeScript" : "JavaScript")
                     if ext.contains("x") { techStack.insert("React") }

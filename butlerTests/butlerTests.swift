@@ -15,6 +15,10 @@ final class butlerTests: XCTestCase {
     
     func testVoiceActivityDetector() throws {
         let vad = VoiceActivityDetector()
+        vad.speechThreshold = 0.02
+        vad.silenceThreshold = 0.01
+        vad.minSpeechDuration = 0.2
+        vad.maxSilenceInSpeech = 0.6
         
         // Silence
         XCTAssertFalse(vad.process(rms: 0.001, timestamp: 0.0))
@@ -33,7 +37,7 @@ final class butlerTests: XCTestCase {
     func testContextManager() async throws {
         let manager = ContextManager()
         
-        let turn1 = ConversationTurn(id: UUID(), source: .system, type: .statement, text: "Hello there.", timestamp: Date().addingTimeInterval(-100))
+        let turn1 = ConversationTurn(id: UUID(), source: .system, type: .statement, text: "Hello there.", timestamp: Date().addingTimeInterval(-700))
         let turn2 = ConversationTurn(id: UUID(), source: .microphone, type: .statement, text: "Hi, how are you?", timestamp: Date().addingTimeInterval(-50))
         let turn3 = ConversationTurn(id: UUID(), source: .system, type: .statement, text: "I'm doing well, thank you.", timestamp: Date())
         
@@ -42,8 +46,8 @@ final class butlerTests: XCTestCase {
         await manager.addTurn(turn3)
         
         let contextString = await manager.getRecentContext()
-        XCTAssertFalse(contextString.contains("Hello there.")) // Evicted because it's older than 60s
-        XCTAssertTrue(contextString.contains("[LOCAL]: Hi, how are you?"))
-        XCTAssertTrue(contextString.contains("[REMOTE]: I'm doing well, thank you."))
+        XCTAssertFalse(contextString.contains("Hello there.")) // Evicted because it's older than 600s
+        XCTAssertTrue(contextString.contains("[CANDIDATE (USER)]: Hi, how are you?"))
+        XCTAssertTrue(contextString.contains("[INTERVIEWER]: I'm doing well, thank you."))
     }
 }
