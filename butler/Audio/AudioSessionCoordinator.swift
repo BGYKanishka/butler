@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import os
+
+private let logger = Logger(subsystem: "com.butler", category: "Audio")
 
 class AudioSessionCoordinator: @unchecked Sendable {
     var micService: any AudioCaptureService
@@ -59,7 +62,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
             do {
                 try await micService.start()
             } catch {
-                print("Session Warning: Microphone start failed: \(error)")
+                logger.warning("Microphone start failed: \(error.localizedDescription)")
             }
         }
         
@@ -68,7 +71,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
                 try await sysAudioService.start()
                 DispatchQueue.main.async { self.systemAudioAvailable = true }
             } catch {
-                print("System audio capture failed, continuing with microphone only: \(error)")
+                logger.warning("System audio capture failed — continuing with microphone only: \(error.localizedDescription)")
                 DispatchQueue.main.async { self.systemAudioAvailable = false }
             }
         } else {
@@ -135,13 +138,13 @@ class AudioSessionCoordinator: @unchecked Sendable {
         
         let sourceName = source == .microphone ? "Mic" : "SystemAudio"
         
-        if justStarted { 
-            print("VAD Info: Speech started on \(sourceName) (RMS: \(rms))")
-            startTimestamp = ts 
+        if justStarted {
+            logger.debug("Speech started on \(sourceName) (RMS: \(rms))")
+            startTimestamp = ts
         }
         
         if isSpeaking, let start = startTimestamp, ts - start > 10.0 {
-            print("VAD Info: Force slicing continuous speech on \(sourceName)...")
+            logger.debug("Force slicing continuous speech on \(sourceName)")
             let preRollTime: TimeInterval = 0.5
             let duration = ts - start + preRollTime
             
@@ -153,7 +156,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
             // Retain the last 1.5 seconds to overlap with the next chunk, ensuring no words are cut in half
             startTimestamp = ts - 1.5
         } else if justEnded, let start = startTimestamp {
-            print("VAD Info: Speech ended on \(sourceName). Capturing segment...")
+            logger.debug("Speech ended on \(sourceName) — capturing segment")
             startTimestamp = nil
             
             // Add 0.5s of pre-roll padding to capture the start of the word before VAD triggered
