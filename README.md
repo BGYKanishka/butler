@@ -16,13 +16,19 @@ Butler is a privacy-first, fully on-device meeting assistant engineered for macO
 
 ### Multimodal Context, Codebase Understanding & Real-Time Intelligence
 - **Audio Intelligence**: Real-time microphone and system audio capture with Voice Activity Detection (VAD)-gated speech recognition. Includes granular UI toggles to select specific audio sources.
-- **Deep Codebase Context**: Includes `ProjectAnalyzer` for deep source extraction, enabling the assistant to understand and answer questions about local repositories seamlessly without context truncation.
+- **Deep Codebase Context**: Includes `ProjectAnalyzer` for deep source extraction, enabling the assistant to understand and answer questions about local repositories seamlessly without context truncation. On launch, Butler automatically detects missing binary state and flags projects that need re-analysis.
 - **Vision Capabilities**: Contextual screen awareness. Take interactive screenshots (`Shift + Option + A`) and seamlessly ask questions about the screen content using the multimodal vision model (`mmproj`).
 - **Low-Latency Partial Evaluation**: Supports custom speech vocabulary for domain-specific jargon and evaluates incomplete transcripts mid-sentence for ultra-low latency responses.
 - **Advanced State Saving**: Implements intelligent KV Cache saving (`saveState` / `loadState`) to avoid constantly reprocessing static context like project codebase summaries.
+- **Multi-Turn Conversation Memory**: Properly formatted conversation history is maintained across turns, enabling coherent multi-step dialogues with the AI.
+
+### Reliability & Code Quality
+- **Structured Logging**: All orchestration layers use `os.Logger` (replacing `print()`) for efficient, filterable, and privacy-respecting log output visible in Console.app.
+- **Swift 6 Strict Concurrency**: The entire codebase is fully compliant with Swift 6 strict concurrency rules. `SessionCoordinator` is `@MainActor`-bound, and all cross-actor data flows are properly isolated — eliminating data races at compile time.
+- **Resilient Model Downloads**: `ModelDownloader` automatically retries failed downloads up to **3 times** and validates model integrity via **SHA-256 checksum** when available, ensuring you never run a corrupted model.
 
 ### Automated Setup & CI/CD
-- **One-Click Model Downloads**: The app now handles automated model downloading natively (`ModelDownloader`), removing the need for manual setup scripts.
+- **One-Click Model Downloads**: The app handles automated model downloading natively (`ModelDownloader`), removing the need for manual setup scripts.
 - **CI/CD Pipeline**: GitHub Actions workflows are integrated for automated testing and release deployment.
 
 ## 🏗 Architecture Overview
@@ -35,34 +41,55 @@ graph TD
     classDef logic fill:#e8f5e9,stroke:none,stroke-width:0px,color:#1b5e20
     classDef ui fill:#f3e5f5,stroke:none,stroke-width:0px,color:#4a148c
 
-    Mic["Microphone\n(AVAudioEngine)"]:::native
-    SysAudio["System Audio\n(ScreenCaptureKit)"]:::native
-    ScreenCap["Interactive Capture\n(InteractiveCaptureService)"]:::native
-    RingBuffer[("Audio Ring Buffer\n(Lock-free)")]:::logic
+    subgraph Inputs ["Input Sources (Native APIs)"]
+        Mic["Microphone\n(AVAudioEngine)"]:::native
+        SysAudio["System Audio\n(ScreenCaptureKit)"]:::native
+        ScreenCap["Interactive Capture\n(InteractiveCaptureService)"]:::native
+    end
 
-    VAD{"VAD Gate\n(RMS Threshold)"}:::logic
-    Whisper["Whisper.cpp\n(small.en / Metal)"]:::engine
-    Context["Context Manager\n(Conversation History)"]:::logic
-    ProjectAnalyzer["Project Analyzer\n(Codebase Context)"]:::logic
+    subgraph AudioProcessing ["Audio Processing"]
+        RingBuffer[("Audio Ring Buffer\n(Lock-free)")]:::logic
+        VAD{"VAD Gate\n(RMS Threshold)"}:::logic
+    end
 
-    Intent{"Response Generator\n(Intent Evaluation)"}:::logic
-    Llama["Llama.cpp\n(Qwen2.5-VL-7B Q4_K_M)"]:::engine
-    Mmproj["Vision Projector\n(mmproj f16)"]:::engine
+    subgraph AIEngines ["Local AI Inference Engines"]
+        Whisper["Whisper.cpp\n(small.en / Metal)"]:::engine
+        Llama["Llama.cpp\n(Qwen2.5-VL-7B Q4_K_M)"]:::engine
+        Mmproj["Vision Projector\n(mmproj f16)"]:::engine
+    end
 
-    MainWindow["SwiftUI Main Window\n(@MainActor)"]:::ui
+    subgraph CoreOrchestration ["Core Session & Context"]
+        Coordinator["Session Coordinator\n(@MainActor)"]:::logic
+        Context["Context Manager\n(Conversation History)"]:::logic
+        ProjectAnalyzer["Project Analyzer\n(Codebase Context)"]:::logic
+        Intent{"Response Generator\n(Intent Evaluation)"}:::logic
+    end
 
+    subgraph UserInterface ["Presentation"]
+        MainWindow["SwiftUI Main Window\n(@MainActor)"]:::ui
+    end
+
+    %% Flow
     Mic --> RingBuffer
     SysAudio --> RingBuffer
     RingBuffer --> VAD
-    VAD -- "Speech Detected" --> Whisper
-    Whisper -- "Transcripts" --> Context
-    Whisper -- "Segments" --> Intent
+    VAD -- "Speech Detected" --> Coordinator
+    
+    Coordinator <-->|"Audio / Transcripts"| Whisper
+    Coordinator --> Context
+    Coordinator -- "Transcript Segment" --> Intent
+    
     Context --> Intent
     ProjectAnalyzer -- "Source Code" --> Intent
-    Intent -- "Intent Confirmed (YES)" --> Llama
-    ScreenCap -- "Image Region" --> Mmproj
-    Mmproj --> Llama
-    Llama -- "Token Stream" --> MainWindow
+    
+    Intent <-->|"Prompt / Stream"| Llama
+    Intent -- "Confirmed Intent & Tokens" --> Coordinator
+    
+    ScreenCap -- "Image Region" --> Coordinator
+    Coordinator -- "Vision Prompt" --> Llama
+    Mmproj -. "Visual Features" .-> Llama
+    
+    Coordinator -- "State & Transcripts" --> MainWindow
 ```
 
 
@@ -88,7 +115,7 @@ Because Butler runs heavy AI models fully on-device, it requires robust hardware
    ```bash
    open butler.xcodeproj
    ```
-   *(Note: The app will automatically handle downloading the models securely when you first configure it in settings.)*
+   *(Note: The app will automatically handle downloading and verifying models securely when you first configure it in settings. Downloads are retried automatically on failure and validated via SHA-256 checksum.)*
 
 ## 🕹 Usage
 

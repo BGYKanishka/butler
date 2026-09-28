@@ -9,7 +9,7 @@ private let logger = Logger(subsystem: "com.butler", category: "LLM")
 /// `LlamaWrapper` are serialised through `inferenceQueue`. The class
 /// no longer claims `@unchecked Sendable`; instead callers go through
 /// `async` entry points that hop to the queue as needed.
-final class LocalLLMEngine: LLMEngine, @unchecked Sendable {
+final class LocalLLMEngine: LLMEngine {
     private let wrapper = LlamaWrapper()
     private let config = LLMConfiguration()
     // nonisolated(unsafe) is safe here: every access is serialised
@@ -210,3 +210,5 @@ final class LocalLLMEngine: LLMEngine, @unchecked Sendable {
         wrapper.cancel()
     }
 }
+
+extension LocalLLMEngine: @unchecked Sendable {}

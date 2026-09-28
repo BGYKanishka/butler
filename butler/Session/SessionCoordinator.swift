@@ -312,24 +312,26 @@ final class SessionCoordinator: ObservableObject {
         )
         transcripts.append(initialAiSeg)
 
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             do {
-                try await llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { [weak self] token in
+                try await self.llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { [weak self] token in
                     Task { @MainActor in
                         guard let self, let lastIdx = self.transcripts.indices.last else { return }
                         self.transcripts[lastIdx].text += token
                     }
                 }
 
-                if let lastIdx = transcripts.indices.last {
-                    transcripts[lastIdx].isFinal = true
-                    let finalAnswer = transcripts[lastIdx].text
-                    Task {
+                if let lastIdx = self.transcripts.indices.last {
+                    self.transcripts[lastIdx].isFinal = true
+                    let finalAnswer = self.transcripts[lastIdx].text
+                    Task { [weak self] in
+                        guard let self = self else { return }
                         let turn = ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: finalAnswer, timestamp: Date())
-                        await contextManager.addTurn(turn)
+                        await self.contextManager.addTurn(turn)
                     }
                 }
-                state = .listening
+                self.state = .listening
             } catch {
                 logger.error("Vision analysis failed: \(error.localizedDescription)")
                 state = .error(error)
