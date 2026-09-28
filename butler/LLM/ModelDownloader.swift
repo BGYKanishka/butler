@@ -7,26 +7,27 @@ class ModelDownloader: NSObject, ObservableObject, URLSessionDownloadDelegate {
     @Published var statusText: String = ""
     @Published var totalBytesWritten: Int64 = 0
     @Published var totalBytesExpected: Int64 = 1
-    
-    private var downloadSession: URLSession!
+
+    // lazy var lets us pass `self` as the delegate without an implicitly
+    // unwrapped optional — it is initialised on first access, after super.init
+    // completes, so self is valid.
+    private lazy var downloadSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForResource = 3600
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+    }()
     private var downloadTask: URLSessionDownloadTask?
-    
+
     private var onComplete: (() -> Void)?
     private var onError: ((Error) -> Void)?
-    
+
     struct ModelFile {
         let url: URL
         let destinationDir: URL
         let filename: String
     }
-    
+
     private var queue: [ModelFile] = []
-    
-    override init() {
-        super.init()
-        let config = URLSessionConfiguration.default
-        self.downloadSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-    }
     
     func startDownload(completion: @escaping () -> Void, error: @escaping (Error) -> Void) {
         guard let modelsDir = Constants.modelsDirectory else { return }
