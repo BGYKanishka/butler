@@ -1,122 +1,138 @@
 import Foundation
+import os
 
-class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
-    private var wrapper: WhisperWrapper?
-    private var isLoaded = false
-    private let transcriptionQueue = DispatchQueue(label: "com.butler.whisperQueue")
+private let logger = Logger(subsystem: "com.butler", category: "Whisper")
 
-    
+/// Wraps the whisper.cpp transcription pipeline.
+///
+/// `isLoaded` and `wrapper` are only ever touched inside `transcriptionQueue`,
+/// so the class no longer needs `@unchecked Sendable`. The conformance is
+/// expressed through the serial queue discipline instead.
+final class WhisperEngine: SpeechToTextEngine, Sendable {
+    // nonisolated(unsafe): safe because every access is serialised on transcriptionQueue.
+    nonisolated(unsafe) private var wrapper: WhisperWrapper?
+    nonisolated(unsafe) private var isLoaded = false
+    private let transcriptionQueue = DispatchQueue(label: "com.butler.whisperQueue", qos: .userInitiated)
+
+    // Callbacks — set once from the main thread before the session starts.
+    var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
+    var onPartialTranscriptionCompleted: ((TranscriptSegment) -> Void)?
+
     func load() async throws {
-        guard !isLoaded else { return }
-        
-        let fileManager = FileManager.default
-        let modelPath = WhisperConfiguration().getModelPath()
-        
-        // Ensure path exists before initializing C++ context
-        guard fileManager.fileExists(atPath: modelPath) else {
-            throw AssistantError.modelNotFound("Model not found at \(modelPath)")
-        }
-        
-        wrapper = WhisperWrapper(modelPath: modelPath)
-        guard wrapper != nil else {
-            throw AssistantError.modelNotFound("Failed to initialize whisper context with model: \(modelPath)")
-        }
-        
-        
-        isLoaded = true
-    }
-    
-    func unload() async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            transcriptionQueue.async {
-                self.wrapper = nil // ARC will call dealloc which calls whisper_free()
-                self.isLoaded = false
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            transcriptionQueue.async { [weak self] in
+                guard let self else {
+                    continuation.resume(throwing: AssistantError.inferenceFailed("Engine deallocated before load"))
+                    return
+                }
+                guard !self.isLoaded else {
+                    continuation.resume()
+                    return
+                }
+
+                let modelPath = WhisperConfiguration().getModelPath()
+                guard FileManager.default.fileExists(atPath: modelPath) else {
+                    continuation.resume(throwing: AssistantError.modelNotFound("Whisper model not found at \(modelPath)"))
+                    return
+                }
+
+                let w = WhisperWrapper(modelPath: modelPath)
+                guard w != nil else {
+                    continuation.resume(throwing: AssistantError.modelNotFound("Failed to initialise whisper context with model at \(modelPath)"))
+                    return
+                }
+
+                self.wrapper = w
+                self.isLoaded = true
                 continuation.resume()
             }
         }
     }
-    
-    private func isValidTranscription(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return false }
-        
-        var cleanedText = trimmed
-        if let regex = try? NSRegularExpression(pattern: "\\[.*?\\]|\\(.*?\\)", options: []) {
-            let range = NSRange(location: 0, length: cleanedText.utf16.count)
-            cleanedText = regex.stringByReplacingMatches(in: cleanedText, options: [], range: range, withTemplate: "")
-        }
-        
-        let alphanumeric = CharacterSet.alphanumerics
-        if cleanedText.rangeOfCharacter(from: alphanumeric) == nil {
-            return false
-        }
-        
-        return true
-    }
-    
-    var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
-    var onPartialTranscriptionCompleted: ((TranscriptSegment) -> Void)?
-    
-    func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
-        guard let wrapper = wrapper else {
-            throw AssistantError.inferenceFailed("Whisper engine not loaded")
-        }
-        guard !samples.isEmpty else { return }
-        
-        let result: String? = await withCheckedContinuation { continuation in
+
+    func unload() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             transcriptionQueue.async { [weak self] in
-                guard let self = self else {
+                self?.wrapper = nil   // ARC triggers whisper_free()
+                self?.isLoaded = false
+                continuation.resume()
+            }
+        }
+    }
+
+    func transcribe(samples: [Float], sampleRate: Int, source: AudioSource) async throws {
+        guard !samples.isEmpty else { return }
+
+        let result: String? = try await withCheckedThrowingContinuation { continuation in
+            transcriptionQueue.async { [weak self] in
+                guard let self else {
                     continuation.resume(returning: nil)
                     return
                 }
-                
+                guard let wrapper = self.wrapper else {
+                    continuation.resume(throwing: AssistantError.inferenceFailed("Whisper engine not loaded"))
+                    return
+                }
+
                 wrapper.onPartialTranscript = { [weak self] partialText in
-                    guard let self = self else { return }
-                    let text = partialText
-                    guard self.isValidTranscription(text) else { return }
-                    
+                    guard let self, self.isValidTranscription(partialText) else { return }
                     let segment = TranscriptSegment(
                         id: UUID(),
                         source: source,
                         startTime: Date().timeIntervalSince1970,
                         endTime: Date().timeIntervalSince1970 + Double(samples.count) / Double(sampleRate),
-                        text: text,
+                        text: partialText,
                         isFinal: false,
                         confidence: 1.0
                     )
                     self.onPartialTranscriptionCompleted?(segment)
                 }
-                
+
                 let text = samples.withUnsafeBufferPointer { ptr in
                     let userVocab = UserDefaults.standard.string(forKey: ConfigKey.whisperVocabulary) ?? ""
-                    let fullPrompt = userVocab.isEmpty ? "" : "The following terms are discussed: \(userVocab)."
-                    wrapper.initialPrompt = fullPrompt
+                    wrapper.initialPrompt = userVocab.isEmpty ? "" : "The following terms are discussed: \(userVocab)."
                     return wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
                 }
                 continuation.resume(returning: text)
             }
         }
-        
-        print("Whisper raw result: '\(result ?? "nil")'")
+
+        logger.debug("Whisper raw result: '\(result ?? "nil")'")
+
         if let text = result, isValidTranscription(text) {
             let segment = TranscriptSegment(
                 id: UUID(),
                 source: source,
-                startTime: Date().timeIntervalSince1970, // Approximated
+                startTime: Date().timeIntervalSince1970,
                 endTime: Date().timeIntervalSince1970 + Double(samples.count) / Double(sampleRate),
                 text: text,
                 isFinal: true,
                 confidence: 1.0
             )
             onTranscriptionCompleted?(segment)
-            print("Whisper transcribed: \(text)")
+            logger.info("Transcribed: \(text)")
         } else {
-            print("Whisper Info: Ignored empty or non-speech transcription.")
+            logger.debug("Ignored empty or non-speech transcription")
         }
     }
-    
+
     func cancel() {
-        wrapper?.cancelTranscription()
+        transcriptionQueue.async { [weak self] in
+            self?.wrapper?.cancelTranscription()
+        }
+    }
+
+    // MARK: - Helpers
+
+    /// Returns false for empty strings and whisper noise markers like [BLANK_AUDIO].
+    private func isValidTranscription(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+
+        var cleaned = trimmed
+        if let range = cleaned.range(of: #"\[.*?\]|\(.*?\)"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
+        }
+        return cleaned.rangeOfCharacter(from: .alphanumerics) != nil
     }
 }
 
