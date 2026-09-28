@@ -305,10 +305,12 @@ final class SessionCoordinator: ObservableObject {
     }
 
     func triggerVisionAnalysis() {
-        if isLoadingModels || state == .idle {
-            logger.warning("Vision analysis requested but session is not active")
+        guard environment.permissionsGateway.isScreenGranted else {
+            logger.warning("Vision analysis requested but screen recording permission is not granted")
+            onShowSettings?()
             return
         }
+        
         if case .error = state {
             logger.warning("Vision analysis requested but session is in error state")
             return
@@ -321,6 +323,10 @@ final class SessionCoordinator: ObservableObject {
                 guard let self else { return }
                 self.onShowMainWindow?()
                 guard let imagePath = fileUrl?.path else { return }
+
+                if self.state == .idle {
+                    self.startSession()
+                }
 
                 let recentContext = await self.contextManager.getRecentContext()
                 let basePrompt = "Analyze this image. If it contains a multiple-choice question or a direct problem, state the final answer clearly in the first sentence, followed by a step-by-step solution. If it's a general image, simply explain or describe it naturally as a helpful AI assistant."
@@ -356,6 +362,10 @@ final class SessionCoordinator: ObservableObject {
         Task { [weak self] in
             guard let self = self else { return }
             do {
+                while await MainActor.run(resultType: Bool.self, body: { self.isLoadingModels }) {
+                    try await Task.sleep(nanoseconds: 200_000_000) // Wait 200ms
+                }
+                
                 try await self.llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { [weak self] token in
                     Task { @MainActor in
                         guard let self, let lastIdx = self.transcripts.indices.last else { return }

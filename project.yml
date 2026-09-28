@@ -6,6 +6,9 @@ packages:
   HotKey:
     url: https://github.com/soffes/HotKey
     exactVersion: 0.1.3
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.6.4
 targets:
   butler:
     type: application
@@ -14,6 +17,7 @@ targets:
     sources: [butler]
     dependencies:
       - package: HotKey
+      - package: Sparkle
     info:
       path: butler/Resources/Info.plist
       properties:
@@ -21,6 +25,9 @@ targets:
         NSScreenCaptureUsageDescription: "Butler needs screen capture access to transcribe system and meeting audio."
         LSUIElement: YES
         LSApplicationCategoryType: "public.app-category.productivity"
+        SUFeedURL: "https://raw.githubusercontent.com/BGYKanishka/butler/main/appcast.xml"
+        SUPublicEDKey: "utb1sqnbrG5XjUltoj8ISOqvoWdb5VKJDx1gJ5U/z+M="
+        SUEnableAutomaticChecks: NO
     entitlements:
       path: butler/Resources/butler.entitlements
     settings:

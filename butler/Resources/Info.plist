@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1</string>
+	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>1</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSUIElement</key>
@@ -26,5 +26,11 @@
 	<string>Butler needs access to your microphone to transcribe your speech.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Butler needs screen capture access to transcribe system and meeting audio.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<false/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/BGYKanishka/butler/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>utb1sqnbrG5XjUltoj8ISOqvoWdb5VKJDx1gJ5U/z+M=</string>
 </dict>
 </plist>

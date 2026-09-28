@@ -45,7 +45,9 @@ struct SettingsView: View {
                 }
                 .buttonStyle(IconButtonStyle())
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.top, 32)
+            .padding(.bottom, 16)
             
             VStack(alignment: .leading, spacing: 24) {
                 // Audio
@@ -156,6 +158,20 @@ struct SettingsView: View {
                     }
                 }
                 
+                // Updates
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("UPDATES").font(.caption).foregroundColor(.secondary)
+                    
+                    HStack {
+                        Text("Application Updates")
+                            .foregroundColor(.white)
+                        Spacer()
+                        Button("Check for Updates") {
+                            NSApp.sendAction(#selector(AppDelegate.checkForUpdates), to: nil, from: nil)
+                        }
+                    }
+                }
+                
                 Spacer()
                 
 
@@ -163,7 +179,7 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
-        .frame(width: 350, height: 480) // Reduced height after removing Quit button
+        .frame(width: 350, height: 500)
         .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }

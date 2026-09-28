@@ -17,6 +17,7 @@ class MenuBarManager {
     private var cancellables = Set<AnyCancellable>()
     
     var onToggleMainWindow: (() -> Void)?
+    var onCheckForUpdates: (() -> Void)?
     
     // Menu Items
     private var customMenu: NSMenu!
@@ -95,10 +96,14 @@ class MenuBarManager {
         
         menu.addItem(NSMenuItem.separator())
         
-        // Settings & Quit
+        // Settings & Updates & Quit
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
+        
+        let updateItem = NSMenuItem(title: "Check for Updates...", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
         
         menu.addItem(NSMenuItem(title: "Quit Butler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
@@ -167,6 +172,10 @@ class MenuBarManager {
         } else {
             Task { await coordinator.stopSession() }
         }
+    }
+    
+    @objc private func checkForUpdates() {
+        onCheckForUpdates?()
     }
     
     func setState(_ state: MenuBarState) {

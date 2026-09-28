@@ -2,6 +2,7 @@ import Cocoa
 import SwiftUI
 import Combine
 import HotKey
+import Sparkle
 
 class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -9,7 +10,7 @@ class KeyPanel: NSPanel {
 }
 
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     var sessionCoordinator = SessionCoordinator()
     
     private var cancellables = Set<AnyCancellable>()
@@ -19,6 +20,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     var mainWindow: NSPanel?
     var settingsWindow: NSWindow?
+    
+    var menuBarManager: MenuBarManager?
+    private var updaterController: SPUStandardUpdaterController?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory) // Hide from dock
@@ -31,6 +35,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         sessionCoordinator.onShowSettings = { [weak self] in
             self?.showSettings()
+        }
+        
+        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
+        
+        menuBarManager = MenuBarManager(coordinator: sessionCoordinator)
+        menuBarManager?.onToggleMainWindow = { [weak self] in
+            self?.toggleMainWindow()
+        }
+        menuBarManager?.onCheckForUpdates = { [weak self] in
+            self?.checkForUpdates()
         }
         
         setupMainWindow()
@@ -114,10 +128,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    @objc func checkForUpdates() {
+        updaterController?.checkForUpdates(nil)
+    }
+    
     @objc func showSettings() {
         if settingsWindow == nil {
             let panel = KeyPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 350, height: 350),
+                contentRect: NSRect(x: 0, y: 0, width: 350, height: 500),
                 styleMask: [.nonactivatingPanel],
                 backing: .buffered,
                 defer: false
@@ -173,5 +191,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleWindowHotKey?.keyDownHandler = { [weak self] in
             self?.toggleMainWindow()
         }
+    }
+    
+    // MARK: - Sparkle Gentle Reminders
+    
+    nonisolated var supportsGentleScheduledUpdateReminders: Bool {
+        return true
     }
 }
