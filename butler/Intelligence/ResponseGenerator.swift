@@ -18,10 +18,10 @@ final class ResponseGenerator {
     private var currentGenerationTask: Task<Void, Never>?
     private var isEvaluating: Bool = false
 
-    var onIntentConfirmed: ((String) -> Void)?
-    var onTokenGenerated: ((String) -> Void)?
-    var onResponseCompleted: (() -> Void)?
-    var onResponseIgnored: (() -> Void)?
+    var onIntentConfirmed: (@MainActor (String) -> Void)?
+    var onTokenGenerated: (@MainActor (String) -> Void)?
+    var onResponseCompleted: (@MainActor () -> Void)?
+    var onResponseIgnored: (@MainActor () -> Void)?
 
     init(contextManager: ContextManager, projectContextManager: ProjectContextManager? = nil, promptBuilder: PromptBuilder, llmEngine: LLMEngine) {
         self.contextManager = contextManager

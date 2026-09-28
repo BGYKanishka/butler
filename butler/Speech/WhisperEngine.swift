@@ -8,7 +8,7 @@ private let logger = Logger(subsystem: "com.butler", category: "Whisper")
 /// `isLoaded` and `wrapper` are only ever touched inside `transcriptionQueue`,
 /// so the class no longer needs `@unchecked Sendable`. The conformance is
 /// expressed through the serial queue discipline instead.
-final class WhisperEngine: SpeechToTextEngine, Sendable {
+final class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
     // nonisolated(unsafe): safe because every access is serialised on transcriptionQueue.
     nonisolated(unsafe) private var wrapper: WhisperWrapper?
     nonisolated(unsafe) private var isLoaded = false

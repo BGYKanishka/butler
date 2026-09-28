@@ -276,7 +276,7 @@ final class SessionCoordinator: ObservableObject {
         onHideMainWindow?()
 
         InteractiveCaptureService.shared.captureRegion { [weak self] fileUrl in
-            Task { @MainActor [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
                 self.onShowMainWindow?()
                 guard let imagePath = fileUrl?.path else { return }
@@ -315,7 +315,7 @@ final class SessionCoordinator: ObservableObject {
         Task {
             do {
                 try await llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { [weak self] token in
-                    Task { @MainActor [weak self] in
+                    Task { @MainActor in
                         guard let self, let lastIdx = self.transcripts.indices.last else { return }
                         self.transcripts[lastIdx].text += token
                     }
