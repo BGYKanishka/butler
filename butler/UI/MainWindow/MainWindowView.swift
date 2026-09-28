@@ -6,7 +6,7 @@ struct MainWindowView: View {
     @ObservedObject var projectContextManager: ProjectContextManager
 
     @AppStorage(ConfigKey.isVisionEnabled) private var isVisionEnabled = false
-    @State private var isQuitting = false
+    @AppStorage("isWindowPinned") private var isWindowPinned = false
 
     private var requiredPermissionsGranted: Bool {
         permissionsGateway.anyPermissionGranted
@@ -78,7 +78,7 @@ struct MainWindowView: View {
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "viewfinder")
-                        Text("Analyze Screen")
+                        Text("Analyze")
                             .font(.system(.body, design: .rounded, weight: .semibold))
                     }
                     .padding(.horizontal, 16)
@@ -101,10 +101,20 @@ struct MainWindowView: View {
                 .padding(.leading, 8)
                 
                 Button(action: {
-                    isQuitting = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        NSApplication.shared.terminate(nil)
-                    }
+                    isWindowPinned.toggle()
+                    NotificationCenter.default.post(name: NSNotification.Name("ToggleWindowPin"), object: nil)
+                }) {
+                    Image(systemName: isWindowPinned ? "pin.fill" : "pin")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(isWindowPinned ? .blue : .secondary)
+                        .padding(8)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(IconButtonStyle())
+                .padding(.leading, 8)
+                
+                Button(action: {
+                    NSApp.terminate(nil)
                 }) {
                     Image(systemName: "power")
                         .font(.system(size: 14, weight: .bold))
@@ -190,39 +200,7 @@ struct MainWindowView: View {
     @ViewBuilder
     private var loadingOverlay: some View {
         Group {
-            if isQuitting {
-                ZStack {
-                    Color.black.opacity(0.6).ignoresSafeArea()
-                    
-                    VStack(spacing: 24) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                            .tint(.white)
-                        
-                        VStack(spacing: 8) {
-                            Text("Shutting down AI engines...")
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .foregroundColor(.white)
-                            
-                            Text("Safely unloading models from unified memory.\nClosing active connections.")
-                                .font(.system(size: 13, weight: .regular, design: .rounded))
-                                .foregroundColor(.gray)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(40)
-                    .background(
-                        VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-                            .cornerRadius(24)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 15)
-                }
-                .transition(.opacity)
-            } else if coordinator.isLoadingModels {
+            if coordinator.isLoadingModels {
                 ZStack {
                     Color.black.opacity(0.6).ignoresSafeArea()
 
@@ -304,7 +282,7 @@ struct MainWindowView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut, value: coordinator.isLoadingModels || projectContextManager.isAnalyzing || isQuitting)
+        .animation(.easeInOut, value: coordinator.isLoadingModels || projectContextManager.isAnalyzing)
     }
     
 

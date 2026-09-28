@@ -21,7 +21,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     var mainWindow: NSPanel?
     var settingsWindow: NSWindow?
     
-    var menuBarManager: MenuBarManager?
     private var updaterController: SPUStandardUpdaterController?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -38,14 +37,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         }
         
         updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
-        
-        menuBarManager = MenuBarManager(coordinator: sessionCoordinator)
-        menuBarManager?.onToggleMainWindow = { [weak self] in
-            self?.toggleMainWindow()
-        }
-        menuBarManager?.onCheckForUpdates = { [weak self] in
-            self?.checkForUpdates()
-        }
         
         setupMainWindow()
         setupBindings()
@@ -76,14 +67,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         
         let panel = KeyPanel(
             contentRect: NSRect(x: 0, y: 0, width: 550, height: 650),
-            styleMask: [.nonactivatingPanel],
+            styleMask: [.nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         
-        panel.isFloatingPanel = true
-        panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        let isPinned = UserDefaults.standard.bool(forKey: "isWindowPinned")
+        panel.isFloatingPanel = isPinned
+        panel.level = isPinned ? .floating : .normal
+        panel.collectionBehavior = isPinned ? [.canJoinAllSpaces, .fullScreenAuxiliary] : [.moveToActiveSpace, .fullScreenAuxiliary]
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
@@ -108,8 +100,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             panel.setFrameOrigin(NSPoint(x: x, y: y))
         }
         
+        
         self.mainWindow = panel
         panel.makeKeyAndOrderFront(nil)
+        
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("ToggleWindowPin"), object: nil, queue: .main) { [weak panel] _ in
+            let pinned = UserDefaults.standard.bool(forKey: "isWindowPinned")
+            panel?.isFloatingPanel = pinned
+            panel?.level = pinned ? .floating : .normal
+            panel?.collectionBehavior = pinned ? [.canJoinAllSpaces, .fullScreenAuxiliary] : [.moveToActiveSpace, .fullScreenAuxiliary]
+            panel?.orderFront(nil)
+        }
     }
     
     @objc func toggleMainWindow() {
@@ -136,7 +137,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         if settingsWindow == nil {
             let panel = KeyPanel(
                 contentRect: NSRect(x: 0, y: 0, width: 350, height: 500),
-                styleMask: [.nonactivatingPanel],
+                styleMask: [.nonactivatingPanel, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
@@ -149,6 +150,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             panel.isOpaque = false
             panel.backgroundColor = .clear
             panel.hasShadow = true
+            panel.sharingType = .none
             panel.isReleasedWhenClosed = false
             
             panel.standardWindowButton(.closeButton)?.isHidden = true

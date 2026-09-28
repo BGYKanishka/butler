@@ -95,12 +95,30 @@ graph TD
 
 ## 💻 System Requirements
 
-Because Butler runs heavy AI models fully on-device, it requires robust hardware to ensure real-time performance.
+Butler runs all AI models locally on your machine — no cloud, no API keys. Here's what you need:
 
-- **Processor**: Apple Silicon Mac (M1, M2, M3, M4, M5 series)
-- **Memory (RAM)**: Minimum 16GB Unified Memory (Recommended to run Qwen2.5-VL-7B comfortably alongside macOS).
-- **OS**: macOS 14.0 (Sonoma) or newer.
-- **Development**: Xcode 15+ (if building from source).
+- **Mac**: Apple Silicon only (M1 / M2 / M3 / M4 / M5 — any variant). Intel Macs are not supported.
+- **macOS**: 14 Sonoma or newer — Sequoia (15), Tahoe (16 / 26), and Golden Gate (27) are all fully supported.
+- **RAM**: 16 GB minimum · 24 GB recommended · 32 GB+ for the best experience
+- **Free disk space**: at least **10 GB** before first launch (models are downloaded automatically)
+
+### What uses your disk space?
+
+| Model / File | Download size | RAM while running |
+|---|---|---|
+| Qwen2.5-VL-7B Q4_K_M *(main LLM + vision)* | ~5.0 GB | ~6–8 GB |
+| mmproj vision projector f16 | ~1.0 GB | ~1 GB |
+| Whisper small.en *(speech-to-text)* | ~466 MB | ~852 MB |
+| KV cache / state files | 50–300 MB | — |
+| Butler app binary | ~25 MB | — |
+| **Total** | **~7 GB download** | **~8–10 GB peak** |
+
+> [!NOTE]
+> Peak RAM usage during active inference (all models loaded) is roughly **8–10 GB** for the models themselves. Add ~3–4 GB for macOS and your other apps. On a 16 GB machine you'll be near the limit — a 24 GB Mac gives you comfortable headroom.
+
+### Building from source
+
+- Xcode 15+ · Swift 6 · Git (clone with `--recursive` to pull `whisper.cpp` / `llama.cpp`)
 
 ## 🚀 Installation & Setup
 

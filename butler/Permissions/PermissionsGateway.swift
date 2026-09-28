@@ -34,6 +34,14 @@ class PermissionsGateway: ObservableObject {
                 self?.isScreenGranted = granted
             }
             .store(in: &cancellables)
+        
+        // Bubble up isRequestInProgress so any SwiftUI views on PermissionsGateway re-render
+        self.screenPermission.$isRequestInProgress
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
     
 

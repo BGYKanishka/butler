@@ -138,23 +138,56 @@ struct SettingsView: View {
                     Text("PERMISSIONS").font(.caption).foregroundColor(.secondary)
                     
                     HStack {
-                        Text("Microphone")
-                            .foregroundColor(.white)
-                        Spacer()
-                        Button(permissionsGateway.isMicGranted ? "Granted" : "Request") {
-                            Task { await permissionsGateway.requestMicPermission() }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Microphone")
+                                .foregroundColor(.white)
+                            Text(permissionsGateway.isMicGranted ? "Access granted" : "Required for voice input")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        .disabled(permissionsGateway.isMicGranted)
+                        Spacer()
+                        if permissionsGateway.isMicGranted {
+                            Label("Granted", systemImage: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                        } else {
+                            Button("Request Access") {
+                                Task { await permissionsGateway.requestMicPermission() }
+                            }
+                        }
                     }
                     
+                    Divider().background(Color.white.opacity(0.1))
+                    
                     HStack {
-                        Text("Screen & System Audio")
-                            .foregroundColor(.white)
-                        Spacer()
-                        Button(permissionsGateway.isScreenGranted ? "Granted" : "Request") {
-                            permissionsGateway.requestScreenPermission()
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Screen & System Audio")
+                                .foregroundColor(.white)
+                            Text(permissionsGateway.isScreenGranted ? "Access granted" : "Required for system audio capture")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        .disabled(permissionsGateway.isScreenGranted)
+                        Spacer()
+                        if permissionsGateway.isScreenGranted {
+                            Label("Granted", systemImage: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                        } else if permissionsGateway.screenPermission.isRequestInProgress {
+                            HStack(spacing: 8) {
+                                ProgressView().scaleEffect(0.7)
+                                Text("Waiting…")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Button("Cancel") {
+                                    permissionsGateway.screenPermission.cancelRequest()
+                                }
+                                .font(.caption)
+                            }
+                        } else {
+                            Button("Request Access") {
+                                permissionsGateway.requestScreenPermission()
+                            }
+                        }
                     }
                 }
                 

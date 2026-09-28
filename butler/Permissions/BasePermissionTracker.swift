@@ -15,7 +15,7 @@ class BasePermissionTracker: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.performCheck()
+                await self?.performCheckAsync()
             }
         }
     }
@@ -26,7 +26,12 @@ class BasePermissionTracker: ObservableObject {
         }
     }
     
-    func performCheck() {
-        // To be overridden in subclasses
+    /// Sync check — override for quick, non-async checks.
+    func performCheck() {}
+    
+    /// Async check — override for checks that need async APIs (e.g. SCShareableContent).
+    /// Default falls back to the sync version.
+    func performCheckAsync() async {
+        performCheck()
     }
 }

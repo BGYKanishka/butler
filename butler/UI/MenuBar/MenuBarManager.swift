@@ -39,6 +39,12 @@ class MenuBarManager {
         
         setupMenu()
         setupBindings()
+        
+        // Hide the menu bar icon from screen recording and screenshots.
+        // The status item's NSWindow is created lazily, so we set it after layout.
+        DispatchQueue.main.async { [weak self] in
+            self?.statusItem.button?.window?.sharingType = .none
+        }
     }
     
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
@@ -193,7 +199,7 @@ class MenuBarManager {
         if settingsWindow == nil {
             let panel = KeyPanel(
                 contentRect: NSRect(x: 0, y: 0, width: 350, height: 350),
-                styleMask: [.nonactivatingPanel],
+                styleMask: [.nonactivatingPanel, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
@@ -206,6 +212,7 @@ class MenuBarManager {
             panel.isOpaque = false
             panel.backgroundColor = .clear
             panel.hasShadow = true
+            panel.sharingType = .none
             panel.isReleasedWhenClosed = false
             
             panel.standardWindowButton(.closeButton)?.isHidden = true
