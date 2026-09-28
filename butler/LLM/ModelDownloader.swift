@@ -40,6 +40,7 @@ class ModelDownloader: NSObject, ObservableObject, URLSessionDownloadDelegate {
     private var currentRetry = 0
     private let maxRetries = 3
     private let retryDelay: TimeInterval = 2.0
+
     func startDownload(completion: @escaping () -> Void, error: @escaping (Error) -> Void) {
         guard let modelsDir = Constants.modelsDirectory else { return }
         let whisperDir = modelsDir.appendingPathComponent("whisper")

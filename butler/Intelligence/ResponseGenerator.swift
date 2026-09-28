@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.butler", category: "Intelligence")
 
 /// Handles intent detection and response streaming from the LLM.
 ///
@@ -105,7 +108,7 @@ final class ResponseGenerator {
                 }
             } catch {
                 // Generation errors are non-fatal; the session stays active.
-                print("LLM generation failed: \(error)")
+                logger.error("LLM generation failed: \(error.localizedDescription)")
             }
 
             self.isEvaluating = false

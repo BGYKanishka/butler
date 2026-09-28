@@ -1,5 +1,8 @@
 import Foundation
 import AVFoundation
+import os
+
+private let logger = Logger(subsystem: "com.butler", category: "Audio")
 
 class AudioConverter {
     private var converter: AVAudioConverter?
@@ -22,7 +25,7 @@ class AudioConverter {
     
     func setupConverter(from format: AVAudioFormat) {
         if sourceFormat == format && converter != nil { return }
-        print("AudioConverter: Setting up new AVAudioConverter from \(format.sampleRate)Hz to \(targetFormat.sampleRate)Hz")
+        logger.debug("Setting up AVAudioConverter \(format.sampleRate)Hz → \(self.targetFormat.sampleRate)Hz")
         self.sourceFormat = format
         self.converter = AVAudioConverter(from: format, to: targetFormat)
     }
@@ -53,7 +56,7 @@ class AudioConverter {
         let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
         
         if status == .error || error != nil {
-            print("Audio conversion error: \(error?.localizedDescription ?? "Unknown error")")
+            logger.error("Audio conversion failed: \(error?.localizedDescription ?? "unknown error")")
             return nil
         }
         

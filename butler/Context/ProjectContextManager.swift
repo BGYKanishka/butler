@@ -129,7 +129,7 @@ class ProjectContextManager: ObservableObject {
             // the user needs to re-analyse before the LLM will have context.
             self.currentContext = ProjectContextData(vocabulary: vocab, summary: "")
             self.needsReanalysis = true
-            print("ProjectContextManager: Binary state missing — re-analysis required")
+            logger.warning("Binary state missing — re-analysis required before starting a session")
         }
     }
 }

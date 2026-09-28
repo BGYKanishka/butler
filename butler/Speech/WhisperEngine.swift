@@ -48,6 +48,7 @@ final class WhisperEngine: SpeechToTextEngine, Sendable {
             }
         }
     }
+
     func unload() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             transcriptionQueue.async { [weak self] in
@@ -123,13 +124,19 @@ final class WhisperEngine: SpeechToTextEngine, Sendable {
     // MARK: - Helpers
 
     /// Returns false for empty strings and whisper noise markers like [BLANK_AUDIO].
+    ///
+    /// The regex is compiled once as a `static let` — NSRegularExpression initialisation
+    /// is expensive and was adding measurable overhead when called on every segment.
+    private static let noiseMarkersRegex = try? NSRegularExpression(pattern: #"\[.*?\]|\(.*?\)"#, options: [])
+
     private func isValidTranscription(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
 
         var cleaned = trimmed
-        if let range = cleaned.range(of: #"\[.*?\]|\(.*?\)"#, options: .regularExpression) {
-            cleaned.removeSubrange(range)
+        if let regex = WhisperEngine.noiseMarkersRegex {
+            let range = NSRange(location: 0, length: cleaned.utf16.count)
+            cleaned = regex.stringByReplacingMatches(in: cleaned, options: [], range: range, withTemplate: "")
         }
         return cleaned.rangeOfCharacter(from: .alphanumerics) != nil
     }
