@@ -38,30 +38,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupHotKeys()
     }
     
-    func applicationWillTerminate(_ notification: Notification) {
-        // We need to unload the ML models before the process exits so that
-        // llama.cpp and whisper.cpp can flush any pending state cleanly.
-        //
-        // The previous approach blocked the main thread with a semaphore while
-        // waiting for a Task — which can itself be scheduled on the main actor,
-        // producing a deadlock. The fix is to run the async work on a
-        // background thread using Task.detached so the main thread is never the
-        // thread we're waiting for.
-        let semaphore = DispatchSemaphore(value: 0)
-        Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else {
-                semaphore.signal()
-                return
-            }
-            if await self.sessionCoordinator.state != .idle {
-                await self.sessionCoordinator.stopSession()
-            } else {
-                await self.sessionCoordinator.llmEngine.unload()
-                await self.sessionCoordinator.whisperEngine.unload()
-            }
-            semaphore.signal()
-        }
-        _ = semaphore.wait(timeout: .now() + 3.0)
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // We don't need to manually wait for whisper or llama models to unload.
+        // The OS instantly reclaims all memory on process exit. Waiting for background 
+        // queues to clear just makes the app feel unresponsive when quitting.
+        return .terminateNow
     }
     
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
