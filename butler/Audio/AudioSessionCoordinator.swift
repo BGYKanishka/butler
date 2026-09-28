@@ -17,6 +17,16 @@ class AudioSessionCoordinator: @unchecked Sendable {
     private let vadQueue = DispatchQueue(label: "com.butler.vadQueue", qos: .userInitiated)
     private var vadTimer: DispatchSourceTimer?
     private var isRunning = false
+
+    // MARK: - VAD tuning
+    private enum VAD {
+        static let pollInterval: TimeInterval = 0.1    // seconds between VAD ticks
+        static let preRollTime: TimeInterval  = 0.5    // padding before detected speech
+        static let overlapTime: TimeInterval  = 1.5    // overlap kept when force-slicing
+        static let forceSliceAfter: TimeInterval = 10.0 // maximum continuous-speech window
+        static let minimumDuration: TimeInterval = 1.0  // ignore segments shorter than this
+        static let rmsWindowSamples: Int = 1600         // ~0.1 s at 16 kHz
+    }
     
     @Published var systemAudioAvailable = false
     @Published var micAudioLevel: Float = 0.0
@@ -99,7 +109,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
     
     private func startVADPolling() {
         vadTimer = DispatchSource.makeTimerSource(queue: vadQueue)
-        vadTimer?.schedule(deadline: .now(), repeating: 0.1)
+        vadTimer?.schedule(deadline: .now(), repeating: VAD.pollInterval)
         vadTimer?.setEventHandler { [weak self] in
             guard let self = self else { return }
             self.processVAD(for: .microphone, ringBuffer: self.micRingBuffer, vad: self.micVAD, prevSpeaking: &self.prevMicSpeaking, startTimestamp: &self.speechStartTimestamp, lastWritten: &self.lastMicWritten)
@@ -122,7 +132,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
         
         // Only calculate RMS if new samples arrived. SCStream stops sending samples during silence.
         if currentWritten > lastWritten {
-            let samples = ringBuffer.getRecent(samplesCount: 1600)
+            let samples = ringBuffer.getRecent(samplesCount: VAD.rmsWindowSamples)
             if !samples.isEmpty {
                 rms = calculateRMS(samples)
             }
@@ -131,39 +141,34 @@ class AudioSessionCoordinator: @unchecked Sendable {
         
         let ts = Date().timeIntervalSince1970
         let isSpeaking = vad.process(rms: rms, timestamp: ts)
-        
+
         let justEnded = !isSpeaking && prevSpeaking
         let justStarted = isSpeaking && !prevSpeaking
         prevSpeaking = isSpeaking
-        
+
         let sourceName = source == .microphone ? "Mic" : "SystemAudio"
-        
+
         if justStarted {
             logger.debug("Speech started on \(sourceName) (RMS: \(rms))")
             startTimestamp = ts
         }
-        
-        if isSpeaking, let start = startTimestamp, ts - start > 10.0 {
+        if isSpeaking, let start = startTimestamp, ts - start > VAD.forceSliceAfter {
             logger.debug("Force slicing continuous speech on \(sourceName)")
-            let preRollTime: TimeInterval = 0.5
-            let duration = ts - start + preRollTime
-            
-            if duration > 1.0 {
+            let duration = ts - start + VAD.preRollTime
+
+            if duration > VAD.minimumDuration {
                 let count = Int(duration * 16000)
                 let captured = ringBuffer.getRecent(samplesCount: count)
                 onSpeechDetected?(captured, source)
             }
-            // Retain the last 1.5 seconds to overlap with the next chunk, ensuring no words are cut in half
-            startTimestamp = ts - 1.5
+            // Keep the last overlapTime seconds so no words are cut at the boundary.
+            startTimestamp = ts - VAD.overlapTime
         } else if justEnded, let start = startTimestamp {
             logger.debug("Speech ended on \(sourceName) — capturing segment")
             startTimestamp = nil
-            
-            // Add 0.5s of pre-roll padding to capture the start of the word before VAD triggered
-            let preRollTime: TimeInterval = 0.5
-            let duration = ts - start + preRollTime
-            
-            guard duration > 1.0 else { return }
+
+            let duration = ts - start + VAD.preRollTime
+            guard duration > VAD.minimumDuration else { return }
             let count = Int(duration * 16000)
             let captured = ringBuffer.getRecent(samplesCount: count)
             onSpeechDetected?(captured, source)

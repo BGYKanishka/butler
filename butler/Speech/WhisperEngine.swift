@@ -48,7 +48,6 @@ final class WhisperEngine: SpeechToTextEngine, Sendable {
             }
         }
     }
-
     func unload() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             transcriptionQueue.async { [weak self] in

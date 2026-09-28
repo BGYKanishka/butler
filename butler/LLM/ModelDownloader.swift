@@ -15,7 +15,14 @@ class ModelDownloader: NSObject, ObservableObject, URLSessionDownloadDelegate {
     @Published var totalBytesWritten: Int64 = 0
     @Published var totalBytesExpected: Int64 = 1
 
-    private let downloadSession: URLSession
+    // lazy var lets us pass `self` as the delegate without an implicitly
+    // unwrapped optional — it is initialised on first access, after super.init
+    // completes, so self is valid.
+    private lazy var downloadSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForResource = 3600
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+    }()
     private var downloadTask: URLSessionDownloadTask?
 
     private var onComplete: (() -> Void)?
@@ -33,17 +40,6 @@ class ModelDownloader: NSObject, ObservableObject, URLSessionDownloadDelegate {
     private var currentRetry = 0
     private let maxRetries = 3
     private let retryDelay: TimeInterval = 2.0
-
-    override init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForResource = 3600 // 1-hour cap for large models
-        var session: URLSession!
-        // URLSession needs a delegate which is self, so we break the initialiser cycle.
-        super.init()
-        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-        self.downloadSession = session
-    }
-
     func startDownload(completion: @escaping () -> Void, error: @escaping (Error) -> Void) {
         guard let modelsDir = Constants.modelsDirectory else { return }
         let whisperDir = modelsDir.appendingPathComponent("whisper")
