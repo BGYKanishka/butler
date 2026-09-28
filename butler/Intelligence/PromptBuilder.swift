@@ -12,27 +12,6 @@ final class PromptBuilder {
         Your job is to proactively assist the candidate with ultra-simple, concise, and accurate technical answers.
         If the interviewer asks a question about the candidate's project, use the PROJECT CONTEXT below to provide an accurate, project-specific answer.
         \(projectContextBlock)
-        SOURCE:
-        """
-    }
-
-    func build(
-        context: String,
-        projectSummary: String? = nil,
-        question: String,
-        source: AudioSource
-    ) -> String {
-
-        let sourceStr = source == .microphone
-            ? "CANDIDATE (USER)"
-            : "INTERVIEWER"
-            
-        let prefix = buildSystemPrefix(projectSummary: projectSummary)
-
-        return """
-        \(prefix)
-        \(sourceStr) = who produced the current transcript.
-
         CORE BEHAVIOR:
         - You are helping the CANDIDATE answer questions asked by the INTERVIEWER.
         - The interviewer may ask questions about general technical concepts or about the candidate's specific project. Use the provided PROJECT CONTEXT to answer project-specific questions correctly.
@@ -70,14 +49,34 @@ final class PromptBuilder {
 
         Think silently:
         "What is the simplest, shortest, most accurate answer to the interviewer's question?"
-
-        Recent conversation:
-        \(context)
-
-        Current transcript [\(sourceStr)]:
-        \(question)
         <|im_end|>
-        <|im_start|>assistant
         """
+    }
+
+    func build(
+        turns: [ConversationTurn],
+        projectSummary: String? = nil,
+        question: String,
+        source: AudioSource
+    ) -> String {
+
+        var prompt = buildSystemPrefix(projectSummary: projectSummary)
+        prompt += "\n"
+
+        for turn in turns {
+            switch turn.source {
+            case .microphone:
+                prompt += "<|im_start|>user\n[CANDIDATE (USER)]: \(turn.text)\n<|im_end|>\n"
+            case .system:
+                prompt += "<|im_start|>user\n[INTERVIEWER]: \(turn.text)\n<|im_end|>\n"
+            case .assistant:
+                prompt += "<|im_start|>assistant\nYES|\n\(turn.text)\n<|im_end|>\n"
+            }
+        }
+
+        let sourceStr = source == .microphone ? "[CANDIDATE (USER)]" : "[INTERVIEWER]"
+        prompt += "<|im_start|>user\n\(sourceStr): \(question)\n<|im_end|>\n<|im_start|>assistant\n"
+        
+        return prompt
     }
 }

@@ -18,6 +18,12 @@ final class ResponseGenerator {
     private var currentGenerationTask: Task<Void, Never>?
     private var isEvaluating: Bool = false
 
+    // Parsing state for the current generation
+    private var buffer = ""
+    private var decisionMade = false
+    private var isIntentValid = false
+    private var strippedLeadingNoise = false
+
     var onIntentConfirmed: (@MainActor (String) -> Void)?
     var onTokenGenerated: (@MainActor (String) -> Void)?
     var onResponseCompleted: (@MainActor () -> Void)?
@@ -36,72 +42,74 @@ final class ResponseGenerator {
 
         currentGenerationTask = Task { [weak self] in
             guard let self = self else { return }
-            let context = await self.contextManager.getRecentContext()
+            let turns = await self.contextManager.getRecentTurns()
             let projectSummary = self.projectContextManager?.currentContext?.summary
-            let prompt = self.promptBuilder.build(context: context, projectSummary: projectSummary, question: transcript, source: source)
+            let prompt = self.promptBuilder.build(turns: turns, projectSummary: projectSummary, question: transcript, source: source)
 
-            var buffer = ""
-            var decisionMade = false
-            var isIntentValid = false
-            var strippedLeadingNoise = false
+            self.buffer = ""
+            self.decisionMade = false
+            self.isIntentValid = false
+            self.strippedLeadingNoise = false
 
             do {
                 try await self.llmEngine.generateStreaming(prompt: prompt) { [weak self] token in
-                    guard let self = self else { return }
+                    Task { @MainActor [weak self] in
+                        guard let self = self else { return }
 
-                    if !decisionMade {
-                        buffer += token
-                        let trimmedUpper = buffer.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !self.decisionMade {
+                            self.buffer += token
+                            let trimmedUpper = self.buffer.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
-                        if trimmedUpper.hasPrefix("YES") {
-                            decisionMade = true
-                            isIntentValid = true
-                            self.onIntentConfirmed?(transcript)
+                            if trimmedUpper.hasPrefix("YES") {
+                                self.decisionMade = true
+                                self.isIntentValid = true
+                                self.onIntentConfirmed?(transcript)
 
-                            var remaining = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
-                            if remaining.uppercased().hasPrefix("YES|") {
-                                remaining = String(remaining.dropFirst(4))
-                            } else if remaining.uppercased().hasPrefix("YES") {
-                                remaining = String(remaining.dropFirst(3))
-                            }
-
-                            remaining = remaining.trimmingCharacters(in: CharacterSet(charactersIn: " |:\n\t"))
-
-                            if !remaining.isEmpty {
-                                strippedLeadingNoise = true
-                                self.onTokenGenerated?(remaining)
-                            }
-                        } else if trimmedUpper.hasPrefix("NO") {
-                            decisionMade = true
-                            isIntentValid = false
-                            self.llmEngine.cancel()
-                        } else if buffer.count > 20 {
-                            // Model skipped YES/NO — assume it's answering directly.
-                            decisionMade = true
-                            isIntentValid = true
-                            strippedLeadingNoise = true
-                            self.onIntentConfirmed?(transcript)
-                            self.onTokenGenerated?(buffer)
-                        }
-                    } else if isIntentValid {
-                        if !strippedLeadingNoise {
-                            let noiseChars = CharacterSet(charactersIn: " |:\n\t")
-                            let trimmedToken = token.trimmingCharacters(in: noiseChars)
-                            if !trimmedToken.isEmpty {
-                                strippedLeadingNoise = true
-                                if let idx = token.firstIndex(where: { !noiseChars.contains($0.unicodeScalars.first!) }) {
-                                    self.onTokenGenerated?(String(token[idx...]))
-                                } else {
-                                    self.onTokenGenerated?(trimmedToken)
+                                var remaining = self.buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if remaining.uppercased().hasPrefix("YES|") {
+                                    remaining = String(remaining.dropFirst(4))
+                                } else if remaining.uppercased().hasPrefix("YES") {
+                                    remaining = String(remaining.dropFirst(3))
                                 }
+
+                                remaining = remaining.trimmingCharacters(in: CharacterSet(charactersIn: " |:\n\t"))
+
+                                if !remaining.isEmpty {
+                                    self.strippedLeadingNoise = true
+                                    self.onTokenGenerated?(remaining)
+                                }
+                            } else if trimmedUpper.hasPrefix("NO") {
+                                self.decisionMade = true
+                                self.isIntentValid = false
+                                self.llmEngine.cancel()
+                            } else if self.buffer.count > 20 {
+                                // Model skipped YES/NO — assume it's answering directly.
+                                self.decisionMade = true
+                                self.isIntentValid = true
+                                self.strippedLeadingNoise = true
+                                self.onIntentConfirmed?(transcript)
+                                self.onTokenGenerated?(self.buffer)
                             }
-                        } else {
-                            self.onTokenGenerated?(token)
+                        } else if self.isIntentValid {
+                            if !self.strippedLeadingNoise {
+                                let noiseChars = CharacterSet(charactersIn: " |:\n\t")
+                                let trimmedToken = token.trimmingCharacters(in: noiseChars)
+                                if !trimmedToken.isEmpty {
+                                    self.strippedLeadingNoise = true
+                                    if let idx = token.firstIndex(where: { !noiseChars.contains($0.unicodeScalars.first!) }) {
+                                        self.onTokenGenerated?(String(token[idx...]))
+                                    } else {
+                                        self.onTokenGenerated?(trimmedToken)
+                                    }
+                                }
+                            } else {
+                                self.onTokenGenerated?(token)
+                            }
                         }
                     }
                 }
 
-                if isIntentValid {
+                if self.isIntentValid {
                     self.onResponseCompleted?()
                 } else {
                     self.onResponseIgnored?()

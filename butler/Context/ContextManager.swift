@@ -14,6 +14,10 @@ actor ContextManager {
         }
     }
     
+    func getRecentTurns() -> [ConversationTurn] {
+        return turns
+    }
+    
     func getRecentContext() -> String {
         return turns.map { turn in
             let prefix: String
