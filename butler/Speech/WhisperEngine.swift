@@ -36,22 +36,21 @@ class WhisperEngine: SpeechToTextEngine, @unchecked Sendable {
         }
     }
     
+    /// Compiled once at class initialisation — NSRegularExpression compilation is expensive
+    /// and calling it on every transcription added measurable CPU overhead on the serial queue.
+    private static let noiseMarkersRegex = try? NSRegularExpression(pattern: "\\[.*?\\]|\\(.*?\\)", options: [])
+
     private func isValidTranscription(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return false }
-        
+
         var cleanedText = trimmed
-        if let regex = try? NSRegularExpression(pattern: "\\[.*?\\]|\\(.*?\\)", options: []) {
+        if let regex = WhisperEngine.noiseMarkersRegex {
             let range = NSRange(location: 0, length: cleanedText.utf16.count)
             cleanedText = regex.stringByReplacingMatches(in: cleanedText, options: [], range: range, withTemplate: "")
         }
-        
-        let alphanumeric = CharacterSet.alphanumerics
-        if cleanedText.rangeOfCharacter(from: alphanumeric) == nil {
-            return false
-        }
-        
-        return true
+
+        return cleanedText.rangeOfCharacter(from: .alphanumerics) != nil
     }
     
     var onTranscriptionCompleted: ((TranscriptSegment) -> Void)?
