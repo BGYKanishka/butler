@@ -21,6 +21,10 @@ class ProjectContextManager: ObservableObject {
         self.llmEngine = llmEngine
     }
 
+    /// Set by SessionCoordinator so analysis can check whether a session is running
+    /// before overwriting the shared binary KV-cache.
+    var isSessionActive: (() -> Bool)?
+
     var binaryStatePath: String {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return docs.appendingPathComponent("butler_project_memory.bin").path
@@ -61,10 +65,16 @@ class ProjectContextManager: ObservableObject {
                 let finalContext = ProjectContextData(vocabulary: Array(combinedVocabulary), summary: mergedSummary)
 
                 // Build and cache binary KV-state for faster session start.
+                // Skip if a session is active — writing the state file while the
+                // LLM is running would corrupt the binary KV-cache mid-session.
                 if let engine = self.llmEngine {
-                    let prefix = PromptBuilder().buildSystemPrefix(projectSummary: mergedSummary)
-                    try? await engine.load()
-                    try? await engine.saveState(to: self.binaryStatePath, prompt: prefix)
+                    if self.isSessionActive?() == true {
+                        logger.warning("Skipping KV-cache write — session is active. Re-analyse after stopping the session to persist project memory.")
+                    } else {
+                        let prefix = PromptBuilder().buildSystemPrefix(projectSummary: mergedSummary)
+                        try? await engine.load()
+                        try? await engine.saveState(to: self.binaryStatePath, prompt: prefix)
+                    }
                 }
 
                 await MainActor.run {

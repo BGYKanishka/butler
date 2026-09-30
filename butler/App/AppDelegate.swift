@@ -20,7 +20,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     
     var mainWindow: NSPanel?
     var settingsWindow: NSWindow?
-    
+    private var menuBarManager: MenuBarManager?
+
     private var updaterController: SPUStandardUpdaterController?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -37,8 +38,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         }
         
         updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
-        
+
         setupMainWindow()
+        setupMenuBar()
         setupBindings()
         setupHotKeys()
     }
@@ -166,6 +168,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
     
+    private func setupMenuBar() {
+        let manager = MenuBarManager(coordinator: sessionCoordinator)
+        // Route menu bar actions through the canonical AppDelegate methods
+        // so there is only ever one Settings window instance.
+        manager.onToggleMainWindow = { [weak self] in self?.toggleMainWindow() }
+        manager.onCheckForUpdates = { [weak self] in self?.checkForUpdates() }
+        manager.onShowSettings = { [weak self] in self?.showSettings() }
+        self.menuBarManager = manager
+    }
+
     private func setupBindings() {
         // No bindings needed here right now
     }

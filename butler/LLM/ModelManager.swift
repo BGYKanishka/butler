@@ -9,7 +9,7 @@ class ModelManager {
         let llmPath = llmConfig.getModelPath()
         
         if !fileManager.fileExists(atPath: whisperPath) {
-            throw AssistantError.modelNotFound("Whisper model not found. Please place 'ggml-base.en.bin' in \(whisperPath).")
+            throw AssistantError.modelNotFound("Whisper model not found. Please place 'ggml-small.en.bin' in \(whisperPath).")
         }
         
         if !fileManager.fileExists(atPath: llmPath) {

@@ -51,6 +51,12 @@ final class SessionCoordinator: ObservableObject {
 
     init(environment: AppEnvironment = AppEnvironment()) {
         self.environment = environment
+        // Give ProjectContextManager a way to check if a session is running
+        // so it can skip the KV-cache write during active inference.
+        environment.projectContextManager.isSessionActive = { [weak self] in
+            guard let self else { return false }
+            return self.sessionIsActive()
+        }
         setupBindings()
     }
 
@@ -178,7 +184,17 @@ final class SessionCoordinator: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private var isHandlingTranscription = false
+
     private func handleTranscription(segment: TranscriptSegment) {
+        // Serialize: if a previous transcription is still being processed,
+        // drop this one rather than risk duplicate appends or double LLM calls.
+        guard !isHandlingTranscription else {
+            logger.debug("Dropping overlapping transcription segment from \(String(describing: segment.source))")
+            return
+        }
+        isHandlingTranscription = true
+
         Task {
             await transcriptAssembler.addSegment(segment)
             let turn = ConversationTurn(id: UUID(), source: segment.source, type: .statement, text: segment.text, timestamp: Date())
@@ -192,6 +208,8 @@ final class SessionCoordinator: ObservableObject {
             if state != .answering && Date().timeIntervalSince(lastAnswerEndTime) > 3.0 {
                 responseGenerator.handleTranscript(segment.text, source: segment.source)
             }
+
+            isHandlingTranscription = false
         }
     }
 
@@ -363,11 +381,13 @@ final class SessionCoordinator: ObservableObject {
 
         Task { @MainActor [weak self] in
             guard let self = self else { return }
+            // Always clean up the temp capture file when done, regardless of outcome.
+            defer { try? FileManager.default.removeItem(atPath: imagePath) }
             do {
                 while self.isLoadingModels {
                     try await Task.sleep(nanoseconds: 200_000_000) // Wait 200ms
                 }
-                
+
                 try await self.llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { [weak self] token in
                     Task { @MainActor in
                         guard let self, let lastIdx = self.transcripts.indices.last else { return }

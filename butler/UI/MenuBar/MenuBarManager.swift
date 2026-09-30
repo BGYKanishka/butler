@@ -18,6 +18,9 @@ class MenuBarManager {
     
     var onToggleMainWindow: (() -> Void)?
     var onCheckForUpdates: (() -> Void)?
+    /// When set, overrides MenuBarManager's own Settings window creation.
+    /// AppDelegate sets this to ensure only one Settings window ever exists.
+    var onShowSettings: (() -> Void)?
     
     // Menu Items
     private var customMenu: NSMenu!
@@ -196,6 +199,12 @@ class MenuBarManager {
     }
     
     @objc func showSettings() {
+        // Prefer the canonical factory provided by AppDelegate so only one
+        // Settings window instance ever exists across the app.
+        if let handler = onShowSettings {
+            handler()
+            return
+        }
         if settingsWindow == nil {
             let panel = KeyPanel(
                 contentRect: NSRect(x: 0, y: 0, width: 350, height: 350),
@@ -214,11 +223,11 @@ class MenuBarManager {
             panel.hasShadow = true
             panel.sharingType = .none
             panel.isReleasedWhenClosed = false
-            
+
             panel.standardWindowButton(.closeButton)?.isHidden = true
             panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
             panel.standardWindowButton(.zoomButton)?.isHidden = true
-            
+
             panel.center()
             panel.setFrameAutosaveName("ButlerSettings")
             panel.contentView = NSHostingView(rootView: SettingsView(permissionsGateway: coordinator.environment.permissionsGateway, projectContextManager: coordinator.environment.projectContextManager))
