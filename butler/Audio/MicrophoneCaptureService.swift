@@ -64,13 +64,15 @@ class MicrophoneCaptureService: AudioCaptureService, ObservableObject, @unchecke
                     mElement: kAudioObjectPropertyElementMain
                 )
                 // Translate UID → AudioDeviceID then set it as the default input.
-                var uid = preferred.uniqueID as CFString
+                let uid = preferred.uniqueID as CFString
                 var uidPropAddr = AudioObjectPropertyAddress(
                     mSelector: kAudioHardwarePropertyTranslateUIDToDevice,
                     mScope: kAudioObjectPropertyScopeGlobal,
                     mElement: kAudioObjectPropertyElementMain
                 )
-                AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &uidPropAddr, UInt32(MemoryLayout<CFString>.size), &uid, &propSize, &deviceID)
+                _ = withUnsafePointer(to: uid) { uidPtr in
+                    AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &uidPropAddr, UInt32(MemoryLayout<CFString>.size), uidPtr, &propSize, &deviceID)
+                }
                 if deviceID != 0 {
                     AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, UInt32(MemoryLayout<AudioDeviceID>.size), &deviceID)
                 }

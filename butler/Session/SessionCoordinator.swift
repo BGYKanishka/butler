@@ -94,6 +94,7 @@ final class SessionCoordinator: ObservableObject {
                 self.transcripts[self.transcripts.count - 1] = updated
 
                 let finalAnswer = updated.text
+                logger.info("LLM Answer: \(finalAnswer)")
                 Task {
                     let turn = ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: finalAnswer, timestamp: Date())
                     await self.contextManager.addTurn(turn)
@@ -398,6 +399,7 @@ final class SessionCoordinator: ObservableObject {
                 if let lastIdx = self.transcripts.indices.last {
                     self.transcripts[lastIdx].isFinal = true
                     let finalAnswer = self.transcripts[lastIdx].text
+                    logger.info("Vision LLM Answer: \(finalAnswer)")
                     Task { [weak self] in
                         guard let self = self else { return }
                         let turn = ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: finalAnswer, timestamp: Date())
