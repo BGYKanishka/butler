@@ -114,7 +114,10 @@ struct MainWindowView: View {
                 .padding(.leading, 8)
                 
                 Button(action: {
-                    NSApp.terminate(nil)
+                    // Bypass NSApp.terminate and standard exit() to prevent
+                    // C++ static destructors/atexit() from running and crashing 
+                    // if the LLM/Whisper engines are actively computing.
+                    _exit(0)
                 }) {
                     Image(systemName: "power")
                         .font(.system(size: 14, weight: .bold))

@@ -207,7 +207,7 @@ class MenuBarManager {
         }
         if settingsWindow == nil {
             let panel = KeyPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 350, height: 350),
+                contentRect: NSRect(x: 0, y: 0, width: 350, height: 550),
                 styleMask: [.nonactivatingPanel, .fullSizeContentView],
                 backing: .buffered,
                 defer: false

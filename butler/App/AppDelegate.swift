@@ -136,7 +136,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     @objc func showSettings() {
         if settingsWindow == nil {
             let panel = KeyPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 350, height: 500),
+                contentRect: NSRect(x: 0, y: 0, width: 350, height: 550),
                 styleMask: [.nonactivatingPanel, .fullSizeContentView],
                 backing: .buffered,
                 defer: false

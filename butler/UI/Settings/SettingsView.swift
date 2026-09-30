@@ -212,7 +212,7 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
-        .frame(width: 350, height: 500)
+        .frame(width: 350, height: 550)
         .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
