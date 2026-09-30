@@ -143,15 +143,17 @@ final class SessionCoordinator: ObservableObject {
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] granted in
-                guard let self = self, self.sessionIsActive() else { return }
-                if granted {
-                    Task {
+                // Explicit @MainActor Task ensures actor isolation is compiler-enforced,
+                // not just implied by receive(on: DispatchQueue.main).
+                Task { @MainActor [weak self] in
+                    guard let self, self.sessionIsActive() else { return }
+                    if granted {
                         try? await self.micService.start()
                         self.isMicMuted = false
+                    } else {
+                        self.audioSessionCoordinator.stopMic()
+                        self.isMicMuted = true
                     }
-                } else {
-                    self.audioSessionCoordinator.stopMic()
-                    self.isMicMuted = true
                 }
             }
             .store(in: &cancellables)
@@ -160,17 +162,17 @@ final class SessionCoordinator: ObservableObject {
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] granted in
-                guard let self = self, self.sessionIsActive() else { return }
-                if granted {
-                    Task {
+                Task { @MainActor [weak self] in
+                    guard let self, self.sessionIsActive() else { return }
+                    if granted {
                         try? await self.sysAudioService.start()
                         self.isSysAudioMuted = false
                         self.audioSessionCoordinator.systemAudioAvailable = true
+                    } else {
+                        self.audioSessionCoordinator.stopSystemAudio()
+                        self.isSysAudioMuted = true
+                        self.audioSessionCoordinator.systemAudioAvailable = false
                     }
-                } else {
-                    self.audioSessionCoordinator.stopSystemAudio()
-                    self.isSysAudioMuted = true
-                    self.audioSessionCoordinator.systemAudioAvailable = false
                 }
             }
             .store(in: &cancellables)
@@ -359,10 +361,10 @@ final class SessionCoordinator: ObservableObject {
         )
         transcripts.append(initialAiSeg)
 
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self = self else { return }
             do {
-                while await MainActor.run(resultType: Bool.self, body: { self.isLoadingModels }) {
+                while self.isLoadingModels {
                     try await Task.sleep(nanoseconds: 200_000_000) // Wait 200ms
                 }
                 

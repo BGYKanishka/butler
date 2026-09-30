@@ -49,11 +49,14 @@ class SystemAudioCaptureService: NSObject, AudioCaptureService, ObservableObject
     
     func stop() {
         guard isRunning else { return }
-        
+        // Clear the flag synchronously so that any concurrent stop() call is
+        // blocked immediately — before the async teardown begins.
+        isRunning = false
+        let capturedStream = stream
+        stream = nil
         Task {
-            try? await stream?.stopCapture()
+            try? await capturedStream?.stopCapture()
             DispatchQueue.main.async {
-                self.isRunning = false
                 self.audioLevel = 0.0
                 self.onAudioLevelChanged?(0.0)
             }

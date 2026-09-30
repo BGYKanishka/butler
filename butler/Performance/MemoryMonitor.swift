@@ -9,9 +9,14 @@ class MemoryMonitor {
     private var timer: Timer?
     
     func startMonitoring() {
-        timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+        // Timer.scheduledTimer schedules on the *current* RunLoop.
+        // Swift Concurrency Task threads have no RunLoop, so we must
+        // explicitly add to RunLoop.main which is always running.
+        let t = Timer(timeInterval: 10.0, repeats: true) { [weak self] _ in
             self?.checkMemory()
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
     
     func stopMonitoring() {

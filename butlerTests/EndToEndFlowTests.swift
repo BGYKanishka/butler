@@ -9,7 +9,7 @@ class MockLLMEngine: LLMEngine {
         isLoaded = true
     }
     
-    func unload() {
+    func unload() async {
         isLoaded = false
     }
     

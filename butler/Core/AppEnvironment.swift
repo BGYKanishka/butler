@@ -13,6 +13,7 @@ class AppEnvironment: ObservableObject {
     let permissionsGateway: PermissionsGateway
     let projectContextManager: ProjectContextManager
     
+    @MainActor
     init(llmEngine: LLMEngine = LocalLLMEngine()) {
         self.micService = MicrophoneCaptureService()
         self.sysAudioService = SystemAudioCaptureService()
@@ -23,7 +24,7 @@ class AppEnvironment: ObservableObject {
         self.promptBuilder = PromptBuilder()
 
         self.transcriptAssembler = TranscriptAssembler()
-        self.permissionsGateway = MainActor.assumeIsolated { PermissionsGateway() }
+        self.permissionsGateway = PermissionsGateway()
         self.projectContextManager = ProjectContextManager(llmEngine: llmEngine)
         
         self.projectContextManager.restoreSavedProjects()
