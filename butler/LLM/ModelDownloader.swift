@@ -54,18 +54,22 @@ class ModelDownloader: NSObject, ObservableObject, URLSessionDownloadDelegate {
                 url: URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin")!,
                 destinationDir: whisperDir,
                 filename: "ggml-small.en.bin",
-                sha256: nil  // verified at runtime by whisper_init
+                // whisper_init performs internal model validation at load time;
+                // a separate SHA-256 pre-check would be redundant here.
+                sha256: nil
             ),
             ModelFile(
                 url: URL(string: "https://huggingface.co/bartowski/Qwen_Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf")!,
                 destinationDir: llmDir,
                 filename: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
+                // TODO: add SHA-256 from the HuggingFace model card to enable corruption detection.
                 sha256: nil
             ),
             ModelFile(
                 url: URL(string: "https://huggingface.co/bartowski/Qwen_Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen2.5-VL-7B-Instruct-f16.gguf")!,
                 destinationDir: llmDir,
                 filename: "mmproj-Qwen_Qwen2.5-VL-7B-Instruct-f16.gguf",
+                // TODO: add SHA-256 from the HuggingFace model card to enable corruption detection.
                 sha256: nil
             ),
         ]

@@ -112,6 +112,7 @@ final class ResponseGenerator {
                 if self.isIntentValid {
                     self.onResponseCompleted?()
                 } else {
+                    logger.debug("LLM classified transcript as non-actionable (NO)")
                     self.onResponseIgnored?()
                 }
             } catch {

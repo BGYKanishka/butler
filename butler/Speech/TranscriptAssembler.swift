@@ -47,13 +47,18 @@ actor TranscriptAssembler {
         
         var maxOverlap = 0
         let minLen = min(words1.count, words2.count)
-        
+
         guard minLen > 0 else { return clean1 + (clean1.isEmpty || clean2.isEmpty ? "" : " ") + clean2 }
-        
-        for i in 1...minLen {
+
+        // Cap the search window to 50 words to keep this O(n) in practice.
+        // Whisper segments are typically <30 words so this is never reached,
+        // but it prevents O(n²) blowup if unusually long segments arrive.
+        let searchLimit = min(minLen, 50)
+
+        for i in 1...searchLimit {
             let suffix = words1.suffix(i)
             let prefix = words2.prefix(i)
-            
+
             // Compare lowercase to be safe
             if suffix.map({ $0.lowercased() }) == prefix.map({ $0.lowercased() }) {
                 maxOverlap = i

@@ -3,7 +3,7 @@ import Foundation
 final class PromptBuilder {
 
     func buildSystemPrefix(projectSummary: String?) -> String {
-        let projectContextBlock = projectSummary != nil ? "\n        PROJECT CONTEXT:\n        \(projectSummary!)\n" : ""
+        let projectContextBlock = projectSummary.map { "\n        PROJECT CONTEXT:\n        \($0)\n" } ?? ""
         return """
         <|im_start|>system
         You are Butler, an elite AI interview copilot assisting a candidate in a technical interview.

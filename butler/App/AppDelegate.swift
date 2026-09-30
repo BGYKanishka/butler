@@ -11,7 +11,7 @@ class KeyPanel: NSPanel {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
-    var sessionCoordinator = SessionCoordinator()
+    var sessionCoordinator = SessionCoordinator(environment: AppEnvironment())
     
     private var cancellables = Set<AnyCancellable>()
     private var toggleSessionHotKey: HotKey?

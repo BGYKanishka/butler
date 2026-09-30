@@ -49,7 +49,7 @@ final class SessionCoordinator: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
-    init(environment: AppEnvironment = AppEnvironment()) {
+    init(environment: AppEnvironment) {
         self.environment = environment
         // Give ProjectContextManager a way to check if a session is running
         // so it can skip the KV-cache write during active inference.

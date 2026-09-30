@@ -4,16 +4,17 @@ import os
 
 private let logger = Logger(subsystem: "com.butler", category: "Audio")
 
+// VAD state runs exclusively on vadQueue. @Published properties update via DispatchQueue.main.
 class AudioSessionCoordinator: @unchecked Sendable {
     var micService: any AudioCaptureService
     var sysAudioService: any AudioCaptureService
-    
+
     let micVAD = VoiceActivityDetector()
     let sysVAD = VoiceActivityDetector()
-    
+
     let micRingBuffer = AudioRingBuffer(capacity: 320000)
     let sysRingBuffer = AudioRingBuffer(capacity: 320000)
-    
+
     private let vadQueue = DispatchQueue(label: "com.butler.vadQueue", qos: .userInitiated)
     private var vadTimer: DispatchSourceTimer?
     private var isRunning = false
