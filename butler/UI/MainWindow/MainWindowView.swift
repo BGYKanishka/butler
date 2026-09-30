@@ -6,7 +6,7 @@ struct MainWindowView: View {
     @ObservedObject var projectContextManager: ProjectContextManager
 
     @AppStorage(ConfigKey.isVisionEnabled) private var isVisionEnabled = false
-    @AppStorage("isWindowPinned") private var isWindowPinned = false
+    @AppStorage("isWindowPinned") private var isWindowPinned = true
 
     private var requiredPermissionsGranted: Bool {
         permissionsGateway.anyPermissionGranted
@@ -114,6 +114,18 @@ struct MainWindowView: View {
                 .padding(.leading, 8)
                 
                 Button(action: {
+                    coordinator.onHideMainWindow?()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(IconButtonStyle())
+                .padding(.leading, 8)
+                
+                Button(action: {
                     // Bypass NSApp.terminate and standard exit() to prevent
                     // C++ static destructors/atexit() from running and crashing 
                     // if the LLM/Whisper engines are actively computing.
@@ -122,18 +134,6 @@ struct MainWindowView: View {
                     Image(systemName: "power")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.red)
-                        .padding(8)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(IconButtonStyle())
-                .padding(.leading, 8)
-                
-                Button(action: {
-                    coordinator.onHideMainWindow?()
-                }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.secondary)
                         .padding(8)
                         .contentShape(Circle())
                 }

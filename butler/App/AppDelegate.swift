@@ -72,6 +72,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             defer: false
         )
         
+        UserDefaults.standard.register(defaults: ["isWindowPinned": true])
         let isPinned = UserDefaults.standard.bool(forKey: "isWindowPinned")
         panel.isFloatingPanel = isPinned
         panel.level = isPinned ? .floating : .normal

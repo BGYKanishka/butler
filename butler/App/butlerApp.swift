@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct butlerApp: App {
+struct ButlerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {

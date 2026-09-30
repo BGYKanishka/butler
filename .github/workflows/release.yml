@@ -45,15 +45,15 @@ jobs:
     - name: Build Application
       run: |
         xcodebuild archive \
-          -project butler.xcodeproj \
-          -scheme butler \
+          -project Butler.xcodeproj \
+          -scheme Butler \
           -configuration Release \
           -archivePath build/butler.xcarchive
           
     - name: Package Application (DMG)
       run: |
         cd build/butler.xcarchive/Products/Applications/
-        hdiutil create -volname Butler -srcfolder butler.app -ov -format UDZO ../../../../Butler.dmg
+        hdiutil create -volname Butler -srcfolder Butler.app -ov -format UDZO ../../../../Butler.dmg
         
     - name: Determine Version
       run: |
@@ -68,7 +68,7 @@ jobs:
       with:
         tag_name: ${{ env.RELEASE_VERSION }}
         name: Butler ${{ env.RELEASE_VERSION }}
-        body: "Automated release of Butler via GitHub Actions. Download the DMG, open it, and drag `butler.app` into your Applications folder.\n\n*Note: Because this is not signed with a paid Apple Developer account, macOS will flag it as damaged. To run it, open your Terminal and execute: `xattr -cr /Applications/butler.app` before opening the app.*"
+        body: "Automated release of Butler via GitHub Actions. Download the DMG, open it, and drag `Butler.app` into your Applications folder.\n\n*Note: Because this is not signed with a paid Apple Developer account, macOS will flag it as damaged. To run it, open your Terminal and execute: `xattr -cr /Applications/Butler.app` before opening the app.*"
         files: Butler.dmg
         draft: false
         prerelease: false
