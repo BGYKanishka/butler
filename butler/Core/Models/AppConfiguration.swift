@@ -11,6 +11,7 @@ enum ConfigKey {
     static let modelProfile = "modelProfile"
     static let whisperVocabulary = "whisperVocabulary"
     static let projectPaths = "projectPaths"
+    static let projectRetrievalEnabled = "projectRetrievalEnabled"
 }
 
 /// Parameters for a single model variant.

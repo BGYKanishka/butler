@@ -12,6 +12,7 @@ class AppEnvironment: ObservableObject {
     let transcriptAssembler: TranscriptAssembler
     let permissionsGateway: PermissionsGateway
     let projectContextManager: ProjectContextManager
+    let indexCoordinator: ProjectIndexCoordinator?
     
     @MainActor
     init(llmEngine: LLMEngine = LocalLLMEngine()) {
@@ -25,7 +26,18 @@ class AppEnvironment: ObservableObject {
 
         self.transcriptAssembler = TranscriptAssembler()
         self.permissionsGateway = PermissionsGateway()
-        self.projectContextManager = ProjectContextManager(llmEngine: llmEngine)
+        
+        var dbPath = ":memory:"
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
+           let appSupport = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) {
+            let dir = appSupport.appendingPathComponent("\(Constants.appSupportDirectoryName)/Index")
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            dbPath = dir.appendingPathComponent("index.sqlite").path
+        }
+        
+        let coordinator = try? ProjectIndexCoordinator(dbPath: dbPath)
+        self.indexCoordinator = coordinator
+        self.projectContextManager = ProjectContextManager(llmEngine: llmEngine, indexCoordinator: coordinator)
         
         self.projectContextManager.restoreSavedProjects()
     }

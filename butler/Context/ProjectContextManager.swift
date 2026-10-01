@@ -23,6 +23,7 @@ class ProjectContextManager: ObservableObject {
     @Published var currentContext: ProjectContextData?
     @Published var isAnalyzing = false
     @Published var projectURLs: [URL] = []
+    @Published var indexState: IndexState = .idle
 
     /// True when the project list changed (or no saved analysis exists) and the LLM would
     /// currently have no / stale project context. Surfaced in Settings.
@@ -30,10 +31,12 @@ class ProjectContextManager: ObservableObject {
 
     private let analyzer: ProjectAnalyzerService
     private let llmEngine: LLMEngine?
+    private let indexCoordinator: ProjectIndexCoordinator?
 
-    init(analyzer: ProjectAnalyzerService = ProjectAnalyzer(), llmEngine: LLMEngine? = nil) {
+    init(analyzer: ProjectAnalyzerService = ProjectAnalyzer(), llmEngine: LLMEngine? = nil, indexCoordinator: ProjectIndexCoordinator? = nil) {
         self.analyzer = analyzer
         self.llmEngine = llmEngine
+        self.indexCoordinator = indexCoordinator
     }
 
     /// Set by SessionCoordinator so analysis can check whether a session is running
@@ -41,8 +44,7 @@ class ProjectContextManager: ObservableObject {
     var isSessionActive: (() -> Bool)?
 
     var binaryStatePath: String {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return docs.appendingPathComponent("butler_project_memory.bin").path
+        return Constants.projectMemoryStatePath
     }
 
     private var snapshotURL: URL? {
@@ -64,8 +66,16 @@ class ProjectContextManager: ObservableObject {
     }
 
     func removeProject(at index: IndexSet) {
+        let toRemove = index.map { projectURLs[$0] }
         projectURLs.remove(atOffsets: index)
         saveProjectURLs(projectURLs)
+        
+        for url in toRemove {
+            Task {
+                await indexCoordinator?.removeProject(root: url)
+            }
+        }
+        
         if projectURLs.isEmpty {
             clearProject()
         } else {
@@ -122,6 +132,12 @@ class ProjectContextManager: ObservableObject {
                     UserDefaults.standard.set(finalContext.makeWhisperPrompt(), forKey: ConfigKey.whisperVocabulary)
                     logger.info("Project analysis finished: \(finalContext.summary.count) chars, \(finalContext.vocabulary.count) terms")
                 }
+                
+                if let coordinator = self.indexCoordinator {
+                    Task(priority: .utility) {
+                        await coordinator.sync(projects: urls)
+                    }
+                }
 
                 if warmCache, let engine = self.llmEngine {
                     if self.isSessionActive?() == true {
@@ -150,6 +166,11 @@ class ProjectContextManager: ObservableObject {
     }
 
     func clearProject() {
+        for url in projectURLs {
+            Task {
+                await indexCoordinator?.removeProject(root: url)
+            }
+        }
         currentContext = nil
         projectURLs = []
         needsReanalysis = false
@@ -200,6 +221,12 @@ class ProjectContextManager: ObservableObject {
             needsReanalysis = false
             UserDefaults.standard.set(saved.context.makeWhisperPrompt(), forKey: ConfigKey.whisperVocabulary)
             logger.info("Restored project context (\(saved.context.summary.count) chars)")
+            
+            if let coordinator = self.indexCoordinator {
+                Task(priority: .utility) {
+                    await coordinator.sync(projects: self.projectURLs)
+                }
+            }
         } else {
             // First launch after this fix (or the project list changed): there is no trustworthy
             // summary. Rebuild it now — text analysis only, it is fast and needs no model.

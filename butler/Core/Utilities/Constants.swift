@@ -17,4 +17,9 @@ struct Constants {
     static var llmModelsDirectory: String? {
         return modelsDirectory?.appendingPathComponent("llm").path
     }
+
+    static var projectMemoryStatePath: String {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("butler_project_memory.bin").path
+    }
 }

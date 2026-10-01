@@ -25,6 +25,7 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     
     @AppStorage(ConfigKey.selectedMicrophoneID) private var selectedMicrophoneID: String = ""
+    @AppStorage(ConfigKey.projectRetrievalEnabled) private var projectRetrievalEnabled: Bool = true
     
     var body: some View {
         VStack(spacing: 0) {
@@ -93,6 +94,28 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Enable deep codebase retrieval (RAG)", isOn: $projectRetrievalEnabled)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                        
+                        HStack {
+                            switch projectContextManager.indexState {
+                            case .idle:
+                                Text("Index: Idle")
+                            case .indexing(let done, let total):
+                                ProgressView().controlSize(.mini)
+                                Text("Indexing \(done)/\(total) files…")
+                            case .ready(let files, let chunks):
+                                Text("Index ready · \(files) files · \(chunks) chunks")
+                            case .failed(let err):
+                                Text("Index error: \(err)").foregroundColor(.red)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     }
                     
                     VStack(spacing: 0) {
@@ -225,6 +248,24 @@ struct SettingsView: View {
                                 }
                                 .disabled(projectContextManager.isAnalyzing || projectContextManager.projectURLs.isEmpty)
                                 .buttonStyle(PlainButtonStyle())
+                                
+                                Button(action: {
+                                    for url in projectContextManager.projectURLs {
+                                        Task {
+                                            // Trigger a rebuild by deleting the DB or clearing
+                                            // The simplest is just removing then analyzeProjects
+                                            projectContextManager.clearProject()
+                                        }
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                        projectContextManager.analyzeProjects()
+                                    }
+                                }) {
+                                    Label("Rebuild Index", systemImage: "arrow.triangle.2.circlepath")
+                                        .font(.caption)
+                                }
+                                .disabled(projectContextManager.isAnalyzing || projectContextManager.projectURLs.isEmpty)
+                                .padding(.leading, 8)
                             }
                             .padding(.top, 12)
                         }

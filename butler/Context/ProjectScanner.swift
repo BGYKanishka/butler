@@ -13,7 +13,7 @@ enum ProjectScanner {
     static let ignoredDirs: Set<String> = [
         "node_modules", "Pods", "build", ".build", ".git", "vendor", "dist", "target", "out", "bin",
         "__pycache__", ".next", "coverage", "Carthage", "DerivedData", "venv", ".venv",
-        "site-packages", ".gradle", ".idea", "obj"
+        "site-packages", ".gradle", ".idea", "obj", ".cache", "tmp", ".svn"
     ]
     static let ignoredDirExtensions: Set<String> = ["xcodeproj", "xcworkspace", "xcassets", "framework", "app", "bundle"]
 
@@ -42,7 +42,7 @@ enum ProjectScanner {
         let root = inputRoot.resolvingSymlinksInPath()
         let rootPath = root.path
         let folderName = root.lastPathComponent
-        let files = scan(root: root, rootPath: rootPath)
+        let files = scanFiles(root: root)
 
         if files.isEmpty {
             let names = nameVariants(candidates: [folderName])
@@ -220,7 +220,15 @@ enum ProjectScanner {
         return ProjectContextData(vocabulary: vocabulary, summary: out, projectNames: projectNames)
     }
 
-    private static func scan(root: URL, rootPath: String) -> [ScannedFile] {
+    static func isSecretLike(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        if lower.hasPrefix(".env") || lower.hasPrefix("id_rsa") || lower.hasPrefix("id_ed25519") || lower.hasPrefix("credentials") || lower.hasPrefix("secrets") { return true }
+        if lower.hasSuffix(".pem") || lower.hasSuffix(".p12") || lower.hasSuffix(".key") || lower.hasSuffix(".keystore") || lower.hasSuffix(".mobileprovision") { return true }
+        return false
+    }
+
+    static func scanFiles(root: URL) -> [ScannedFile] {
+        let rootPath = root.path
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else {
             return []
