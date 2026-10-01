@@ -16,10 +16,11 @@ Butler is a privacy-first, fully on-device meeting assistant engineered for macO
 
 ### Multimodal Context, Codebase Understanding & Real-Time Intelligence
 - **Audio Intelligence**: Real-time microphone and system audio capture with Voice Activity Detection (VAD)-gated speech recognition. Includes granular UI toggles to select specific audio sources.
-- **Deep Codebase Context**: Includes `ProjectAnalyzer` for deep source extraction, enabling the assistant to understand and answer questions about local repositories seamlessly without context truncation. On launch, Butler automatically detects missing binary state and flags projects that need re-analysis.
+- **Deep Codebase Context (RAG Engine)**: Includes a highly optimized local RAG (Retrieval-Augmented Generation) engine backed by a persistent **SQLite FTS5 index**. Source code is chunked semantically and stored securely.
+- **Hybrid Retrieval System**: Uses Reciprocal Rank Fusion (RRF) combining lexical search, symbol lookups, file path matching, and 1-hop graph-based reference expansion (navigating symbols to their definitions instantly) to inject the precise snippet of code context needed into the LLM prompt.
 - **Vision Capabilities**: Contextual screen awareness. Take interactive screenshots (`Shift + Option + A`) and seamlessly ask questions about the screen content using the multimodal vision model (`mmproj`).
 - **Low-Latency Partial Evaluation**: Supports custom speech vocabulary for domain-specific jargon and evaluates incomplete transcripts mid-sentence for ultra-low latency responses.
-- **Advanced State Saving**: Implements intelligent KV Cache saving (`saveState` / `loadState`) to avoid constantly reprocessing static context like project codebase summaries.
+- **Advanced State Saving**: Implements intelligent KV Cache saving (`saveState` / `loadState`) to avoid constantly reprocessing static context like project summaries.
 - **Multi-Turn Conversation Memory**: Properly formatted conversation history is maintained across turns, enabling coherent multi-step dialogues with the AI.
 
 ### Reliability & Code Quality
@@ -62,11 +63,14 @@ graph TD
         Coordinator["Session Coordinator\n(@MainActor)"]:::logic
         Context["Context Manager\n(Conversation History)"]:::logic
         Intent{"Response Generator\n(Intent Evaluation)"}:::logic
+    end
         
-        subgraph CodeContext ["Project Context Engine"]
-            ProjectAnalyzer["ProjectAnalyzer\n(Service)"]:::logic
-            ProjectScanner["ProjectScanner\n(AST & Symbols)"]:::logic
-        end
+    subgraph CodeContext ["Project Context Engine (RAG)"]
+        ProjectSource[/"Local Codebase"/]:::native
+        IndexCoordinator["ProjectIndexCoordinator\n(CodeChunker + AST)"]:::logic
+        SQLite[("SQLite FTS5 DB\n(Chunks, Symbols, Refs)")]:::logic
+        Retriever["HybridProjectRetriever\n(RRF + Graph Expansion)"]:::logic
+        PromptAssembler["ContextAssembler\n(Token Bounded Prompt)"]:::logic
     end
 
     subgraph UserInterface ["Presentation"]
@@ -84,10 +88,14 @@ graph TD
     Coordinator -- "Transcript Segment" --> Intent
     
     Context --> Intent
-    ProjectAnalyzer --> ProjectScanner
-    ProjectScanner -- "Parsed Source & Config" --> ProjectAnalyzer
-    ProjectAnalyzer -- "Project Context Data" --> Intent
-    ProjectAnalyzer -. "Project Vocabulary Prompt" .-> Whisper
+    
+    ProjectSource --> IndexCoordinator
+    IndexCoordinator -->|"Semantic Chunking"| SQLite
+    Coordinator -- "Transcript Segment" --> Retriever
+    Retriever <-->|"Lexical & Graph Query"| SQLite
+    Retriever --> PromptAssembler
+    PromptAssembler -- "Formatted Context Blocks" --> Intent
+    Retriever -. "Project Vocabulary Prompt" .-> Whisper
     
     Intent <-->|"Prompt / Stream"| Llama
     Intent -- "Confirmed Intent & Tokens" --> Coordinator
