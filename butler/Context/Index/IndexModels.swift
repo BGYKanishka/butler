@@ -27,5 +27,5 @@ struct RoutedQuery: Sendable {
     let text: String
 }
 enum RetrievalSource: String, Sendable { case symbol, path, lexical, semantic, graph }
-struct ScoredChunk: Sendable { let chunk: CodeChunk; var score: Double; var sources: Set<RetrievalSource>; let projectLabel: String }
+struct ScoredChunk: Sendable { let chunk: CodeChunk; var score: Double; var sources: Set<RetrievalSource>; let projectLabel: String; let projectRoot: String }
 enum IndexState: Sendable, Equatable { case idle, indexing(done: Int, total: Int), ready(files: Int, chunks: Int), failed(String) }

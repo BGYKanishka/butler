@@ -84,11 +84,12 @@ actor HybridProjectRetriever: ProjectRetrievalService {
         // Fetch chunks
         var scoredChunks = [ScoredChunk]()
         for (cId, score) in chunkScores {
-            let sql = "SELECT f.rel_path, s.name, s.qualified, s.kind, c.start_line, c.end_line, c.content, c.content_hash, c.token_est, p.name FROM chunks c JOIN files f ON c.file_id = f.id JOIN projects p ON f.project_id = p.id LEFT JOIN symbols s ON c.symbol_id = s.id WHERE c.id = ?"
+            let sql = "SELECT f.rel_path, s.name, s.qualified, s.kind, c.start_line, c.end_line, c.content, c.content_hash, c.token_est, p.name, p.root_path FROM chunks c JOIN files f ON c.file_id = f.id JOIN projects p ON f.project_id = p.id LEFT JOIN symbols s ON c.symbol_id = s.id WHERE c.id = ?"
             if let rows = try? await db.query(sql, binds: [.int(cId)]) { row -> ScoredChunk? in
                 let chunk = CodeChunk(id: cId, relPath: try row.text(at: 0), symbolName: try? row.text(at: 1), qualifiedName: try? row.text(at: 2), kind: (try? row.text(at: 3)) ?? "chunk", startLine: Int(try row.int(at: 4)), endLine: Int(try row.int(at: 5)), content: try row.text(at: 6), contentHash: try row.text(at: 7), tokenEstimate: Int(try row.int(at: 8)))
                 let pName = try row.text(at: 9)
-                return ScoredChunk(chunk: chunk, score: score, sources: chunkSources[cId] ?? [], projectLabel: pName)
+                let pRoot = try row.text(at: 10)
+                return ScoredChunk(chunk: chunk, score: score, sources: chunkSources[cId] ?? [], projectLabel: pName, projectRoot: pRoot)
             } {
                 if let c = rows.first.flatMap({ $0 }) { scoredChunks.append(c) }
             }
@@ -125,12 +126,54 @@ actor HybridProjectRetriever: ProjectRetrievalService {
             fileCounts[f, default: 0] += 1
         }
         
-        let minScore = 1.2 / 61.0
-        if query.symbolHits.isEmpty && query.fileHits.isEmpty {
-            if let best = finalChunks.first, best.score < minScore { return [] }
+        // 4. 1-hop graph expansion
+        var graphChunks = [ScoredChunk]()
+        for sc in finalChunks.prefix(3) {
+            let sql = "SELECT c.id FROM refs r JOIN chunks c ON r.target_symbol_id = c.symbol_id WHERE r.src_chunk_id = ? LIMIT 4"
+            if let rows = try? await db.query(sql, binds: [.int(sc.chunk.id)], rowMapper: { try $0.int(at: 0) }) {
+                for gcId in rows {
+                    if chunkScores[gcId] != nil { continue }
+                    chunkScores[gcId] = sc.score * 0.3
+                    
+                    let cSql = "SELECT f.rel_path, s.name, s.qualified, s.kind, c.start_line, c.end_line, c.content, c.content_hash, c.token_est, p.name, p.root_path FROM chunks c JOIN files f ON c.file_id = f.id JOIN projects p ON f.project_id = p.id LEFT JOIN symbols s ON c.symbol_id = s.id WHERE c.id = ?"
+                    if let cRows = try? await db.query(cSql, binds: [.int(gcId)]) { row -> ScoredChunk? in
+                        let chunk = CodeChunk(id: gcId, relPath: try row.text(at: 0), symbolName: try? row.text(at: 1), qualifiedName: try? row.text(at: 2), kind: (try? row.text(at: 3)) ?? "chunk", startLine: Int(try row.int(at: 4)), endLine: Int(try row.int(at: 5)), content: try row.text(at: 6), contentHash: try row.text(at: 7), tokenEstimate: Int(try row.int(at: 8)))
+                        return ScoredChunk(chunk: chunk, score: sc.score * 0.3, sources: [.graph], projectLabel: try row.text(at: 9), projectRoot: try row.text(at: 10))
+                    } {
+                        if let cg = cRows.first.flatMap({ $0 }) { graphChunks.append(cg) }
+                    }
+                }
+            }
+        }
+        finalChunks.append(contentsOf: graphChunks)
+        
+        // 5. Freshness check
+        var freshChunks = [ScoredChunk]()
+        for sc in finalChunks {
+            let fileURL = URL(fileURLWithPath: sc.projectRoot).appendingPathComponent(sc.chunk.relPath)
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+               let size = attrs[.size] as? Int64,
+               let mdate = attrs[.modificationDate] as? Date {
+                let mtime = mdate.timeIntervalSince1970
+                
+                let checkSql = "SELECT size, mtime FROM files f JOIN chunks c ON c.file_id = f.id WHERE c.id = ?"
+                if let rows = try? await db.query(checkSql, binds: [.int(sc.chunk.id)], rowMapper: { (try $0.int(at: 0), try $0.double(at: 1)) }), let dbData = rows.first {
+                    if dbData.0 != size || dbData.1 != mtime {
+                        continue // stale
+                    }
+                }
+            } else {
+                continue // missing
+            }
+            freshChunks.append(sc)
         }
         
-        return finalChunks
+        let minScore = 1.2 / 61.0
+        if query.symbolHits.isEmpty && query.fileHits.isEmpty {
+            if let best = freshChunks.first, best.score < minScore { return [] }
+        }
+        
+        return freshChunks
     }
     
     private func weightsForIntent(_ intent: QueryIntent) -> [RetrievalSource: Double] {

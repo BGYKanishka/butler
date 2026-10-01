@@ -86,11 +86,11 @@ struct SettingsView: View {
                             Text("Reanalysis recommended")
                                 .font(.caption)
                                 .foregroundColor(.orange)
-                        } else if let context = projectContextManager.currentContext {
+                        } else if projectContextManager.currentContext != nil {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                                 .font(.caption)
-                            Text("\(projectContextManager.projectURLs.count) projects • \(context.summary.count) chars")
+                            Text("\(projectContextManager.projectURLs.count) projects")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

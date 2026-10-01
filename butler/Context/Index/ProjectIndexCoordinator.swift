@@ -45,6 +45,8 @@ actor ProjectIndexCoordinator {
             _ = try await db.exec("INSERT OR IGNORE INTO projects(id, root_path, name, indexed_at) VALUES (?, ?, ?, ?)",
                                   binds: [.text(projectID), .text(canonicalPath), .text(root.lastPathComponent), .double(Date().timeIntervalSince1970)])
             
+            var changedChunks = [(id: Int64, content: String)]()
+            
             var scanned = ProjectScanner.scanFiles(root: root)
             let allowedExts = ProjectScanner.sourceExts.union(["md", "yml", "yaml", "toml", "sh", "proto", "sql", "gradle"])
             scanned = scanned.filter { f in
@@ -115,6 +117,7 @@ actor ProjectIndexCoordinator {
                         _ = try await self.db.exec("INSERT INTO chunks(project_id, file_id, symbol_id, chunk_index, start_line, end_line, content, content_hash, token_est) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                               binds: [.text(projectID), .int(fileId), sId != nil ? .int(sId!) : .null, .int(Int64(i)), .int(Int64(chunk.startLine)), .int(Int64(chunk.endLine)), .text(chunk.content), .text(chunk.contentHash), .int(Int64(chunk.tokenEstimate))])
                         let chunkId = await self.db.lastInsertRowID
+                        changedChunks.append((id: chunkId, content: chunk.content))
                         
                         let words = TermFormatter.spoken(chunk.qualifiedName ?? "").lowercased()
                         _ = try await self.db.exec("INSERT INTO chunks_fts(rowid, symbol, path, words, content) VALUES (?, ?, ?, ?, ?)",
@@ -132,11 +135,58 @@ actor ProjectIndexCoordinator {
                 }
             }
             
+            if !changedChunks.isEmpty {
+                await buildGraphRefs(projectID: projectID, newChunks: changedChunks)
+            }
+            
             _ = try await db.exec("UPDATE projects SET indexed_at = ? WHERE id = ?", binds: [.double(Date().timeIntervalSince1970), .text(projectID)])
             
         } catch {
             print("ProjectIndexCoordinator error: \(error)")
             currentState = .failed(error.localizedDescription)
+        }
+    }
+    
+    private func buildGraphRefs(projectID: String, newChunks: [(id: Int64, content: String)]) async {
+        do {
+            let uniqueSymbols = (try? await db.query(
+                "SELECT name_norm, id FROM symbols WHERE project_id = ? GROUP BY name_norm HAVING COUNT(*) = 1",
+                binds: [.text(projectID)]
+            ) { row -> (String, Int64) in
+                (row.text(at: 0), row.int(at: 1))
+            }) ?? []
+            
+            var symbolMap = [String: Int64]()
+            for s in uniqueSymbols { symbolMap[s.0] = s.1 }
+            
+            let stopList: Set<String> = ["main", "init", "self", "this", "super", "string", "int", "bool", "true", "false", "void", "print", "count", "data"]
+            let regex = try NSRegularExpression(pattern: "[A-Za-z_][A-Za-z0-9_]{3,}")
+            
+            try await db.transaction {
+                for chunk in newChunks {
+                    let range = NSRange(chunk.content.startIndex..<chunk.content.endIndex, in: chunk.content)
+                    let matches = regex.matches(in: chunk.content, range: range)
+                    
+                    var refsFound = Set<Int64>()
+                    for match in matches {
+                        guard let rng = Range(match.range, in: chunk.content) else { continue }
+                        let word = String(chunk.content[rng])
+                        let norm = TermFormatter.normalized(word)
+                        if stopList.contains(norm) { continue }
+                        
+                        if let symId = symbolMap[norm] {
+                            refsFound.insert(symId)
+                            if refsFound.count >= 12 { break }
+                        }
+                    }
+                    
+                    for symId in refsFound {
+                        _ = try await db.exec("INSERT OR IGNORE INTO refs(src_chunk_id, target_symbol_id) VALUES (?, ?)", binds: [.int(chunk.id), .int(symId)])
+                    }
+                }
+            }
+        } catch {
+            print("Failed to build graph refs: \(error)")
         }
     }
     

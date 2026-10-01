@@ -17,10 +17,17 @@ struct ContextAssembler {
         var assembled = ""
         var currentTokens = 0
         var seenHashes = Set<String>()
+        var relatedItems = [String]()
         
         for (i, sc) in sortedChunks.enumerated() {
             let chunk = sc.chunk
             if seenHashes.contains(chunk.contentHash) { continue }
+            
+            if sc.sources.contains(.graph) {
+                let name = chunk.symbolName ?? chunk.qualifiedName ?? "unknown"
+                relatedItems.append("- \(name) in \(chunk.relPath):\(chunk.startLine)-\(chunk.endLine)")
+                continue
+            }
             
             let pLabel = multiProject ? "[\(sc.projectLabel)] " : ""
             let qName = chunk.qualifiedName != nil ? " \(chunk.qualifiedName!)" : ""
@@ -53,6 +60,13 @@ struct ContextAssembler {
             assembled += block
             currentTokens += PromptBuilder.estimateTokens(block)
             seenHashes.insert(chunk.contentHash)
+        }
+        
+        if !relatedItems.isEmpty {
+            let relatedText = "\nRELATED:\n" + relatedItems.joined(separator: "\n")
+            if currentTokens + PromptBuilder.estimateTokens(relatedText) <= budgetTokens {
+                assembled += relatedText
+            }
         }
         
         return assembled.trimmingCharacters(in: .whitespacesAndNewlines)

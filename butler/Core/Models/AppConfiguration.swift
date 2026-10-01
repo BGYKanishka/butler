@@ -44,15 +44,15 @@ enum ModelProfile: String, CaseIterable {
         case .fast:
             // Smallest context window — fastest cold-start and lowest peak memory.
             return ModelConfiguration(name: "Fast", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
-                                       contextSize: 8192, temperature: 0.3, maxTokens: 200, gpuLayers: 999, threads: 4)
+                                       contextSize: 8192, temperature: 0.3, maxTokens: 1024, gpuLayers: 999, threads: 4)
         case .balanced:
             // 16 k context fits most interview conversations without truncation.
             return ModelConfiguration(name: "Balanced", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
-                                       contextSize: 16384, temperature: 0.3, maxTokens: 200, gpuLayers: 999, threads: 4)
+                                       contextSize: 16384, temperature: 0.3, maxTokens: 1024, gpuLayers: 999, threads: 4)
         case .quality:
             // 32 k context + higher token budget for detailed multi-step answers.
             return ModelConfiguration(name: "Quality", fileName: "Qwen_Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
-                                       contextSize: 32768, temperature: 0.3, maxTokens: 250, gpuLayers: 999, threads: 6)
+                                       contextSize: 32768, temperature: 0.3, maxTokens: 2048, gpuLayers: 999, threads: 6)
         }
     }
 }
