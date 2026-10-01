@@ -63,73 +63,171 @@ struct SettingsView: View {
                 
                 // Project Context
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("PROJECT CONTEXT").font(.caption).foregroundColor(.secondary)
-                    
                     HStack {
+                        Image(systemName: "folder.badge.gearshape")
+                            .foregroundColor(.blue)
+                        Text("PROJECT CONTEXT")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        
                         if projectContextManager.isAnalyzing {
-                            Text("Analyzing...").font(.caption).foregroundColor(.secondary)
-                        } else if let context = projectContextManager.currentContext {
-                            Text("\(context.vocabulary.count) keywords, \(context.summary.count) characters analyzed")
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(.trailing, 4)
+                            Text("Analyzing...")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                        } else if projectContextManager.needsReanalysis {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Reanalysis recommended")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        } else if let context = projectContextManager.currentContext {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                            Text("\(context.projectNames.count) projects • \(context.summary.count) chars")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        Spacer()
-                        Button("Analyze") {
-                            projectContextManager.analyzeProjects()
-                        }
-                        .disabled(projectContextManager.isAnalyzing || projectContextManager.projectURLs.isEmpty)
-                        
-                        Button("Add Folders") {
-                            let panel = NSOpenPanel()
-                            panel.canChooseFiles = false
-                            panel.canChooseDirectories = true
-                            panel.allowsMultipleSelection = true
-                            
-                            if panel.runModal() == .OK, !panel.urls.isEmpty {
-                                for url in panel.urls {
-                                    projectContextManager.addProject(url)
-                                }
-                            }
-                        }
-                        .disabled(projectContextManager.isAnalyzing)
                     }
                     
-                    if projectContextManager.projectURLs.isEmpty {
-                        Text("No Projects Selected")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(8)
-                    } else {
-                        List {
-                            ForEach(Array(projectContextManager.projectURLs.enumerated()), id: \.element) { index, url in
-                                HStack {
-                                    Text(url.lastPathComponent)
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Button(action: {
-                                        projectContextManager.removeProject(at: IndexSet(integer: index))
-                                    }) {
-                                        Image(systemName: "trash")
-                                            .foregroundColor(.red)
-                                            .padding(4)
-                                            .contentShape(Rectangle())
+                    VStack(spacing: 0) {
+                        if projectContextManager.projectURLs.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: "folder.badge.plus")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.secondary.opacity(0.5))
+                                Text("No Projects Selected")
+                                    .font(.body.weight(.medium))
+                                    .foregroundColor(.white)
+                                Text("Add the codebase folders you want Butler to understand.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                
+                                Button(action: {
+                                    let panel = NSOpenPanel()
+                                    panel.canChooseFiles = false
+                                    panel.canChooseDirectories = true
+                                    panel.allowsMultipleSelection = true
+                                    
+                                    if panel.runModal() == .OK, !panel.urls.isEmpty {
+                                        for url in panel.urls {
+                                            projectContextManager.addProject(url)
+                                        }
                                     }
-                                    .buttonStyle(PlainHoverButtonStyle())
-                                    .disabled(projectContextManager.isAnalyzing)
+                                }) {
+                                    Text("Add Folders")
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
                                 }
-                                .padding(.vertical, 4)
+                                .buttonStyle(PlainButtonStyle())
+                                .background(Color.blue)
+                                .cornerRadius(6)
+                                .padding(.top, 4)
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 32)
+                            .padding(.horizontal, 16)
+                            .background(Color(NSColor.controlBackgroundColor).opacity(0.4))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
+                                    .foregroundColor(.secondary.opacity(0.2))
+                            )
+                        } else {
+                            ScrollView {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(projectContextManager.projectURLs.enumerated()), id: \.element) { index, url in
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "folder.fill")
+                                                .foregroundColor(.blue.opacity(0.8))
+                                                .font(.system(size: 20))
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(url.lastPathComponent)
+                                                    .font(.system(size: 13, weight: .medium))
+                                                    .foregroundColor(.white)
+                                                Text(url.path)
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(.secondary)
+                                                    .lineLimit(1)
+                                                    .truncationMode(.middle)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Button(action: {
+                                                projectContextManager.removeProject(at: IndexSet(integer: index))
+                                            }) {
+                                                Image(systemName: "trash")
+                                                    .foregroundColor(.red.opacity(0.8))
+                                                    .padding(6)
+                                                    .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(PlainHoverButtonStyle())
+                                            .disabled(projectContextManager.isAnalyzing)
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        
+                                        if index < projectContextManager.projectURLs.count - 1 {
+                                            Divider()
+                                                .background(Color.white.opacity(0.1))
+                                                .padding(.leading, 40)
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 180)
+                            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            )
+                            
+                            HStack {
+                                Spacer()
+                                
+                                Button(action: {
+                                    let panel = NSOpenPanel()
+                                    panel.canChooseFiles = false
+                                    panel.canChooseDirectories = true
+                                    panel.allowsMultipleSelection = true
+                                    if panel.runModal() == .OK, !panel.urls.isEmpty {
+                                        for url in panel.urls {
+                                            projectContextManager.addProject(url)
+                                        }
+                                    }
+                                }) {
+                                    Label("Add Folders", systemImage: "plus")
+                                        .font(.caption)
+                                }
+                                .disabled(projectContextManager.isAnalyzing)
+                                .padding(.trailing, 8)
+                                
+                                Button(action: {
+                                    projectContextManager.analyzeProjects()
+                                }) {
+                                    Label("Analyze Now", systemImage: "sparkles")
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(projectContextManager.isAnalyzing ? Color.gray.opacity(0.3) : Color.blue)
+                                        .cornerRadius(6)
+                                }
+                                .disabled(projectContextManager.isAnalyzing || projectContextManager.projectURLs.isEmpty)
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                            .padding(.top, 12)
                         }
-                        .frame(height: 100)
-                        .cornerRadius(8)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.white.opacity(0.05))
                     }
                 }
                 

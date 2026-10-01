@@ -26,6 +26,7 @@ final class SessionCoordinator: ObservableObject {
 
     lazy var responseGenerator = ResponseGenerator(
         contextManager: contextManager,
+        projectContextManager: environment.projectContextManager,
         promptBuilder: promptBuilder,
         llmEngine: llmEngine
     )

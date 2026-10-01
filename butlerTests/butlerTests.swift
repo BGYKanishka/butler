@@ -1,5 +1,5 @@
 import XCTest
-@testable import butler
+@testable import Butler
 
 final class butlerTests: XCTestCase {
     

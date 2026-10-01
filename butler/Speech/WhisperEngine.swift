@@ -88,8 +88,11 @@ final class WhisperEngine: SpeechToTextEngine {
                 }
 
                 let text = samples.withUnsafeBufferPointer { ptr in
-                    let userVocab = UserDefaults.standard.string(forKey: ConfigKey.whisperVocabulary) ?? ""
-                    wrapper.initialPrompt = userVocab.isEmpty ? "" : "The following terms are discussed: \(userVocab)."
+                    // `whisperVocabulary` now holds a finished, length-capped prompt built by
+                    // ProjectContextData.makeWhisperPrompt() (project name first). Whisper only reads
+                    // ~224 prompt tokens and drops the FRONT of anything longer, so cap it defensively.
+                    let whisperPrompt = UserDefaults.standard.string(forKey: ConfigKey.whisperVocabulary) ?? ""
+                    wrapper.initialPrompt = String(whisperPrompt.prefix(600))
                     return wrapper.transcribeAudio(ptr.baseAddress!, count: samples.count)
                 }
                 continuation.resume(returning: text)

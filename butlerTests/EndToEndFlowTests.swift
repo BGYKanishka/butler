@@ -1,5 +1,5 @@
 import XCTest
-@testable import butler
+@testable import Butler
 
 class MockLLMEngine: LLMEngine {
     var generatedText = "This is a mock suggestion."

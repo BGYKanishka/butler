@@ -4,13 +4,28 @@ import os
 
 private let logger = Logger(subsystem: "com.butler", category: "ProjectContext")
 
+/// Everything needed to rebuild the LLM prompt after an app restart.
+///
+/// The old implementation persisted only the vocabulary and restored `summary: ""`, so after any
+/// relaunch the model's system prompt contained an empty PROJECT CONTEXT and Butler had "no idea"
+/// what the user's project was. The KV-cache file cannot substitute for this: the prompt is rebuilt
+/// from text for every question, and a cache is only reused when the prompt text matches it.
+private struct PersistedProjectContext: Codable {
+    var version: Int
+    var projectPaths: [String]
+    var analyzedAt: Date
+    var context: ProjectContextData
+}
+
 class ProjectContextManager: ObservableObject {
+    private static let snapshotVersion = 2
+
     @Published var currentContext: ProjectContextData?
     @Published var isAnalyzing = false
     @Published var projectURLs: [URL] = []
 
-    /// When true the binary KV-cache state is missing or stale and the
-    /// user should be asked to re-analyse before starting a session.
+    /// True when the project list changed (or no saved analysis exists) and the LLM would
+    /// currently have no / stale project context. Surfaced in Settings.
     @Published var needsReanalysis = false
 
     private let analyzer: ProjectAnalyzerService
@@ -30,10 +45,21 @@ class ProjectContextManager: ObservableObject {
         return docs.appendingPathComponent("butler_project_memory.bin").path
     }
 
+    private var snapshotURL: URL? {
+        guard let base = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                                      appropriateFor: nil, create: true) else { return nil }
+        let dir = base.appendingPathComponent(Constants.appSupportDirectoryName, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("project_context.json")
+    }
+
+    // MARK: - Project list
+
     func addProject(_ url: URL) {
         if !projectURLs.contains(url) {
             projectURLs.append(url)
             saveProjectURLs(projectURLs)
+            needsReanalysis = true
         }
     }
 
@@ -42,57 +68,83 @@ class ProjectContextManager: ObservableObject {
         saveProjectURLs(projectURLs)
         if projectURLs.isEmpty {
             clearProject()
+        } else {
+            needsReanalysis = true
         }
     }
 
-    func analyzeProjects() {
+    // MARK: - Analysis
+
+    /// - Parameter warmCache: also pre-compute and save the llama.cpp KV-cache for the project prefix.
+    ///   This is only a latency optimisation; answers are correct without it.
+    func analyzeProjects(warmCache: Bool = true) {
         let urls = projectURLs
         if urls.isEmpty { return }
         Task {
             logger.info("Starting project analysis")
             await MainActor.run { self.isAnalyzing = true }
             do {
-                var combinedVocabulary = Set<String>()
-                var combinedSummaries = [String]()
+                // Split one context-window-sized budget between all projects.
+                let totalBudget = PromptBuilder.summaryCharBudget(contextSize: LLMConfiguration().contextSize)
+                let perProject = max(totalBudget / max(urls.count, 1), 2_500)
+
+                var perProjectVocab = [[String]]()
+                var names = [String]()
+                var summaries = [String]()
 
                 for url in urls {
-                    let context = try await analyzer.analyzeProject(at: url)
-                    combinedVocabulary.formUnion(context.vocabulary)
-                    combinedSummaries.append(context.summary)
+                    let context = try await analyzer.analyzeProject(at: url, summaryBudget: perProject)
+                    perProjectVocab.append(context.vocabulary)
+                    names.append(contentsOf: context.projectNames)
+                    summaries.append(context.summary)
                 }
 
-                let mergedSummary = combinedSummaries.joined(separator: "\n")
-                let finalContext = ProjectContextData(vocabulary: Array(combinedVocabulary), summary: mergedSummary)
-
-                // Build and cache binary KV-state for faster session start.
-                // Skip if a session is active — writing the state file while the
-                // LLM is running would corrupt the binary KV-cache mid-session.
-                if let engine = self.llmEngine {
-                    if self.isSessionActive?() == true {
-                        logger.warning("Skipping KV-cache write — session is active. Re-analyse after stopping the session to persist project memory.")
-                    } else {
-                        let prefix = PromptBuilder().buildSystemPrefix(projectSummary: mergedSummary)
-                        try? await engine.load()
-                        try? await engine.saveState(to: self.binaryStatePath, prompt: prefix)
+                var vocab = [String](); var seen = Set<String>()
+                let longest = perProjectVocab.map { $0.count }.max() ?? 0
+                for i in 0..<longest {                       // round-robin so every project is represented
+                    for list in perProjectVocab where i < list.count {
+                        if seen.insert(list[i].lowercased()).inserted { vocab.append(list[i]) }
                     }
                 }
 
+                let finalContext = ProjectContextData(
+                    vocabulary: Array(vocab.prefix(150)),
+                    summary: summaries.joined(separator: "\n\n"),
+                    projectNames: names
+                )
+
+                // Persist + publish BEFORE the slow/fragile KV-cache step so a failure there
+                // can never lose the analysis.
+                self.persist(finalContext, paths: urls.map { $0.path })
                 await MainActor.run {
-                    logger.info("Project analysis finished")
                     self.currentContext = finalContext
                     self.needsReanalysis = false
-                    self.isAnalyzing = false
-
-                    // Persist vocabulary so WhisperEngine can use it on next launch.
-                    let vocabString = finalContext.vocabulary.joined(separator: ", ")
-                    UserDefaults.standard.set(vocabString, forKey: ConfigKey.whisperVocabulary)
+                    UserDefaults.standard.set(finalContext.makeWhisperPrompt(), forKey: ConfigKey.whisperVocabulary)
+                    logger.info("Project analysis finished: \(finalContext.summary.count) chars, \(finalContext.vocabulary.count) terms")
                 }
+
+                if warmCache, let engine = self.llmEngine {
+                    if self.isSessionActive?() == true {
+                        logger.warning("Skipping KV-cache write — session is active.")
+                    } else {
+                        do {
+                            let prefix = PromptBuilder().buildSystemPrefix(projectSummary: finalContext.summary)
+                            try await engine.load()
+                            try await engine.saveState(to: self.binaryStatePath, prompt: prefix)
+                            // Don't leave a multi-GB model resident when nobody is using it; the
+                            // next session's load() restores this state from disk.
+                            if self.isSessionActive?() != true { await engine.unload() }
+                        } catch {
+                            logger.error("KV-cache warm-up failed (answers still work, first reply is slower): \(error.localizedDescription)")
+                            try? FileManager.default.removeItem(atPath: self.binaryStatePath)
+                        }
+                    }
+                }
+
+                await MainActor.run { self.isAnalyzing = false }
             } catch {
                 logger.error("Failed to analyse projects: \(error.localizedDescription)")
-                await MainActor.run {
-                    self.isAnalyzing = false
-                    logger.debug("Analysis finished with error")
-                }
+                await MainActor.run { self.isAnalyzing = false }
             }
         }
     }
@@ -102,44 +154,59 @@ class ProjectContextManager: ObservableObject {
         projectURLs = []
         needsReanalysis = false
         saveProjectURLs([])
+        UserDefaults.standard.removeObject(forKey: ConfigKey.whisperVocabulary)
+        if let url = snapshotURL { try? FileManager.default.removeItem(at: url) }
         if FileManager.default.fileExists(atPath: binaryStatePath) {
             try? FileManager.default.removeItem(atPath: binaryStatePath)
         }
     }
+
+    // MARK: - Persistence
 
     private func saveProjectURLs(_ urls: [URL]) {
         let paths = urls.map { $0.path }
         UserDefaults.standard.set(paths, forKey: ConfigKey.projectPaths)
     }
 
+    private func persist(_ context: ProjectContextData, paths: [String]) {
+        guard let url = snapshotURL else { return }
+        let payload = PersistedProjectContext(version: Self.snapshotVersion, projectPaths: paths,
+                                              analyzedAt: Date(), context: context)
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            try encoder.encode(payload).write(to: url, options: .atomic)
+        } catch {
+            logger.error("Could not persist project context: \(error.localizedDescription)")
+        }
+    }
+
+    private func loadSnapshot() -> PersistedProjectContext? {
+        guard let url = snapshotURL, let data = try? Data(contentsOf: url) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(PersistedProjectContext.self, from: data)
+    }
+
     func restoreSavedProjects() {
         guard let paths = UserDefaults.standard.stringArray(forKey: ConfigKey.projectPaths),
               !paths.isEmpty else { return }
 
-        let urls = paths.map { URL(fileURLWithPath: $0) }
-        self.projectURLs = urls
+        projectURLs = paths.map { URL(fileURLWithPath: $0) }
 
-        // Rebuild vocabulary from UserDefaults so Whisper is ready immediately.
-        let vocabString = UserDefaults.standard.string(forKey: ConfigKey.whisperVocabulary) ?? ""
-        let vocab = vocabString.components(separatedBy: ", ").filter { !$0.isEmpty }
-
-        let binaryExists = FileManager.default.fileExists(atPath: binaryStatePath)
-
-        if binaryExists {
-            // Full context available — restore with the real summary from the
-            // saved state. Summary text is not persisted separately, but the
-            // binary KV-state captures it implicitly, so we pass an empty
-            // placeholder that will be ignored once the state is loaded at
-            // session start.
-            self.currentContext = ProjectContextData(vocabulary: vocab, summary: "")
-            self.needsReanalysis = false
+        if let saved = loadSnapshot(), saved.version == Self.snapshotVersion, saved.projectPaths == paths {
+            // Full context restored, including the summary text the LLM actually needs.
+            currentContext = saved.context
+            needsReanalysis = false
+            UserDefaults.standard.set(saved.context.makeWhisperPrompt(), forKey: ConfigKey.whisperVocabulary)
+            logger.info("Restored project context (\(saved.context.summary.count) chars)")
         } else {
-            // Binary state is gone (e.g. app reinstall, manual cleanup).
-            // Keep the project list so the UI stays populated, but flag that
-            // the user needs to re-analyse before the LLM will have context.
-            self.currentContext = ProjectContextData(vocabulary: vocab, summary: "")
-            self.needsReanalysis = true
-            logger.warning("Binary state missing — re-analysis required before starting a session")
+            // First launch after this fix (or the project list changed): there is no trustworthy
+            // summary. Rebuild it now — text analysis only, it is fast and needs no model.
+            currentContext = nil
+            needsReanalysis = true
+            logger.warning("No saved project analysis — rebuilding in the background")
+            analyzeProjects(warmCache: false)
         }
     }
 }

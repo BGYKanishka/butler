@@ -6,6 +6,7 @@
 #include "mtmd.h"
 #include "mtmd-helper.h"
 #pragma clang diagnostic pop
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -75,6 +76,10 @@
 }
 
 - (void)unload {
+    // The KV cache dies with the context, so the token mirror MUST die with it. Leaving stale
+    // tokens here made the next prompt "reuse" a prefix (the system prompt + project context)
+    // that no longer existed in the fresh context, so the model never saw the project.
+    _last_tokens.clear();
     if (_ctx) {
         llama_free(_ctx);
         _ctx = NULL;
@@ -105,19 +110,43 @@
         tokens_list.resize(-n_tokens);
         n_tokens = llama_tokenize(_vocab, prompt_str.c_str(), (int32_t)prompt_str.length(), tokens_list.data(), (int32_t)tokens_list.size(), true, true);
     }
+    if (n_tokens <= 0) return;
     tokens_list.resize(n_tokens);
     
-    // Find common prefix with previous generation to reuse KV cache
-    int n_past = 0;
-    while (n_past < _last_tokens.size() && n_past < tokens_list.size() && _last_tokens[n_past] == tokens_list[n_past]) {
-        n_past++;
+    // Safety net: a prompt that does not fit the context window used to make llama_decode fail
+    // silently (no answer at all). PromptBuilder budgets the prompt, but if it is still too long,
+    // keep the head (system prompt + project context) and the tail (latest turns).
+    const int n_ctx = (int)llama_n_ctx(_ctx);
+    const int max_prompt = n_ctx - maxTokens - 16;
+    if (max_prompt < 256) return;
+    if (n_tokens > max_prompt) {
+        NSLog(@"[LlamaWrapper] Prompt is %d tokens but only %d fit — trimming the middle", n_tokens, max_prompt);
+        const int head = (max_prompt * 3) / 5;
+        const int tail = max_prompt - head;
+        std::vector<llama_token> trimmed;
+        trimmed.reserve(max_prompt);
+        trimmed.insert(trimmed.end(), tokens_list.begin(), tokens_list.begin() + head);
+        trimmed.insert(trimmed.end(), tokens_list.end() - tail, tokens_list.end());
+        tokens_list.swap(trimmed);
+        n_tokens = (int)tokens_list.size();
     }
     
-    // Clear the divergent part of the memory
-    llama_memory_t mem = llama_get_memory(_ctx);
-    if (mem && n_past < _last_tokens.size()) {
-        llama_memory_seq_rm(mem, -1, n_past, -1);
+    // Find common prefix with the tokens that are actually in the KV cache.
+    int n_past = 0;
+    while (n_past < (int)_last_tokens.size() && n_past < n_tokens && _last_tokens[n_past] == tokens_list[n_past]) {
+        n_past++;
     }
+    // Always re-decode at least the final prompt token so fresh logits exist for sampling
+    // (an identical repeat prompt previously left nothing to decode).
+    if (n_past >= n_tokens) n_past = n_tokens - 1;
+    
+    // Drop everything at/after n_past (divergent prompt tail and last turn's generated tokens).
+    llama_memory_t mem = llama_get_memory(_ctx);
+    if (mem && !llama_memory_seq_rm(mem, -1, n_past, -1)) {
+        llama_memory_clear(mem, true);
+        n_past = 0;
+    }
+    _last_tokens.resize(n_past);
     
     // Sampler setup
     llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
@@ -125,32 +154,35 @@
     llama_sampler_chain_add(smpl, llama_sampler_init_temp(temperature));
     llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
     
-    // Evaluate only the NEW tokens
-    int n_eval = n_tokens - n_past;
-    if (n_eval > 0) {
-        llama_batch batch = llama_batch_init(n_eval, 0, 1);
-        batch.n_tokens = n_eval;
-        for (int i = 0; i < n_eval; i++) {
-            batch.token[i] = tokens_list[n_past + i];
-            batch.pos[i] = n_past + i;
-            batch.seq_id[i][0] = 0;
-            batch.n_seq_id[i] = 1;
-            batch.logits[i] = false;
+    // Evaluate only the NEW tokens, in chunks (a single huge batch exceeds n_batch and fails).
+    const int chunk_max = 512;
+    for (int i = n_past; i < n_tokens; i += chunk_max) {
+        if (_isCancelled) { llama_sampler_free(smpl); return; }
+        const int n = std::min(chunk_max, n_tokens - i);
+        llama_batch batch = llama_batch_init(n, 0, 1);
+        batch.n_tokens = n;
+        for (int j = 0; j < n; j++) {
+            batch.token[j] = tokens_list[i + j];
+            batch.pos[j] = i + j;
+            batch.seq_id[j][0] = 0;
+            batch.n_seq_id[j] = 1;
+            batch.logits[j] = (i + j == n_tokens - 1);
         }
-        batch.logits[n_eval - 1] = true;
-        
-        if (llama_decode(_ctx, batch)) {
-            llama_sampler_free(smpl);
-            return; // Error decoding
-        }
+        const int rc = llama_decode(_ctx, batch);
         llama_batch_free(batch);
+        if (rc != 0) {
+            NSLog(@"[LlamaWrapper] llama_decode failed during prompt evaluation (rc=%d)", rc);
+            llama_sampler_free(smpl);
+            if (mem) llama_memory_clear(mem, true);
+            _last_tokens.clear();
+            return;
+        }
+        // Keep the mirror equal to what is really in the KV cache.
+        _last_tokens.insert(_last_tokens.end(), tokens_list.begin() + i, tokens_list.begin() + i + n);
     }
     
     int n_cur = n_tokens;
     int n_generated = 0;
-    
-    // Save prompt tokens to last tokens
-    _last_tokens = tokens_list;
     
     while (n_generated < maxTokens) {
         if (_isCancelled) break;
@@ -184,6 +216,7 @@
         
         if (llama_decode(_ctx, batch)) {
             llama_batch_free(batch);
+            _last_tokens.pop_back(); // this token never made it into the KV cache
             break;
         }
         llama_batch_free(batch);
@@ -255,6 +288,9 @@
     
     llama_memory_t mem = llama_get_memory(_ctx);
     if (mem) llama_memory_clear(mem, true);
+    // The vision prompt replaces the whole KV cache. Forget the text prompt we thought was cached,
+    // otherwise the next text question skips re-evaluating the system prompt + project context.
+    _last_tokens.clear();
     _isCancelled = NO;
     
     llama_pos new_n_past = 0;
@@ -338,8 +374,10 @@
     if (safe_limit < 512) safe_limit = 512;
     
     if (n_tokens > safe_limit) {
-        tokens_list.resize(safe_limit);
-        n_tokens = safe_limit;
+        // Truncating would silently cut the END of the system prompt, producing a cache that
+        // never matches the real prompt. Refuse instead; the analyzer/PromptBuilder budgets prevent this.
+        if (error) *error = [NSError errorWithDomain:@"Llama" code:7 userInfo:@{NSLocalizedDescriptionKey: @"Project context is too large for the model context window"}];
+        return NO;
     }
     
     // Find common prefix with previous generation
@@ -404,6 +442,10 @@
         return YES;
     }
     
+    // A failed load may leave the context partially written; reset so nothing stale is trusted.
+    llama_memory_t mem = llama_get_memory(_ctx);
+    if (mem) llama_memory_clear(mem, true);
+    _last_tokens.clear();
     if (error) *error = [NSError errorWithDomain:@"Llama" code:6 userInfo:@{NSLocalizedDescriptionKey: @"Failed to load binary state"}];
     return NO;
 }

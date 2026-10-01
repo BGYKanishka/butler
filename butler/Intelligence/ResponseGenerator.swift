@@ -44,6 +44,7 @@ final class ResponseGenerator {
             guard let self = self else { return }
             let turns = await self.contextManager.getRecentTurns()
             let projectSummary = self.projectContextManager?.currentContext?.summary
+            logger.info("Project context in prompt: \(projectSummary?.count ?? 0) chars (manager attached: \(self.projectContextManager != nil))")
             let prompt = self.promptBuilder.build(turns: turns, projectSummary: projectSummary, question: transcript, source: source)
 
             self.buffer = ""

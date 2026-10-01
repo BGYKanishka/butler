@@ -61,8 +61,12 @@ graph TD
     subgraph CoreOrchestration ["Core Session & Context"]
         Coordinator["Session Coordinator\n(@MainActor)"]:::logic
         Context["Context Manager\n(Conversation History)"]:::logic
-        ProjectAnalyzer["Project Analyzer\n(Codebase Context)"]:::logic
         Intent{"Response Generator\n(Intent Evaluation)"}:::logic
+        
+        subgraph CodeContext ["Project Context Engine"]
+            ProjectAnalyzer["ProjectAnalyzer\n(Service)"]:::logic
+            ProjectScanner["ProjectScanner\n(AST & Symbols)"]:::logic
+        end
     end
 
     subgraph UserInterface ["Presentation"]
@@ -80,7 +84,10 @@ graph TD
     Coordinator -- "Transcript Segment" --> Intent
     
     Context --> Intent
-    ProjectAnalyzer -- "Source Code" --> Intent
+    ProjectAnalyzer --> ProjectScanner
+    ProjectScanner -- "Parsed Source & Config" --> ProjectAnalyzer
+    ProjectAnalyzer -- "Project Context Data" --> Intent
+    ProjectAnalyzer -. "Project Vocabulary Prompt" .-> Whisper
     
     Intent <-->|"Prompt / Stream"| Llama
     Intent -- "Confirmed Intent & Tokens" --> Coordinator
@@ -128,10 +135,11 @@ Butler runs all AI models locally on your machine — no cloud, no API keys. Her
    cd butler
    ```
 
-2. **Build the Project:**
-   Open the Xcode project and build.
+2. **Generate the Project & Build:**
+   This project uses XcodeGen. Run `xcodegen` to generate the project file, then open it.
    ```bash
-   open butler.xcodeproj
+   xcodegen
+   open Butler.xcodeproj
    ```
    *(Note: The app will automatically handle downloading and verifying models securely when you first configure it in settings. Downloads are retried automatically on failure and validated via SHA-256 checksum.)*
 
