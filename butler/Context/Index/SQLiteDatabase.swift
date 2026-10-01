@@ -132,7 +132,7 @@ actor SQLiteDatabase {
             try exec("COMMIT;")
             return result
         } catch {
-            try? exec("ROLLBACK;")
+            do { try exec("ROLLBACK;") } catch {}
             throw error
         }
     }

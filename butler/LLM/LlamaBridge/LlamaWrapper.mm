@@ -10,6 +10,23 @@
 #include <string>
 #include <vector>
 
+
+static struct llama_sampler * ButlerMakeSampler(float temperature, int32_t n_vocab) {
+    llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
+    struct llama_sampler * smpl = llama_sampler_chain_init(sparams);
+    // Penalise tokens already produced in this answer (last 256), not the prompt.
+    llama_sampler_chain_add(smpl, llama_sampler_init_penalties(n_vocab, 256, 1.15f, 0.05f, 0.05f));
+    if (temperature <= 0.01f) {
+        llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+    } else {
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_p(0.90f, 1));
+        llama_sampler_chain_add(smpl, llama_sampler_init_temp(temperature));
+        llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
+    }
+    return smpl;
+}
+
 @implementation LlamaWrapper {
     struct llama_model *_model;
     struct llama_context *_ctx;
@@ -149,10 +166,10 @@
     _last_tokens.resize(n_past);
     
     // Sampler setup
-    llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
-    struct llama_sampler * smpl = llama_sampler_chain_init(sparams);
-    llama_sampler_chain_add(smpl, llama_sampler_init_temp(temperature));
-    llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+    struct llama_sampler * smpl = ButlerMakeSampler(temperature, llama_vocab_n_tokens(_vocab));
+    for (int i = std::max(0, n_tokens - 256); i < n_tokens; i++) {
+        llama_sampler_accept(smpl, tokens_list[i]);
+    }
     
     // Evaluate only the NEW tokens, in chunks (a single huge batch exceeds n_batch and fails).
     const int chunk_max = 512;
@@ -183,14 +200,16 @@
     
     int n_cur = n_tokens;
     int n_generated = 0;
+    const char *stop_reason = "max_tokens";
     
     while (n_generated < maxTokens) {
-        if (_isCancelled) break;
+        if (_isCancelled) { stop_reason = "cancelled"; break; }
         
         llama_token new_token_id = llama_sampler_sample(smpl, _ctx, -1);
         llama_sampler_accept(smpl, new_token_id);
         
         if (llama_vocab_is_eog(_vocab, new_token_id)) {
+            stop_reason = "end_of_turn";
             break;
         }
         
@@ -217,6 +236,7 @@
         if (llama_decode(_ctx, batch)) {
             llama_batch_free(batch);
             _last_tokens.pop_back(); // this token never made it into the KV cache
+            stop_reason = "decode_failed";
             break;
         }
         llama_batch_free(batch);
@@ -224,6 +244,11 @@
         n_cur += 1;
         n_generated += 1;
     }
+    
+    // Diagnostic: answers that stop at a suspiciously fixed length (e.g. always 230 tokens) are
+    // explained by this line — max_tokens means a cap, decode_failed means the KV cache filled up.
+    NSLog(@"[LlamaWrapper] generation stopped: reason=%s generated=%d maxTokens=%d prompt=%d n_ctx=%d temp=%.2f",
+          stop_reason, n_generated, maxTokens, n_tokens, n_ctx, temperature);
     
     llama_sampler_free(smpl);
 }
@@ -305,10 +330,10 @@
     
     mtmd_input_chunks_free(chunks);
     
-    llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
-    struct llama_sampler * smpl = llama_sampler_chain_init(sparams);
-    llama_sampler_chain_add(smpl, llama_sampler_init_temp(temperature));
-    llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+    struct llama_sampler * smpl = ButlerMakeSampler(temperature, llama_vocab_n_tokens(_vocab));
+    for (size_t i = std::max(0, (int)_last_tokens.size() - 256); i < _last_tokens.size(); i++) {
+        llama_sampler_accept(smpl, _last_tokens[i]);
+    }
     
     int n_generated = 0;
     while (n_generated < maxTokens) {

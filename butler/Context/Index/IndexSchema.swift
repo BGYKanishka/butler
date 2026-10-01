@@ -1,5 +1,5 @@
 struct IndexSchema {
-    static let version = 1
+    static let version = 2   // bumped: wipes indexes that contain vendored llama.cpp/whisper.cpp code
     
     static let sqlCommands = [
         "CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);",

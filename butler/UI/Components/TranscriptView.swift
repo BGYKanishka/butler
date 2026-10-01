@@ -78,13 +78,7 @@ struct ChatBubbleView: View {
                             .cornerRadius(8)
                     }
                     
-                    Group {
-                        if let attrStr = try? AttributedString(markdown: segment.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-                            Text(attrStr)
-                        } else {
-                            Text(segment.text)
-                        }
-                    }
+                    Text(isAssistant ? MarkdownLite.attributed(segment.text) : AttributedString(segment.text))
                 }
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(isLocal ? .white : .primary)
@@ -102,5 +96,32 @@ struct ChatBubbleView: View {
             
             if !isLocal { Spacer(minLength: 40) }
         }
+    }
+}
+
+
+/// SwiftUI's inline-only markdown parser renders **bold** and `code` but leaves block syntax as raw
+/// text, so an answer written as "- item" bullets and "## Heading" showed literal dashes and hashes.
+/// This converts the block syntax Butler's prompt asks for into plain characters first.
+enum MarkdownLite {
+    static func attributed(_ raw: String) -> AttributedString {
+        var lines = [String]()
+        for line in raw.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
+                let indent = String(line.prefix { $0 == " " || $0 == "\t" })
+                lines.append(indent + "\u{2022}  " + String(trimmed.dropFirst(2)))
+            } else if trimmed.hasPrefix("#") {
+                let title = trimmed.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces)
+                lines.append(title.isEmpty ? "" : "**\(title)**")
+            } else {
+                lines.append(line)
+            }
+        }
+        let joined = lines.joined(separator: "\n")
+        if let attributed = try? AttributedString(markdown: joined, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+            return attributed
+        }
+        return AttributedString(raw)
     }
 }

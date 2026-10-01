@@ -80,7 +80,7 @@ final class WhisperEngine: SpeechToTextEngine {
                         source: source,
                         startTime: Date().timeIntervalSince1970,
                         endTime: Date().timeIntervalSince1970 + Double(samples.count) / Double(sampleRate),
-                        text: partialText,
+                        text: TranscriptCorrector.shared.correct(partialText),
                         isFinal: false,
                         confidence: 1.0
                     )
@@ -101,7 +101,12 @@ final class WhisperEngine: SpeechToTextEngine {
 
         logger.debug("Whisper raw result: '\(result ?? "nil")'")
 
-        if let text = result, isValidTranscription(text) {
+        if let raw = result, isValidTranscription(raw) {
+            // Fix known mishearings ("frag system" -> "RAG system") before anything downstream sees the text.
+            let text = TranscriptCorrector.shared.correct(raw.trimmingCharacters(in: .whitespacesAndNewlines))
+            if text != raw.trimmingCharacters(in: .whitespacesAndNewlines) {
+                logger.info("Corrected transcript: '\(raw)' -> '\(text)'")
+            }
             let segment = TranscriptSegment(
                 id: UUID(),
                 source: source,
@@ -141,6 +146,19 @@ final class WhisperEngine: SpeechToTextEngine {
             let range = NSRange(location: 0, length: cleaned.utf16.count)
             cleaned = regex.stringByReplacingMatches(in: cleaned, options: [], range: range, withTemplate: "")
         }
+        
+        let lower = cleaned.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let hallucinations: Set<String> = [
+            "end of video.", "end of video",
+            "thanks for watching.", "thanks for watching",
+            "thank you for watching.", "thank you for watching",
+            "end of audio.", "end of audio",
+            "amara.org"
+        ]
+        if hallucinations.contains(lower) {
+            return false
+        }
+        
         return cleaned.rangeOfCharacter(from: .alphanumerics) != nil
     }
 }

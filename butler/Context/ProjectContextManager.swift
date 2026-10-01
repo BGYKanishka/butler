@@ -18,7 +18,7 @@ private struct PersistedProjectContext: Codable {
 }
 
 class ProjectContextManager: ObservableObject {
-    private static let snapshotVersion = 2
+    private static let snapshotVersion = 3   // bumped: v2 snapshots were built from vendored llama.cpp/whisper.cpp code
 
     @Published var currentContext: ProjectContextData?
     @Published var isAnalyzing = false
@@ -130,6 +130,7 @@ class ProjectContextManager: ObservableObject {
                     self.currentContext = finalContext
                     self.needsReanalysis = false
                     UserDefaults.standard.set(finalContext.makeWhisperPrompt(), forKey: ConfigKey.whisperVocabulary)
+                    TranscriptCorrector.shared.update(vocabulary: finalContext.vocabulary)
                     logger.info("Project analysis finished: \(finalContext.summary.count) chars, \(finalContext.vocabulary.count) terms")
                 }
                 
@@ -176,6 +177,7 @@ class ProjectContextManager: ObservableObject {
         needsReanalysis = false
         saveProjectURLs([])
         UserDefaults.standard.removeObject(forKey: ConfigKey.whisperVocabulary)
+        TranscriptCorrector.shared.update(vocabulary: [])
         if let url = snapshotURL { try? FileManager.default.removeItem(at: url) }
         if FileManager.default.fileExists(atPath: binaryStatePath) {
             try? FileManager.default.removeItem(atPath: binaryStatePath)
@@ -220,6 +222,7 @@ class ProjectContextManager: ObservableObject {
             currentContext = saved.context
             needsReanalysis = false
             UserDefaults.standard.set(saved.context.makeWhisperPrompt(), forKey: ConfigKey.whisperVocabulary)
+            TranscriptCorrector.shared.update(vocabulary: saved.context.vocabulary)
             logger.info("Restored project context (\(saved.context.summary.count) chars)")
             
             if let coordinator = self.indexCoordinator {

@@ -7,7 +7,9 @@ struct LLMConfiguration {
            let profile = ModelProfile(rawValue: savedString) {
             return profile
         }
-        return .fast
+        // `.balanced` (16k window): `.fast` (8k) left almost no room for conversation history once the
+        // project summary, retrieved code and the answer budget were reserved.
+        return .balanced
     }
     
     var contextSize: Int { activeProfile.configuration.contextSize }
@@ -17,9 +19,12 @@ struct LLMConfiguration {
         return val > 0 ? Float(val) : activeProfile.configuration.temperature
     }
     
+    /// Values below 256 are treated as stale/invalid (no Settings control writes this key, so a tiny
+    /// value is a leftover from an old build or a manual `defaults write`) and would cut every answer
+    /// off mid-sentence.
     var maxTokens: Int {
         let val = UserDefaults.standard.integer(forKey: ConfigKey.llmMaxTokens)
-        return val > 0 ? val : activeProfile.configuration.maxTokens
+        return val >= 256 ? val : activeProfile.configuration.maxTokens
     }
     
     var modelFileName: String { activeProfile.configuration.fileName }

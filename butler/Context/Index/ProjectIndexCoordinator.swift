@@ -16,7 +16,13 @@ actor ProjectIndexCoordinator {
         // Check version
         let storedVersion = (try? await db.query("SELECT value FROM meta WHERE key = 'schema_version'", rowMapper: { $0.text(at: 0) }).first) ?? "0"
         if storedVersion != String(IndexSchema.version) {
-            // In a real app, delete DB and recreate. For simplicity, just update here.
+            // An index from an older schema/scanner version may contain code that is no longer
+            // scanned (e.g. vendored libraries). Drop every row; the next sync rebuilds it.
+            if storedVersion != "0" {
+                for table in ["refs", "chunk_embeddings", "chunks_fts", "chunks", "symbols", "files", "projects"] {
+                    _ = try await db.exec("DELETE FROM \(table)")
+                }
+            }
             _ = try await db.exec("INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)", binds: [.text(String(IndexSchema.version))])
         }
     }

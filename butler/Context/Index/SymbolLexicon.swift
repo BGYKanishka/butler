@@ -9,12 +9,12 @@ struct SymbolLexicon: Sendable {
         var syms = [String: [Int64]]()
         var files = [String: [String]]()
         
-        let symRows = (try? await db.query("SELECT id, name_norm FROM symbols WHERE length(name) >= 4", rowMapper: { try ($0.int(at: 0), $0.text(at: 1)) })) ?? []
+        let symRows = (try? await db.query("SELECT id, name_norm FROM symbols WHERE length(name) >= 4", rowMapper: { ($0.int(at: 0), $0.text(at: 1)) })) ?? []
         for (id, norm) in symRows {
             syms[norm, default: []].append(id)
         }
         
-        let fileRows = (try? await db.query("SELECT rel_path FROM files", rowMapper: { try $0.text(at: 0) })) ?? []
+        let fileRows = (try? await db.query("SELECT rel_path FROM files", rowMapper: { $0.text(at: 0) })) ?? []
         for path in fileRows {
             let base = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
             let norm = TermFormatter.normalized(base)

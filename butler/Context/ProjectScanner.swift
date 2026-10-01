@@ -10,10 +10,14 @@ struct ScannedFile {
 }
 
 enum ProjectScanner {
+    /// Directory names that never contain the user's OWN code. ALL ENTRIES MUST BE LOWERCASE:
+    /// `scanFiles` compares `name.lowercased()`. (The old list held "vendor" but compared the raw
+    /// name, so Butler's own `Vendor/llama.cpp` and `Vendor/whisper.cpp` were scanned as if they were
+    /// the user's project — and, sorting before `butler/`, they consumed the file budgets.)
     static let ignoredDirs: Set<String> = [
-        "node_modules", "Pods", "build", ".build", ".git", "vendor", "dist", "target", "out", "bin",
-        "__pycache__", ".next", "coverage", "Carthage", "DerivedData", "venv", ".venv",
-        "site-packages", ".gradle", ".idea", "obj", ".cache", "tmp", ".svn"
+        "node_modules", "pods", "build", ".build", ".git", "vendor", "vendored", "third_party", "thirdparty",
+        "3rdparty", "dist", "target", "out", "bin", "__pycache__", ".next", "coverage", "carthage",
+        "deriveddata", "venv", ".venv", "site-packages", ".gradle", ".idea", "obj", ".cache", "tmp", ".svn"
     ]
     static let ignoredDirExtensions: Set<String> = ["xcodeproj", "xcworkspace", "xcassets", "framework", "app", "bundle"]
 
@@ -237,7 +241,17 @@ enum ProjectScanner {
             let name = fileURL.lastPathComponent
             let isDir = (try? fileURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
             if isDir {
-                if ignoredDirs.contains(name) || ignoredDirExtensions.contains(fileURL.pathExtension.lowercased()) {
+                // 1. Known third-party / build directories (case-insensitive).
+                // 2. Git SUBMODULES: their `.git` is a plain file ("gitdir: ..."), whereas an ordinary
+                //    clone has a `.git` directory. `Vendor/llama.cpp` is one; it is somebody else's code,
+                //    not the project being described. (Independent clones are still scanned, so picking
+                //    a parent folder that holds several projects keeps working.)
+                var gitIsDirectory: ObjCBool = false
+                let hasGitEntry = fm.fileExists(atPath: fileURL.appendingPathComponent(".git").path, isDirectory: &gitIsDirectory)
+                let isSubmodule = hasGitEntry && !gitIsDirectory.boolValue
+                if ignoredDirs.contains(name.lowercased())
+                    || ignoredDirExtensions.contains(fileURL.pathExtension.lowercased())
+                    || isSubmodule {
                     enumerator.skipDescendants()
                 }
                 continue
@@ -253,7 +267,9 @@ enum ProjectScanner {
                                       depth: rel.split(separator: "/").count - 1, isTest: isTest))
             if result.count >= maxFiles { break }
         }
-        return result.sorted { $0.path < $1.path }
+        // Case-insensitive: plain `<` put every capitalised directory (Vendor/, Scripts/, Tests/) ahead
+        // of lowercase ones, so first-party code in `butler/` was read last (or never).
+        return result.sorted { $0.path.lowercased() < $1.path.lowercased() }
     }
 
     static func readText(_ url: URL) -> String? {

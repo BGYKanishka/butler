@@ -39,7 +39,7 @@ class AppEnvironment: ObservableObject {
         let coordinator = try? ProjectIndexCoordinator(dbPath: dbPath)
         self.indexCoordinator = coordinator
         self.projectContextManager = ProjectContextManager(llmEngine: llmEngine, indexCoordinator: coordinator)
-        if let coord = coordinator, let db = try? SQLiteDatabase(path: dbPath) {
+        if coordinator != nil, let db = try? SQLiteDatabase(path: dbPath) {
             self.projectRetriever = HybridProjectRetriever(db: db)
         } else {
             self.projectRetriever = nil

@@ -8,19 +8,14 @@ actor HybridProjectRetriever: ProjectRetrievalService {
     }
     
     func context(for text: String, recentTurns: [ConversationTurn], isFinal: Bool, budgetTokens: Int) async -> String {
-        do {
-            let names = (try? await db.query("SELECT name FROM projects", rowMapper: { try $0.text(at: 0) })) ?? []
-            let lexicon = await SymbolLexicon(db: db, contextNames: names)
-            let query = QueryRouter.route(text: text, recentTurns: recentTurns, lexicon: lexicon)
-            
-            guard query.shouldRetrieve else { return "" }
-            
-            let chunks = await retrieve(query: query, budgetTokens: budgetTokens, cheapOnly: !isFinal)
-            return ContextAssembler.assemble(chunks, budgetTokens: budgetTokens, multiProject: names.count > 1)
-        } catch {
-            print("Retrieval error: \(error)")
-            return ""
-        }
+        let names = (try? await db.query("SELECT name FROM projects", rowMapper: { $0.text(at: 0) })) ?? []
+        let lexicon = await SymbolLexicon(db: db, contextNames: names)
+        let query = QueryRouter.route(text: text, recentTurns: recentTurns, lexicon: lexicon)
+        
+        guard query.shouldRetrieve else { return "" }
+        
+        let chunks = await retrieve(query: query, budgetTokens: budgetTokens, cheapOnly: !isFinal)
+        return ContextAssembler.assemble(chunks, budgetTokens: budgetTokens, multiProject: names.count > 1)
     }
     
     private func retrieve(query: RoutedQuery, budgetTokens: Int, cheapOnly: Bool) async -> [ScoredChunk] {
@@ -30,10 +25,10 @@ actor HybridProjectRetriever: ProjectRetrievalService {
         var symbolScores = [(Int64, Double)]()
         if !query.symbolHits.isEmpty {
             for hit in query.symbolHits {
-                let rows = (try? await db.query("SELECT c.id FROM chunks c JOIN symbols s ON c.symbol_id = s.id WHERE s.name_norm = ?", binds: [.text(hit)], rowMapper: { try $0.int(at: 0) })) ?? []
+                let rows = (try? await db.query("SELECT c.id FROM chunks c JOIN symbols s ON c.symbol_id = s.id WHERE s.name_norm = ?", binds: [.text(hit)], rowMapper: { $0.int(at: 0) })) ?? []
                 for r in rows { symbolScores.append((r, 1.0)) }
                 
-                let prefixRows = (try? await db.query("SELECT c.id FROM chunks c JOIN symbols s ON c.symbol_id = s.id WHERE s.name_norm LIKE ? LIMIT 10", binds: [.text(hit + "%")], rowMapper: { try $0.int(at: 0) })) ?? []
+                let prefixRows = (try? await db.query("SELECT c.id FROM chunks c JOIN symbols s ON c.symbol_id = s.id WHERE s.name_norm LIKE ? LIMIT 10", binds: [.text(hit + "%")], rowMapper: { $0.int(at: 0) })) ?? []
                 for r in prefixRows { symbolScores.append((r, 0.5)) }
             }
         }
@@ -43,7 +38,7 @@ actor HybridProjectRetriever: ProjectRetrievalService {
         var pathScores = [(Int64, Double)]()
         if !query.fileHits.isEmpty {
             for hit in query.fileHits {
-                let rows = (try? await db.query("SELECT c.id FROM chunks c JOIN files f ON c.file_id = f.id WHERE f.rel_path LIKE ? LIMIT 10", binds: [.text("%\(hit)%")], rowMapper: { try $0.int(at: 0) })) ?? []
+                let rows = (try? await db.query("SELECT c.id FROM chunks c JOIN files f ON c.file_id = f.id WHERE f.rel_path LIKE ? LIMIT 10", binds: [.text("%\(hit)%")], rowMapper: { $0.int(at: 0) })) ?? []
                 for r in rows { pathScores.append((r, 1.0)) }
             }
         }
@@ -54,9 +49,9 @@ actor HybridProjectRetriever: ProjectRetrievalService {
         let matchString = query.ftsTerms.map { "\"\($0)\"" }.joined(separator: " OR ")
         if !matchString.isEmpty {
             let sql = "SELECT rowid, bm25(chunks_fts, 8.0, 3.0, 4.0, 1.0) FROM chunks_fts WHERE chunks_fts MATCH ? ORDER BY bm25(chunks_fts, 8.0, 3.0, 4.0, 1.0) LIMIT 20"
-            let rows = (try? await db.query(sql, binds: [.text(matchString)]) { row -> (Int64, Double) in
-                return (try row.int(at: 0), try row.double(at: 1))
-            }) ?? []
+            let rows = (try? await db.query(sql, binds: [.text(matchString)], rowMapper: { row -> (Int64, Double) in
+                return (row.int(at: 0), row.double(at: 1))
+            })) ?? []
             for r in rows { lexicalScores.append((r.0, -r.1)) } // bm25 returns negative score usually or we negate it depending on SQLite
         }
         candidates[.lexical] = lexicalScores
@@ -85,12 +80,12 @@ actor HybridProjectRetriever: ProjectRetrievalService {
         var scoredChunks = [ScoredChunk]()
         for (cId, score) in chunkScores {
             let sql = "SELECT f.rel_path, s.name, s.qualified, s.kind, c.start_line, c.end_line, c.content, c.content_hash, c.token_est, p.name, p.root_path FROM chunks c JOIN files f ON c.file_id = f.id JOIN projects p ON f.project_id = p.id LEFT JOIN symbols s ON c.symbol_id = s.id WHERE c.id = ?"
-            if let rows = try? await db.query(sql, binds: [.int(cId)]) { row -> ScoredChunk? in
-                let chunk = CodeChunk(id: cId, relPath: try row.text(at: 0), symbolName: try? row.text(at: 1), qualifiedName: try? row.text(at: 2), kind: (try? row.text(at: 3)) ?? "chunk", startLine: Int(try row.int(at: 4)), endLine: Int(try row.int(at: 5)), content: try row.text(at: 6), contentHash: try row.text(at: 7), tokenEstimate: Int(try row.int(at: 8)))
-                let pName = try row.text(at: 9)
-                let pRoot = try row.text(at: 10)
+            if let rows = try? await db.query(sql, binds: [.int(cId)], rowMapper: { row -> ScoredChunk? in
+                let chunk = CodeChunk(id: cId, relPath: row.text(at: 0), symbolName: row.isNull(at: 1) ? nil : row.text(at: 1), qualifiedName: row.isNull(at: 2) ? nil : row.text(at: 2), kind: row.isNull(at: 3) ? "chunk" : row.text(at: 3), startLine: Int(row.int(at: 4)), endLine: Int(row.int(at: 5)), content: row.text(at: 6), contentHash: row.text(at: 7), tokenEstimate: Int(row.int(at: 8)))
+                let pName = row.text(at: 9)
+                let pRoot = row.text(at: 10)
                 return ScoredChunk(chunk: chunk, score: score, sources: chunkSources[cId] ?? [], projectLabel: pName, projectRoot: pRoot)
-            } {
+            }) {
                 if let c = rows.first.flatMap({ $0 }) { scoredChunks.append(c) }
             }
         }
@@ -130,16 +125,16 @@ actor HybridProjectRetriever: ProjectRetrievalService {
         var graphChunks = [ScoredChunk]()
         for sc in finalChunks.prefix(3) {
             let sql = "SELECT c.id FROM refs r JOIN chunks c ON r.target_symbol_id = c.symbol_id WHERE r.src_chunk_id = ? LIMIT 4"
-            if let rows = try? await db.query(sql, binds: [.int(sc.chunk.id)], rowMapper: { try $0.int(at: 0) }) {
+            if let rows = try? await db.query(sql, binds: [.int(sc.chunk.id)], rowMapper: { $0.int(at: 0) }) {
                 for gcId in rows {
                     if chunkScores[gcId] != nil { continue }
                     chunkScores[gcId] = sc.score * 0.3
                     
                     let cSql = "SELECT f.rel_path, s.name, s.qualified, s.kind, c.start_line, c.end_line, c.content, c.content_hash, c.token_est, p.name, p.root_path FROM chunks c JOIN files f ON c.file_id = f.id JOIN projects p ON f.project_id = p.id LEFT JOIN symbols s ON c.symbol_id = s.id WHERE c.id = ?"
-                    if let cRows = try? await db.query(cSql, binds: [.int(gcId)]) { row -> ScoredChunk? in
-                        let chunk = CodeChunk(id: gcId, relPath: try row.text(at: 0), symbolName: try? row.text(at: 1), qualifiedName: try? row.text(at: 2), kind: (try? row.text(at: 3)) ?? "chunk", startLine: Int(try row.int(at: 4)), endLine: Int(try row.int(at: 5)), content: try row.text(at: 6), contentHash: try row.text(at: 7), tokenEstimate: Int(try row.int(at: 8)))
-                        return ScoredChunk(chunk: chunk, score: sc.score * 0.3, sources: [.graph], projectLabel: try row.text(at: 9), projectRoot: try row.text(at: 10))
-                    } {
+                    if let cRows = try? await db.query(cSql, binds: [.int(gcId)], rowMapper: { row -> ScoredChunk? in
+                        let chunk = CodeChunk(id: gcId, relPath: row.text(at: 0), symbolName: row.isNull(at: 1) ? nil : row.text(at: 1), qualifiedName: row.isNull(at: 2) ? nil : row.text(at: 2), kind: row.isNull(at: 3) ? "chunk" : row.text(at: 3), startLine: Int(row.int(at: 4)), endLine: Int(row.int(at: 5)), content: row.text(at: 6), contentHash: row.text(at: 7), tokenEstimate: Int(row.int(at: 8)))
+                        return ScoredChunk(chunk: chunk, score: sc.score * 0.3, sources: [.graph], projectLabel: row.text(at: 9), projectRoot: row.text(at: 10))
+                    }) {
                         if let cg = cRows.first.flatMap({ $0 }) { graphChunks.append(cg) }
                     }
                 }
@@ -157,7 +152,7 @@ actor HybridProjectRetriever: ProjectRetrievalService {
                 let mtime = mdate.timeIntervalSince1970
                 
                 let checkSql = "SELECT size, mtime FROM files f JOIN chunks c ON c.file_id = f.id WHERE c.id = ?"
-                if let rows = try? await db.query(checkSql, binds: [.int(sc.chunk.id)], rowMapper: { (try $0.int(at: 0), try $0.double(at: 1)) }), let dbData = rows.first {
+                if let rows = try? await db.query(checkSql, binds: [.int(sc.chunk.id)], rowMapper: { ($0.int(at: 0), $0.double(at: 1)) }), let dbData = rows.first {
                     if dbData.0 != size || dbData.1 != mtime {
                         continue // stale
                     }

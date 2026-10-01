@@ -25,6 +25,14 @@ final class ResponseGenerator {
     private var isIntentValid = false
     private var strippedLeadingNoise = false
 
+    // Loop protection for the current generation (see RepetitionGuard).
+    private var repetitionGuard = RepetitionGuard()
+    private var stoppedForRepetition = false
+
+    /// Latest FINAL transcript that arrived while another evaluation was running. It used to be
+    /// discarded, so a question asked right after another one could be lost without any trace.
+    private var pendingTranscript: (text: String, source: AudioSource)?
+
     var onIntentConfirmed: (@MainActor (String) -> Void)?
     var onTokenGenerated: (@MainActor (String) -> Void)?
     var onResponseCompleted: (@MainActor () -> Void)?
@@ -39,7 +47,10 @@ final class ResponseGenerator {
     }
 
     func handleTranscript(_ transcript: String, source: AudioSource, isFinal: Bool = true) {
-        guard !isEvaluating else { return }
+        guard !isEvaluating else {
+            if isFinal { pendingTranscript = (transcript, source) }
+            return
+        }
         isEvaluating = true
 
         currentGenerationTask = Task { [weak self] in
@@ -68,6 +79,11 @@ final class ResponseGenerator {
                 }
                 let ms = Int((CFAbsoluteTimeGetCurrent() - t0) * 1000)
                 logger.info("Retrieved context: \(retrieved.count > 0 ? "YES" : "NO") in \(ms)ms")
+                // Which files did the answer actually get to see? ContextAssembler headers look like "[1] path/File.swift:10-40 Symbol".
+                let sources = retrieved.components(separatedBy: "\n")
+                    .filter { $0.hasPrefix("[") && $0.dropFirst().first?.isNumber == true }
+                    .prefix(8).joined(separator: " | ")
+                if !sources.isEmpty { logger.info("Retrieved sources: \(sources)") }
             }
             
             let prompt = self.promptBuilder.build(turns: turns, projectSummary: projectSummary, retrievedContext: retrieved, question: transcript, source: source)
@@ -76,6 +92,9 @@ final class ResponseGenerator {
             self.decisionMade = false
             self.isIntentValid = false
             self.strippedLeadingNoise = false
+            self.repetitionGuard = RepetitionGuard()
+            self.stoppedForRepetition = false
+            logger.info("Prompt ≈ \(PromptBuilder.estimateTokens(prompt)) tokens, history turns: \(turns.count), retrieved chars: \(retrieved.count)")
 
             do {
                 try await self.llmEngine.generateStreaming(prompt: prompt) { [weak self] token in
@@ -102,7 +121,7 @@ final class ResponseGenerator {
 
                                 if !remaining.isEmpty {
                                     self.strippedLeadingNoise = true
-                                    self.onTokenGenerated?(remaining)
+                                    self.emit(remaining)
                                 }
                             } else if trimmedUpper.hasPrefix("NO") {
                                 self.decisionMade = true
@@ -114,7 +133,7 @@ final class ResponseGenerator {
                                 self.isIntentValid = true
                                 self.strippedLeadingNoise = true
                                 self.onIntentConfirmed?(transcript)
-                                self.onTokenGenerated?(self.buffer)
+                                self.emit(self.buffer)
                             }
                         } else if self.isIntentValid {
                             if !self.strippedLeadingNoise {
@@ -123,13 +142,13 @@ final class ResponseGenerator {
                                 if !trimmedToken.isEmpty {
                                     self.strippedLeadingNoise = true
                                     if let idx = token.firstIndex(where: { !noiseChars.contains($0.unicodeScalars.first!) }) {
-                                        self.onTokenGenerated?(String(token[idx...]))
+                                        self.emit(String(token[idx...]))
                                     } else {
-                                        self.onTokenGenerated?(trimmedToken)
+                                        self.emit(trimmedToken)
                                     }
                                 }
-                            } else {
-                                self.onTokenGenerated?(token)
+                            } else if !self.stoppedForRepetition {
+                                self.emit(token)
                             }
                         }
                     }
@@ -147,6 +166,25 @@ final class ResponseGenerator {
             }
 
             self.isEvaluating = false
+
+            // A question that arrived mid-evaluation is only replayed when nothing was answered:
+            // if an answer was just shown, the normal cooldown rules apply and the user can ask again.
+            if let next = self.pendingTranscript {
+                self.pendingTranscript = nil
+                if !self.isIntentValid {
+                    self.handleTranscript(next.text, source: next.source)
+                }
+            }
         }
+    }
+
+    /// Single exit for answer text: forwards it to the UI and cancels the generation if the model
+    /// starts repeating itself.
+    private func emit(_ text: String) {
+        onTokenGenerated?(text)
+        guard !stoppedForRepetition, repetitionGuard.shouldStop(after: text) else { return }
+        stoppedForRepetition = true
+        logger.warning("Repetition loop detected — cancelling generation")
+        llmEngine.cancel()
     }
 }
