@@ -40,7 +40,6 @@ enum ProjectScanner {
 
     static func analyze(root inputRoot: URL, budget: Int) -> ProjectContextData {
         let root = inputRoot.resolvingSymlinksInPath()
-        let rootPath = root.path
         let folderName = root.lastPathComponent
         let files = scanFiles(root: root)
 

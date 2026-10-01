@@ -13,6 +13,7 @@ class AppEnvironment: ObservableObject {
     let permissionsGateway: PermissionsGateway
     let projectContextManager: ProjectContextManager
     let indexCoordinator: ProjectIndexCoordinator?
+    let projectRetriever: ProjectRetrievalService?
     
     @MainActor
     init(llmEngine: LLMEngine = LocalLLMEngine()) {
@@ -38,6 +39,11 @@ class AppEnvironment: ObservableObject {
         let coordinator = try? ProjectIndexCoordinator(dbPath: dbPath)
         self.indexCoordinator = coordinator
         self.projectContextManager = ProjectContextManager(llmEngine: llmEngine, indexCoordinator: coordinator)
+        if let coord = coordinator, let db = try? SQLiteDatabase(path: dbPath) {
+            self.projectRetriever = HybridProjectRetriever(db: db)
+        } else {
+            self.projectRetriever = nil
+        }
         
         self.projectContextManager.restoreSavedProjects()
     }

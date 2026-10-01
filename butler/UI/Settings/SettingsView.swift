@@ -9,7 +9,7 @@ class SettingsViewModel: ObservableObject {
     }
     
     func fetchMicrophones() {
-        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external], mediaType: .audio, position: .unspecified)
+        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified)
         availableMicrophones = discoverySession.devices
         
         let selectedMic = UserDefaults.standard.string(forKey: ConfigKey.selectedMicrophoneID) ?? ""
@@ -90,7 +90,7 @@ struct SettingsView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                                 .font(.caption)
-                            Text("\(context.projectNames.count) projects • \(context.summary.count) chars")
+                            Text("\(projectContextManager.projectURLs.count) projects • \(context.summary.count) chars")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -250,7 +250,7 @@ struct SettingsView: View {
                                 .buttonStyle(PlainButtonStyle())
                                 
                                 Button(action: {
-                                    for url in projectContextManager.projectURLs {
+                                    for _ in projectContextManager.projectURLs {
                                         Task {
                                             // Trigger a rebuild by deleting the DB or clearing
                                             // The simplest is just removing then analyzeProjects
@@ -351,7 +351,7 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
-        .frame(width: 350, height: 550)
+        .frame(width: 400, height: 650)
         .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }

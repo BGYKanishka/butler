@@ -10,9 +10,11 @@ actor ProjectIndexCoordinator {
     }
     
     private func initSchema() async throws {
-        _ = try await db.exec(IndexSchema.sql)
+        for cmd in IndexSchema.sqlCommands {
+            _ = try await db.exec(cmd)
+        }
         // Check version
-        let storedVersion = (try? await db.query("SELECT value FROM meta WHERE key = 'schema_version'", rowMapper: { try $0.text(at: 0) }).first) ?? "0"
+        let storedVersion = (try? await db.query("SELECT value FROM meta WHERE key = 'schema_version'", rowMapper: { $0.text(at: 0) }).first) ?? "0"
         if storedVersion != String(IndexSchema.version) {
             // In a real app, delete DB and recreate. For simplicity, just update here.
             _ = try await db.exec("INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)", binds: [.text(String(IndexSchema.version))])
@@ -29,8 +31,8 @@ actor ProjectIndexCoordinator {
         }
         
         if !Task.isCancelled {
-            let files = (try? await db.query("SELECT COUNT(*) FROM files", rowMapper: { try $0.int(at: 0) }).first) ?? 0
-            let chunks = (try? await db.query("SELECT COUNT(*) FROM chunks", rowMapper: { try $0.int(at: 0) }).first) ?? 0
+            let files = (try? await db.query("SELECT COUNT(*) FROM files", rowMapper: { $0.int(at: 0) }).first) ?? 0
+            let chunks = (try? await db.query("SELECT COUNT(*) FROM chunks", rowMapper: { $0.int(at: 0) }).first) ?? 0
             currentState = .ready(files: Int(files), chunks: Int(chunks))
         }
     }
@@ -53,7 +55,7 @@ actor ProjectIndexCoordinator {
             
             // Load stored files
             let stored = try await db.query("SELECT id, rel_path, size, mtime, content_hash FROM files WHERE project_id = ?", binds: [.text(projectID)]) { row -> (Int64, String, Int64, Double, String) in
-                return (try row.int(at: 0), try row.text(at: 1), try row.int(at: 2), try row.double(at: 3), try row.text(at: 4))
+                return (row.int(at: 0), row.text(at: 1), row.int(at: 2), row.double(at: 3), row.text(at: 4))
             }
             var storedDict = [String: (id: Int64, size: Int64, mtime: Double, hash: String)]()
             for s in stored { storedDict[s.1] = (s.0, s.2, s.3, s.4) }

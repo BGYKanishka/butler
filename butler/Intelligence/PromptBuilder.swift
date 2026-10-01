@@ -16,6 +16,12 @@ final class PromptBuilder {
         text.utf8.count / 3 + 1
     }
 
+    static func retrievalTokenBudget(contextSize: Int) -> Int {
+        if contextSize <= 8192 { return 2500 }
+        if contextSize <= 16384 { return 5000 }
+        return 10000
+    }
+
     // MARK: - System prompt
 
     func buildSystemPrefix(projectSummary: String?) -> String {
@@ -37,6 +43,10 @@ final class PromptBuilder {
         - Never say you lack information about a project that is described in PROJECT CONTEXT.
         - Speech-to-text often mishears project and technology names. If a word sounds like a project name or PROJECT VOCABULARY term, assume that is what was meant.
         - If a detail is not in PROJECT CONTEXT, give what is known and do not invent specifics.
+        - Only use the provided PROJECT CONTEXT to answer codebase questions. Do not hallucinate files or classes not shown.
+        - Answer with minimal prose. Write the code immediately.
+        - A "RELEVANT CODE" block may appear before the interviewer's question. It is real code from the candidate's project. Prefer it over guessing; cite file and function names from it.
+        - If RELEVANT CODE does not contain the answer, say what is known from PROJECT CONTEXT and do not invent code details.
 
         CORE BEHAVIOR:
         - You are helping the CANDIDATE answer questions asked by the INTERVIEWER.
@@ -87,6 +97,7 @@ final class PromptBuilder {
     func build(
         turns: [ConversationTurn],
         projectSummary: String? = nil,
+        retrievedContext: String = "",
         question: String,
         source: AudioSource
     ) -> String {
@@ -94,7 +105,11 @@ final class PromptBuilder {
         let prefix = buildSystemPrefix(projectSummary: projectSummary)
 
         let sourceStr = source == .microphone ? "[CANDIDATE (USER)]" : "[INTERVIEWER]"
-        let tail = "<|im_start|>user\n\(sourceStr): \(question)\n<|im_end|>\n<|im_start|>assistant\n"
+        
+        let userBody = retrievedContext.isEmpty
+            ? "\(sourceStr): \(question)"
+            : "RELEVANT CODE (retrieved for this question):\n\(retrievedContext)\n\n\(sourceStr): \(question)"
+        let tail = "<|im_start|>user\n\(userBody)\n<|im_end|>\n<|im_start|>assistant\n"
 
         // Keep the newest turns that fit. Without this, a long interview overflows the context
         // window and llama.cpp silently produces nothing.

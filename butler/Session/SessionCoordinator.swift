@@ -28,7 +28,8 @@ final class SessionCoordinator: ObservableObject {
         contextManager: contextManager,
         projectContextManager: environment.projectContextManager,
         promptBuilder: promptBuilder,
-        llmEngine: llmEngine
+        llmEngine: llmEngine,
+        projectRetriever: environment.projectRetriever
     )
 
     var onHideMainWindow: (() -> Void)?
@@ -135,7 +136,7 @@ final class SessionCoordinator: ObservableObject {
                     let now = Date()
                     if now.timeIntervalSince(self.lastPartialEvalTime) > 1.5 {
                         self.lastPartialEvalTime = now
-                        self.responseGenerator.handleTranscript(segment.text, source: segment.source)
+                        self.responseGenerator.handleTranscript(segment.text, source: segment.source, isFinal: false)
                     }
                 }
             }

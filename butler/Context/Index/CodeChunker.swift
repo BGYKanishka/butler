@@ -186,7 +186,9 @@ struct CodeChunker: Sendable {
                 default: break
                 }
                 if state == 1 { break }
-                j = line.index(after: j)
+                if j < end {
+                    j = line.index(after: j)
+                }
             }
             if state == 1 { state = 0 } // Reset line comment
         }

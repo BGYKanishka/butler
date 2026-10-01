@@ -1,0 +1,62 @@
+[
+  {
+    "question": "Where does Butler decide whether a transcript needs an answer?",
+    "expectedFiles": ["ResponseGenerator.swift", "PromptBuilder.swift"],
+    "expectedSymbols": ["handleTranscript"]
+  },
+  {
+    "question": "How is the project context kept in the KV cache?",
+    "expectedFiles": ["LlamaWrapper.mm", "ProjectContextManager.swift"],
+    "expectedSymbols": ["saveStateToPath", "loadStateFromPath", "analyzeProjects"]
+  },
+  {
+    "question": "How does the prompt avoid overflowing the context window?",
+    "expectedFiles": ["PromptBuilder.swift", "LlamaWrapper.mm"],
+    "expectedSymbols": ["build", "summaryCharBudget", "generateStreaming"]
+  },
+  {
+    "question": "Which directories are ignored when scanning a project?",
+    "expectedFiles": ["ProjectScanner.swift"],
+    "expectedSymbols": ["ignoredDirs"]
+  },
+  {
+    "question": "How does Whisper learn project vocabulary?",
+    "expectedFiles": ["ProjectContextData.swift"],
+    "expectedSymbols": ["makeWhisperPrompt"]
+  },
+  {
+    "question": "Where are model profiles and context sizes defined?",
+    "expectedFiles": ["AppConfiguration.swift"],
+    "expectedSymbols": ["ModelProfile"]
+  },
+  {
+    "question": "How is system audio captured?",
+    "expectedFiles": ["SystemAudioCaptureService.swift"],
+    "expectedSymbols": []
+  },
+  {
+    "question": "What monitors memory usage?",
+    "expectedFiles": ["MemoryMonitor.swift"],
+    "expectedSymbols": []
+  },
+  {
+    "question": "How does screenshot analysis work?",
+    "expectedFiles": ["SessionCoordinator.swift", "InteractiveCaptureService.swift"],
+    "expectedSymbols": ["triggerVisionAnalysis"]
+  },
+  {
+    "question": "How are transcripts assembled from segments?",
+    "expectedFiles": ["TranscriptAssembler.swift"],
+    "expectedSymbols": []
+  },
+  {
+    "question": "Explain the overall architecture",
+    "expectedFiles": ["SessionCoordinator.swift"],
+    "expectedSymbols": []
+  },
+  {
+    "question": "What is the weather like today?",
+    "expectedFiles": [],
+    "expectedSymbols": []
+  }
+]

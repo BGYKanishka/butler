@@ -15,6 +15,7 @@ final class ResponseGenerator {
     private let projectContextManager: ProjectContextManager?
     private let promptBuilder: PromptBuilder
     private let llmEngine: LLMEngine
+    private let projectRetriever: ProjectRetrievalService?
     private var currentGenerationTask: Task<Void, Never>?
     private var isEvaluating: Bool = false
 
@@ -29,14 +30,15 @@ final class ResponseGenerator {
     var onResponseCompleted: (@MainActor () -> Void)?
     var onResponseIgnored: (@MainActor () -> Void)?
 
-    init(contextManager: ContextManager, projectContextManager: ProjectContextManager? = nil, promptBuilder: PromptBuilder, llmEngine: LLMEngine) {
+    init(contextManager: ContextManager, projectContextManager: ProjectContextManager? = nil, promptBuilder: PromptBuilder, llmEngine: LLMEngine, projectRetriever: ProjectRetrievalService? = nil) {
         self.contextManager = contextManager
         self.projectContextManager = projectContextManager
         self.promptBuilder = promptBuilder
         self.llmEngine = llmEngine
+        self.projectRetriever = projectRetriever
     }
 
-    func handleTranscript(_ transcript: String, source: AudioSource) {
+    func handleTranscript(_ transcript: String, source: AudioSource, isFinal: Bool = true) {
         guard !isEvaluating else { return }
         isEvaluating = true
 
@@ -45,7 +47,30 @@ final class ResponseGenerator {
             let turns = await self.contextManager.getRecentTurns()
             let projectSummary = self.projectContextManager?.currentContext?.summary
             logger.info("Project context in prompt: \(projectSummary?.count ?? 0) chars (manager attached: \(self.projectContextManager != nil))")
-            let prompt = self.promptBuilder.build(turns: turns, projectSummary: projectSummary, question: transcript, source: source)
+            
+            var retrieved = ""
+            if projectSummary != nil, let r = self.projectRetriever, UserDefaults.standard.bool(forKey: ConfigKey.projectRetrievalEnabled) {
+                let budget = PromptBuilder.retrievalTokenBudget(contextSize: LLMConfiguration().contextSize)
+                let t0 = CFAbsoluteTimeGetCurrent()
+                retrieved = await withTaskGroup(of: String.self) { group in
+                    group.addTask {
+                        return await r.context(for: transcript, recentTurns: turns, isFinal: isFinal, budgetTokens: budget)
+                    }
+                    group.addTask {
+                        try? await Task.sleep(nanoseconds: 250_000_000)
+                        return ""
+                    }
+                    for await res in group {
+                        group.cancelAll()
+                        return res
+                    }
+                    return ""
+                }
+                let ms = Int((CFAbsoluteTimeGetCurrent() - t0) * 1000)
+                logger.info("Retrieved context: \(retrieved.count > 0 ? "YES" : "NO") in \(ms)ms")
+            }
+            
+            let prompt = self.promptBuilder.build(turns: turns, projectSummary: projectSummary, retrievedContext: retrieved, question: transcript, source: source)
 
             self.buffer = ""
             self.decisionMade = false
