@@ -4,9 +4,15 @@ actor ProjectIndexCoordinator {
     private let db: SQLiteDatabase
     private var currentState: IndexState = .idle
     private let chunker = CodeChunker()
-    
+    /// Optional retriever whose lexicon cache should be cleared after each sync.
+    weak var retriever: HybridProjectRetriever?
+
     init(dbPath: String) throws {
         self.db = try SQLiteDatabase(path: dbPath)
+    }
+
+    func setRetriever(_ retriever: HybridProjectRetriever) {
+        self.retriever = retriever
     }
     
     private func initSchema() async throws {
@@ -40,6 +46,8 @@ actor ProjectIndexCoordinator {
             let files = (try? await db.query("SELECT COUNT(*) FROM files", rowMapper: { $0.int(at: 0) }).first) ?? 0
             let chunks = (try? await db.query("SELECT COUNT(*) FROM chunks", rowMapper: { $0.int(at: 0) }).first) ?? 0
             currentState = .ready(files: Int(files), chunks: Int(chunks))
+            // Flush the retriever's cached lexicon so the next question sees fresh symbols.
+            await retriever?.invalidateLexiconCache()
         }
     }
     

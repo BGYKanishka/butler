@@ -22,7 +22,8 @@ class AudioSessionCoordinator: @unchecked Sendable {
     // MARK: - VAD tuning
     private enum VAD {
         static let pollInterval: TimeInterval = 0.1    // seconds between VAD ticks
-        static let preRollTime: TimeInterval  = 0.5    // padding before detected speech
+      
+        static let preRollTime: TimeInterval  = 1.0
         static let overlapTime: TimeInterval  = 1.5    // overlap kept when force-slicing
         static let forceSliceAfter: TimeInterval = 10.0 // maximum continuous-speech window
         static let minimumDuration: TimeInterval = 1.0  // ignore segments shorter than this
@@ -151,7 +152,11 @@ class AudioSessionCoordinator: @unchecked Sendable {
 
         if justStarted {
             logger.debug("Speech started on \(sourceName) (RMS: \(rms))")
-            startTimestamp = ts
+            // Prefer the VAD's onsetTimestamp (first threshold crossing) over the current
+            // tick time. onsetTimestamp is set when RMS first crosses speechThreshold, which
+            // is up to minSpeechDuration (0.3s) earlier than the confirmation tick.
+            // Using the earlier timestamp means the pre-roll covers more of the actual speech.
+            startTimestamp = vad.onsetTimestamp ?? ts
         }
         if isSpeaking, let start = startTimestamp, ts - start > VAD.forceSliceAfter {
             logger.debug("Force slicing continuous speech on \(sourceName)")

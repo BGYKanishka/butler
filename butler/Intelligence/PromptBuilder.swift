@@ -111,8 +111,11 @@ final class PromptBuilder {
         let sourceStr = PromptBuilder.speakerLabel(for: source)
 
         let userBody = "\(sourceStr): \(question)"
-        // A short format reminder directly before generation: the long system prompt is far away by now.
-        let reminder = "(Reply: YES| then a **bold** one-line answer and \"- \" bullets. No paragraphs.)"
+        let qLower = question.lowercased()
+        let isDiagramRequest = qLower.contains("diagram") || qLower.contains("flowchart") || qLower.contains("graph")
+        let reminder = isDiagramRequest
+            ? "(Reply: YES| then output a Mermaid.js diagram in a ```mermaid code block.)"
+            : "(Reply: YES| then a **bold** one-line answer and \"- \" bullets. No paragraphs unless asked to deeply explain.)"
         let tail = "<|im_start|>user\n\(userBody)\n\n\(reminder)\n<|im_end|>\n<|im_start|>assistant\n"
 
         // The coordinator stores the transcript as a turn BEFORE asking for an answer, so the current

@@ -40,7 +40,10 @@ class AppEnvironment: ObservableObject {
         self.indexCoordinator = coordinator
         self.projectContextManager = ProjectContextManager(llmEngine: llmEngine, indexCoordinator: coordinator)
         if coordinator != nil, let db = try? SQLiteDatabase(path: dbPath) {
-            self.projectRetriever = HybridProjectRetriever(db: db)
+            let retriever = HybridProjectRetriever(db: db)
+            self.projectRetriever = retriever
+            // Wire back-reference so the coordinator can flush the lexicon cache after each sync.
+            Task { await coordinator?.setRetriever(retriever) }
         } else {
             self.projectRetriever = nil
         }

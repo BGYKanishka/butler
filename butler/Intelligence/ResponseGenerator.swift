@@ -78,7 +78,11 @@ final class ResponseGenerator {
                     return ""
                 }
                 let ms = Int((CFAbsoluteTimeGetCurrent() - t0) * 1000)
-                logger.info("Retrieved context: \(retrieved.count > 0 ? "YES" : "NO") in \(ms)ms")
+                if retrieved.isEmpty && ms >= 248 {
+                    logger.warning("Retrieval hit 250ms timeout — proceeding without code context (ms: \(ms))")
+                } else {
+                    logger.info("Retrieved context: \(retrieved.count > 0 ? "YES" : "NO") in \(ms)ms")
+                }
                 // Which files did the answer actually get to see? ContextAssembler headers look like "[1] path/File.swift:10-40 Symbol".
                 let sources = retrieved.components(separatedBy: "\n")
                     .filter { $0.hasPrefix("[") && $0.dropFirst().first?.isNumber == true }

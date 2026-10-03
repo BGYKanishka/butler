@@ -109,7 +109,17 @@ struct QueryRouter: Sendable {
         let projectCue = hasCue && (!symbolHits.isEmpty || !fileHits.isEmpty || hasProjectName || normText.contains("your project") || normText.contains("the project") || normText.contains("your code"))
         
         let smallTalk = (words.count < 4 && symbolHits.isEmpty && fileHits.isEmpty) || words.isEmpty
-        let shouldRetrieve = !smallTalk && (!symbolHits.isEmpty || !fileHits.isEmpty || hasProjectName || projectCue)
+
+        // Broaden the gate: long questions with how/why/explain cue words attempt retrieval
+        // even when no specific symbol/file name matched. The FTS path + minScore threshold
+        // in the retriever returns empty safely when nothing relevant is found.
+        let generalCueWords: Set<String> = [
+            "how", "why", "what", "where", "which", "explain", "describe", "tell",
+            "implement", "work", "handle", "manage", "design", "flow", "pipeline"
+        ]
+        let hasGeneralCue = words.count > 6 && !Set(words).isDisjoint(with: generalCueWords)
+
+        let shouldRetrieve = !smallTalk && (!symbolHits.isEmpty || !fileHits.isEmpty || hasProjectName || projectCue || hasGeneralCue)
         
         let intent: QueryIntent
         if (!symbolHits.isEmpty || !fileHits.isEmpty) && (normText.contains("where") || normText.contains("which file") || normText.contains("show")) {
