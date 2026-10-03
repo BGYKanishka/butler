@@ -70,10 +70,10 @@ final class SessionCoordinator: ObservableObject {
 
         responseGenerator.onTokenGenerated = { [weak self] token in
             guard let self else { return }
-            if let last = self.transcripts.last, last.source == .assistant, !last.isFinal {
-                var updated = last
+            if let idx = self.transcripts.lastIndex(where: { $0.source == .assistant && !$0.isFinal }) {
+                var updated = self.transcripts[idx]
                 updated.text += token
-                self.transcripts[self.transcripts.count - 1] = updated
+                self.transcripts[idx] = updated
             } else {
                 let newSeg = TranscriptSegment(
                     id: UUID(), source: .assistant,
@@ -90,10 +90,10 @@ final class SessionCoordinator: ObservableObject {
             self.lastAnswerEndTime = Date()
             self.state = .listening
 
-            if let last = self.transcripts.last, last.source == .assistant, !last.isFinal {
-                var updated = last
+            if let idx = self.transcripts.lastIndex(where: { $0.source == .assistant && !$0.isFinal }) {
+                var updated = self.transcripts[idx]
                 updated.isFinal = true
-                self.transcripts[self.transcripts.count - 1] = updated
+                self.transcripts[idx] = updated
 
                 let finalAnswer = updated.text
                 logger.info("LLM Answer: \(finalAnswer)")
@@ -208,7 +208,7 @@ final class SessionCoordinator: ObservableObject {
                 transcripts.removeFirst(transcripts.count - 100)
             }
 
-            if state != .answering && Date().timeIntervalSince(lastAnswerEndTime) > 3.0 {
+            if state == .answering || Date().timeIntervalSince(lastAnswerEndTime) > 3.0 {
                 responseGenerator.handleTranscript(segment.text, source: segment.source)
             }
 

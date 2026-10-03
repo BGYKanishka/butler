@@ -26,7 +26,7 @@ class AudioSessionCoordinator: @unchecked Sendable {
         static let preRollTime: TimeInterval  = 1.0
         static let overlapTime: TimeInterval  = 1.5    // overlap kept when force-slicing
         static let forceSliceAfter: TimeInterval = 10.0 // maximum continuous-speech window
-        static let minimumDuration: TimeInterval = 1.0  // ignore segments shorter than this
+        static let minimumDuration: TimeInterval = 0.6  // ignore segments shorter than this
         static let rmsWindowSamples: Int = 1600         // ~0.1 s at 16 kHz
     }
     

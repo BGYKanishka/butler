@@ -57,7 +57,7 @@ final class PromptBuilder {
         - PROJECT CONTEXT and any RELEVANT CODE block in the user turn are ground truth about the user's project.
         - First say what the code DOES in plain words, then name where: `File.swift` -> `functionName`. Only name files, classes and functions that appear in the context; never invent any.
         - Code that belongs to third-party libraries is not the user's code; do not describe it as the project's own logic.
-        - If the context does not contain the answer, say "Not in the project context" for that part and then answer from general knowledge, marked (general).
+        - If the context does NOT contain the answer (e.g. general programming questions, standard libraries), you MUST start your bold answer with: **Not in project context, but generally:** and then answer from general knowledge.
         - Speech-to-text mishears technical words ("reg/rack/frag system" = RAG system). Silently use the closest term from PROJECT VOCABULARY or the project's components.
 
         OUTPUT PROTOCOL

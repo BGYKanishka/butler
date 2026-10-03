@@ -18,6 +18,7 @@ final class ResponseGenerator {
     private let projectRetriever: ProjectRetrievalService?
     private var currentGenerationTask: Task<Void, Never>?
     private var isEvaluating: Bool = false
+    private var isEvaluatingPartial: Bool = false
 
     // Parsing state for the current generation
     private var buffer = ""
@@ -48,10 +49,18 @@ final class ResponseGenerator {
 
     func handleTranscript(_ transcript: String, source: AudioSource, isFinal: Bool = true) {
         guard !isEvaluating else {
-            if isFinal { pendingTranscript = (transcript, source) }
+            if isFinal { 
+                pendingTranscript = (transcript, source) 
+                if isEvaluatingPartial {
+                    logger.info("Cancelling ongoing partial evaluation for new final transcript")
+                    llmEngine.cancel()
+                    currentGenerationTask?.cancel()
+                }
+            }
             return
         }
         isEvaluating = true
+        isEvaluatingPartial = !isFinal
 
         currentGenerationTask = Task { [weak self] in
             guard let self = self else { return }
@@ -171,11 +180,14 @@ final class ResponseGenerator {
 
             self.isEvaluating = false
 
-            // A question that arrived mid-evaluation is only replayed when nothing was answered:
-            // if an answer was just shown, the normal cooldown rules apply and the user can ask again.
             if let next = self.pendingTranscript {
                 self.pendingTranscript = nil
-                if !self.isIntentValid {
+                let cleanNext = next.text.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+                let cleanCurrent = transcript.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+                
+                if self.isIntentValid && cleanNext == cleanCurrent {
+                    logger.debug("Skipping duplicate final transcript")
+                } else {
                     self.handleTranscript(next.text, source: next.source)
                 }
             }
