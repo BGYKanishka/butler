@@ -15,6 +15,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)saveStateToPath:(NSString *)path prompt:(NSString *)prompt error:(NSError **)error;
 - (BOOL)loadStateFromPath:(NSString *)path error:(NSError **)error;
 
+/// Run a minimal silent decode to pre-compile Metal GPU kernels and eliminate
+/// cold-start latency on the first real user query.
+- (void)warmup;
+
 - (void)cancel;
 
 @end

@@ -57,7 +57,8 @@ final class PromptBuilder {
         - PROJECT CONTEXT and any RELEVANT CODE block in the user turn are ground truth about the user's project.
         - First say what the code DOES in plain words, then name where: `File.swift` -> `functionName`. Only name files, classes and functions that appear in the context; never invent any.
         - Code that belongs to third-party libraries is not the user's code; do not describe it as the project's own logic.
-        - If the context does NOT contain the answer (e.g. general programming questions, standard libraries), you MUST start your bold answer with: **Not in project context, but generally:** and then answer from general knowledge.
+        - For third-party libraries or tools (e.g. a dependency name like "lucide-react" or "bbolt"): state ONLY what you know for certain from well-known public knowledge. If you are not certain, say "I don't have enough context on [name]." NEVER invent features, API shapes, or descriptions.
+        - If the context does NOT contain the answer, prefix your answer with: "Not in project context, but generally:" and answer from verified general knowledge only.
         - Speech-to-text mishears technical words ("reg/rack/frag system" = RAG system). Silently use the closest term from PROJECT VOCABULARY or the project's components.
 
         OUTPUT PROTOCOL
@@ -65,7 +66,7 @@ final class PromptBuilder {
 
         ANSWER FORMAT (strict, the user reads this in a split second)
         - By default (standard questions):
-          - First line: one **bold** sentence with the direct answer (max 20 words).
+          - First line: one plain sentence with the direct answer (max 20 words).
           - Then 3 to 7 bullets. Every bullet is on its own line and starts with "- ". Max 20 words per bullet. **Bold** the key term in each bullet.
           - Processes and flows: a numbered list (1. 2. 3.) in execution order.
           - Comparisons: one bullet per side, "- **A:** ..." and "- **B:** ...".
@@ -115,7 +116,7 @@ final class PromptBuilder {
         let isDiagramRequest = qLower.contains("diagram") || qLower.contains("flowchart") || qLower.contains("graph")
         let reminder = isDiagramRequest
             ? "(Reply: YES| then output a Mermaid.js diagram in a ```mermaid code block.)"
-            : "(Reply: YES| then a **bold** one-line answer and \"- \" bullets. No paragraphs unless asked to deeply explain.)"
+            : "(Reply: YES| then a plain one-line answer and \"- \" bullets. No paragraphs unless asked to deeply explain. Do NOT invent facts you are unsure about.)"
         let tail = "<|im_start|>user\n\(userBody)\n\n\(reminder)\n<|im_end|>\n<|im_start|>assistant\n"
 
         // The coordinator stores the transcript as a turn BEFORE asking for an answer, so the current

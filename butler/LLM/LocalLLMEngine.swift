@@ -63,6 +63,10 @@ final class LocalLLMEngine: LLMEngine {
 
                 self.isLoaded = true
 
+                // Pre-compile Metal GPU kernels with a silent single-token decode so
+                // the first real user query doesn't pay the cold-start JIT penalty.
+                self.wrapper.warmup()
+
                 // Restore binary project memory if available.
                 let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                 let binaryPath = docs.appendingPathComponent("butler_project_memory.bin").path

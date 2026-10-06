@@ -373,6 +373,33 @@ static struct llama_sampler * ButlerMakeSampler(float temperature, int32_t n_voc
     llama_sampler_free(smpl);
 }
 
+- (void)warmup {
+    if (!_model || !_ctx || !_vocab) return;
+    NSLog(@"[LlamaWrapper] Running GPU warmup decode...");
+
+    // Use the BOS token — always token 1 in chat models.
+    llama_token bos = llama_vocab_bos(_vocab);
+
+    llama_batch batch = llama_batch_init(1, 0, 1);
+    batch.n_tokens      = 1;
+    batch.token[0]      = bos;
+    batch.pos[0]        = 0;
+    batch.seq_id[0][0]  = 0;
+    batch.n_seq_id[0]   = 1;
+    batch.logits[0]     = true;
+
+    llama_decode(_ctx, batch);
+    llama_batch_free(batch);
+
+    // Clear the KV cache and token mirror so the warmup leaves no trace for
+    // the first real prompt (which reuses the cache from position 0).
+    llama_memory_t mem = llama_get_memory(_ctx);
+    if (mem) llama_memory_clear(mem, true);
+    _last_tokens.clear();
+
+    NSLog(@"[LlamaWrapper] GPU warmup complete — Metal kernels are hot.");
+}
+
 - (void)cancel {
     _isCancelled = YES;
 }

@@ -252,7 +252,12 @@ actor HybridProjectRetriever: ProjectRetrievalService {
         }
 
         // Weak signal guard: if nothing specific was matched (only FTS), require a minimum score.
-        let minScore = 1.2 / 61.0
+        // Use a lower threshold when the query has a general cue (what/how/why) because those
+        // conversational questions have no symbol hits by design but still deserve context.
+        let hasGeneralCueWords = !query.symbolHits.isEmpty || !query.fileHits.isEmpty ||
+            ["how", "what", "why", "which", "where", "explain", "tell", "describe"]
+                .contains(where: { query.text.lowercased().contains($0) })
+        let minScore = hasGeneralCueWords ? 0.6 / 61.0 : 1.2 / 61.0
         if query.symbolHits.isEmpty && query.fileHits.isEmpty,
            let best = freshChunks.first, best.score < minScore {
             return []
