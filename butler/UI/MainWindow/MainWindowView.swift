@@ -18,7 +18,7 @@ struct MainWindowView: View {
 
     var body: some View {
         dashboardTab
-            .frame(width: 550, height: 650)
+            .frame(minWidth: 550, idealWidth: 550, maxWidth: .infinity, minHeight: 650, idealHeight: 650, maxHeight: .infinity)
             .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: anyPermissionGranted)

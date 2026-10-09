@@ -15,17 +15,21 @@ class ScreenRecordingPermission: BasePermissionTracker {
     }
 
     override func performCheck() {
-        Task { await checkPermissionAsync() }
+        isGranted = CGPreflightScreenCaptureAccess()
     }
 
     override func performCheckAsync() async {
-        await checkPermissionAsync()
+        isGranted = CGPreflightScreenCaptureAccess()
     }
 
-    // Probe SCShareableContent directly — the same approach used in
-    // SystemAudioCaptureService — as the actual source of truth.
-    // A successful call means the user has granted screen recording access.
     private func checkPermissionAsync() async {
+        // CGPreflightScreenCaptureAccess doesn't trigger the OS prompt.
+        isGranted = CGPreflightScreenCaptureAccess()
+    }
+
+    // Actively probe SCShareableContent ONLY during polling
+    // to bypass the Xcode ad-hoc signing bug.
+    private func checkPermissionActively() async {
         do {
             _ = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             isGranted = true
@@ -40,17 +44,8 @@ class ScreenRecordingPermission: BasePermissionTracker {
 
         isRequestInProgress = true
 
-        // If permission was previously denied, CGRequestScreenCaptureAccess()
-        // silently does nothing. Open System Settings directly so the user
-        // knows where to flip the toggle — same pattern as MicrophonePermission.
-        let alreadyDenied = !CGPreflightScreenCaptureAccess()
-        if alreadyDenied {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-                NSWorkspace.shared.open(url)
-            }
-        } else {
-            CGRequestScreenCaptureAccess()
-        }
+        // CGRequestScreenCaptureAccess() will trigger the native OS prompt if not yet determined.
+        let _ = CGRequestScreenCaptureAccess()
 
         pollPermission(attempts: 60)
     }
@@ -68,7 +63,7 @@ class ScreenRecordingPermission: BasePermissionTracker {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self = self else { return }
             Task { @MainActor in
-                await self.checkPermissionAsync()
+                await self.checkPermissionActively()
 
                 if !self.isGranted && self.isRequestInProgress {
                     self.pollPermission(attempts: attempts - 1)

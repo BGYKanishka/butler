@@ -67,7 +67,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         
         let panel = KeyPanel(
             contentRect: NSRect(x: 0, y: 0, width: 550, height: 650),
-            styleMask: [.nonactivatingPanel, .fullSizeContentView],
+            styleMask: [.nonactivatingPanel, .fullSizeContentView, .resizable],
             backing: .buffered,
             defer: false
         )

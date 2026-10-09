@@ -78,7 +78,11 @@ struct ChatBubbleView: View {
                             .cornerRadius(8)
                     }
                     
-                    Text(isAssistant ? MarkdownLite.attributed(segment.text) : AttributedString(segment.text))
+                    if isAssistant {
+                        AssistantMessageView(text: segment.text)
+                    } else {
+                        Text(AttributedString(segment.text))
+                    }
                 }
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(isLocal ? .white : .primary)
@@ -123,5 +127,83 @@ enum MarkdownLite {
             return attributed
         }
         return AttributedString(raw)
+    }
+}
+
+struct AssistantMessageView: View {
+    let text: String
+    
+    struct MessageComponent {
+        let text: String
+        let isCode: Bool
+        let language: String
+    }
+    
+    func splitByCodeBlocks(_ input: String) -> [MessageComponent] {
+        var components: [MessageComponent] = []
+        let parts = input.components(separatedBy: "```")
+        
+        for (index, part) in parts.enumerated() {
+            if index % 2 == 0 {
+                // Regular text
+                let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    components.append(MessageComponent(text: trimmed, isCode: false, language: ""))
+                }
+            } else {
+                // Code block
+                var codeLines = part.components(separatedBy: .newlines)
+                let language = codeLines.first?.trimmingCharacters(in: .whitespaces) ?? ""
+                if !codeLines.isEmpty {
+                    codeLines.removeFirst()
+                }
+                let codeText = codeLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if codeText.isEmpty {
+                    continue
+                }
+                
+                let lowerLang = language.lowercased()
+                if lowerLang == "plaintext" || lowerLang == "text" {
+                    components.append(MessageComponent(text: codeText, isCode: false, language: ""))
+                } else {
+                    components.append(MessageComponent(text: codeText, isCode: true, language: language))
+                }
+            }
+        }
+        return components
+    }
+    
+    var body: some View {
+        let components = splitByCodeBlocks(text)
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(0..<components.count, id: \.self) { index in
+                let component = components[index]
+                if component.isCode {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if !component.language.isEmpty {
+                            Text(component.language.uppercased())
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 12)
+                                .padding(.top, 8)
+                        }
+                        Text(component.text)
+                            .font(.system(size: 13, weight: .regular, design: .monospaced))
+                            .foregroundColor(.primary)
+                            .padding(12)
+                            .textSelection(.enabled)
+                    }
+                    .background(Color(NSColor.windowBackgroundColor).opacity(0.8))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                } else {
+                    Text(MarkdownLite.attributed(component.text))
+                }
+            }
+        }
     }
 }
