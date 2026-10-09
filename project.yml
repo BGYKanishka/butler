@@ -35,8 +35,8 @@ targets:
       path: butler/Resources/butler.entitlements
     settings:
       PRODUCT_NAME: Butler
-      MARKETING_VERSION: 1.0.6
-      CURRENT_PROJECT_VERSION: 6
+      MARKETING_VERSION: 1.0.0
+      CURRENT_PROJECT_VERSION: 1
       ARCHS: arm64
       EXCLUDED_ARCHS: x86_64
       VALID_ARCHITECTURES: arm64
