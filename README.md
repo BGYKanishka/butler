@@ -16,8 +16,11 @@ Butler is a privacy-first, fully on-device meeting assistant engineered for macO
 
 ### Multimodal Context, Codebase Understanding & Real-Time Intelligence
 - **Audio Intelligence**: Real-time microphone and system audio capture with Voice Activity Detection (VAD)-gated speech recognition. Includes granular UI toggles to select specific audio sources.
-- **Deep Codebase Context (RAG Engine)**: Includes a highly optimized local RAG (Retrieval-Augmented Generation) engine backed by a persistent **SQLite FTS5 index**. Source code is chunked semantically and stored securely.
-- **Hybrid Retrieval System**: Uses Reciprocal Rank Fusion (RRF) combining lexical search, symbol lookups, file path matching, and 1-hop graph-based reference expansion (navigating symbols to their definitions instantly) to inject the precise snippet of code context needed into the LLM prompt.
+- **Deep Codebase Context (RAG Engine)**:
+  - **AST Semantic Code Chunking**: Intelligently slices source files along natural language structures (functions, methods, classes) rather than arbitrary line counts, tracking braces and indentation so functions are never split in half.
+  - **Embedded SQLite Storage**: Organizes code chunks, line numbers, file paths, and symbol declarations into relational tables, paired with an embedded full-text search engine for fast keyword relevance ranking and concurrent, non-blocking reads.
+  - **1-Hop Knowledge Graph**: Maps relationships between caller functions and the definitions they reference, allowing the assistant to pull in necessary helper functions alongside the main code.
+- **Hybrid Retrieval System**: Combines symbol lookups, file path matching, and full-text search into a single balanced ranking using Reciprocal Rank Fusion (RRF), with live file freshness verification to guarantee the AI never sees stale code.
 - **Vision Capabilities**: Contextual screen awareness. Take interactive screenshots (`Shift + Option + A`) and seamlessly ask questions about the screen content using the multimodal vision model (`mmproj`).
 - **Low-Latency Partial Evaluation**: Supports custom speech vocabulary for domain-specific jargon and evaluates incomplete transcripts mid-sentence for ultra-low latency responses.
 - **Advanced State Saving**: Implements intelligent KV Cache saving (`saveState` / `loadState`) to avoid constantly reprocessing static context like project summaries.
@@ -113,7 +116,7 @@ graph TD
 Butler runs all AI models locally on your machine — no cloud, no API keys. Here's what you need:
 
 - **Mac**: Apple Silicon only (M1 / M2 / M3 / M4 / M5 — any variant). Intel Macs are not supported.
-- **macOS**: 14 Sonoma or newer — Sequoia (15), Tahoe (16 / 26), and Golden Gate (27) are all fully supported.
+- **macOS**: macOS 14 Sonoma or newer (including macOS 15 Sequoia and later).
 - **RAM**: 16 GB minimum · 24 GB recommended · 32 GB+ for the best experience
 - **Free disk space**: at least **10 GB** before first launch (models are downloaded automatically)
 

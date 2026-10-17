@@ -17,7 +17,8 @@ We use `os_signpost` to trace pipeline latency. The goal is to provide answers b
 - **Audio Capture to VAD:** < 10ms
 - **VAD Trigger to Whisper Start:** < 50ms
 - **Whisper Transcription (per segment):** < 500ms (using `small.en` model)
-- **Project Context Extraction:** < 200ms (ProjectAnalyzer caches repository structure)
+- **RAG Code Retrieval (`HybridProjectRetriever`):** < 250ms hard race budget (SQLite FTS5 + symbol match; falls back gracefully if exceeded to never stall speech response)
+- **Project Context Extraction:** < 50ms when cached; full repo scan runs asynchronously in the background and is saved to `project_context.json`
 - **Intent Evaluation (LLM TTFT):** < 1000ms (includes advanced context shifting)
 - **LLM Generation Speed:** > 30 tokens/second (using 4-bit quantized Qwen2.5-VL 7B)
 
@@ -28,4 +29,4 @@ Total End-to-End Latency (Speech End -> First Answer Token): **< 1.7 Seconds**
 If latency spikes occur, use Apple's Instruments app:
 1. Open Instruments and attach to `butler`.
 2. Select the `os_signpost` template.
-3. Filter for `com.example.butler` subsystem to view the waterfall graph of audio chunks hitting the LLM.
+3. Filter for `com.butler` subsystem to view the waterfall graph of audio chunks hitting the LLM.
