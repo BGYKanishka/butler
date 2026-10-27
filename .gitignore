@@ -19,6 +19,9 @@ butler.xcodeproj/
 Packages/
 Package.pins
 
+# Generated Frameworks
+Frameworks/
+
 # AI Models
 *.gguf
 *.bin

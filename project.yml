@@ -18,6 +18,10 @@ targets:
     dependencies:
       - package: HotKey
       - package: Sparkle
+      - framework: Frameworks/llama.xcframework
+        embed: false
+      - framework: Frameworks/whisper.xcframework
+        embed: false
     info:
       path: butler/Resources/Info.plist
       properties:
@@ -46,29 +50,12 @@ targets:
       ENABLE_USER_SCRIPT_SANDBOXING: false
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       SWIFT_OBJC_BRIDGING_HEADER: "butler/Speech/WhisperBridge/BridgingHeader.h"
+      FRAMEWORK_SEARCH_PATHS:
+        - "$(SRCROOT)/Frameworks"
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Vendor/whisper.cpp/include"
-        - "$(SRCROOT)/Vendor/llama.cpp/include"
-        - "$(SRCROOT)/Vendor/llama.cpp/ggml/include"
-        - "$(SRCROOT)/Vendor/llama.cpp/tools/mtmd"
-      LIBRARY_SEARCH_PATHS:
-        - "$(SRCROOT)/Vendor/whisper.cpp/build/src"
-        - "$(SRCROOT)/Vendor/llama.cpp/build/src"
-        - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src"
-        - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-metal"
-        - "$(SRCROOT)/Vendor/llama.cpp/build/ggml/src/ggml-blas"
-        - "$(SRCROOT)/Vendor/llama.cpp/build/tools/mtmd"
-        - "$(SRCROOT)/Vendor/llama.cpp/build/vendor/hash"
+        - "$(SRCROOT)/Frameworks/llama.xcframework/macos-arm64/Headers"
+        - "$(SRCROOT)/Frameworks/whisper.xcframework/macos-arm64/Headers"
       OTHER_LDFLAGS:
-        - "-lwhisper"
-        - "-lllama"
-        - "-lmtmd"
-        - "-lvendor-hash"
-        - "-lggml"
-        - "-lggml-base"
-        - "-lggml-cpu"
-        - "-lggml-metal"
-        - "-lggml-blas"
         - "-framework Accelerate"
         - "-framework Foundation"
         - "-framework Metal"

@@ -11,6 +11,9 @@ Scripts/build_whisper.sh
 echo "Building llama.cpp..."
 Scripts/build_llama.sh
 
+echo "Packaging XCFrameworks..."
+Scripts/package_frameworks.sh
+
 echo "Downloading models..."
 Scripts/download_models.sh
 
