@@ -296,7 +296,9 @@ static struct llama_sampler * ButlerMakeSampler(float temperature, int32_t n_voc
         finalPrompt = [NSString stringWithFormat:@"<__media__>\n%@", prompt];
     }
     
-    mtmd_input_text txt = { [finalPrompt UTF8String], finalPrompt.length, true, true };
+    const char *cPrompt = [finalPrompt UTF8String];
+    size_t promptLen = strlen(cPrompt);
+    mtmd_input_text txt = { cPrompt, promptLen, true, true };
     mtmd_input_chunks * chunks = mtmd_input_chunks_init();
     
     const mtmd_bitmap * bmps[] = { bmp };

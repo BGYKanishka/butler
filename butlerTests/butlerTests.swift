@@ -50,4 +50,35 @@ final class butlerTests: XCTestCase {
         XCTAssertTrue(contextString.contains("[CANDIDATE (USER)]: Hi, how are you?"))
         XCTAssertTrue(contextString.contains("[INTERVIEWER]: I'm doing well, thank you."))
     }
+
+    func testContextManagerUnansweredQueryWhenNoQuery() async throws {
+        let manager = ContextManager()
+        
+        // Assistant answered a previous vision request
+        let imageTurn = ConversationTurn(id: UUID(), source: .microphone, type: .question, text: "[Image Analyzed]", timestamp: Date().addingTimeInterval(-20))
+        let answerTurn = ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: "Answer to 1st image", timestamp: Date().addingTimeInterval(-15))
+        await manager.addTurn(imageTurn)
+        await manager.addTurn(answerTurn)
+        
+        // When taking a second screenshot, there is no pending user query
+        let query = await manager.getUnansweredUserQuery()
+        XCTAssertNil(query, "Second image must not use previous assistant answer or [Image Analyzed] as query context")
+    }
+
+    func testContextManagerUnansweredQueryWithPendingQuery() async throws {
+        let manager = ContextManager()
+        
+        // 1st image and answer
+        await manager.addTurn(ConversationTurn(id: UUID(), source: .microphone, type: .question, text: "[Image Analyzed]", timestamp: Date().addingTimeInterval(-30)))
+        await manager.addTurn(ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: "Answer 1", timestamp: Date().addingTimeInterval(-25)))
+        
+        // User speaks before taking 2nd screenshot
+        await manager.addTurn(ConversationTurn(id: UUID(), source: .microphone, type: .statement, text: "Can you solve problem 2?", timestamp: Date().addingTimeInterval(-5)))
+        
+        // Pending query should return the new question
+        let query = await manager.getUnansweredUserQuery()
+        XCTAssertNotNil(query)
+        XCTAssertTrue(query?.contains("Can you solve problem 2?") == true)
+        XCTAssertFalse(query?.contains("Answer 1") == true)
+    }
 }

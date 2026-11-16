@@ -205,6 +205,12 @@ final class SessionCoordinator: ObservableObject {
 
             transcripts.append(segment)
             if transcripts.count > 100 {
+                let removed = transcripts.prefix(transcripts.count - 100)
+                for seg in removed {
+                    if let path = seg.imagePath {
+                        try? FileManager.default.removeItem(atPath: path)
+                    }
+                }
                 transcripts.removeFirst(transcripts.count - 100)
             }
 
@@ -299,6 +305,11 @@ final class SessionCoordinator: ObservableObject {
         await whisperEngine.unload()
         await llmEngine.unload()
 
+        for segment in transcripts {
+            if let path = segment.imagePath {
+                try? FileManager.default.removeItem(atPath: path)
+            }
+        }
         transcripts.removeAll()
         logger.info("Session stopped")
     }
@@ -339,6 +350,11 @@ final class SessionCoordinator: ObservableObject {
             return
         }
 
+        if state == .answering {
+            logger.warning("Vision analysis requested while already generating a response")
+            return
+        }
+
         onHideMainWindow?()
 
         InteractiveCaptureService.shared.captureRegion { [weak self] fileUrl in
@@ -351,11 +367,19 @@ final class SessionCoordinator: ObservableObject {
                     self.startSession()
                 }
 
-                let recentContext = await self.contextManager.getRecentContext()
-                let basePrompt = "Analyze this image. If it contains a multiple-choice question or a direct problem, state the final answer clearly in the first sentence, followed by a step-by-step solution. If it's a general image, simply explain or describe it naturally as a helpful AI assistant."
-                let finalPrompt = recentContext.isEmpty
-                    ? basePrompt
-                    : "\(basePrompt)\n\nRecent voice/chat context:\n\(recentContext)\n\nPlease answer the user's latest query considering the image."
+                let basePrompt = """
+                Analyze this image.
+                - If it contains a question, multiple-choice question (MCQ), or problem: State the final answer clearly in the very first sentence (e.g. "**Answer: B) ...**"). Then give only a brief explanation (2-3 short sentences or concise bullet points). Keep it short, direct, and concise—do NOT write long paragraphs or extensive step-by-step derivations.
+                - If it is a general image: Describe or explain it concisely in 2-3 sentences.
+                """
+                
+                let pendingQuery = await self.contextManager.getUnansweredUserQuery()
+                let finalPrompt: String
+                if let query = pendingQuery, !query.isEmpty {
+                    finalPrompt = "\(basePrompt)\n\nRecent user query:\n\(query)\n\nPlease answer the user's latest query considering the image."
+                } else {
+                    finalPrompt = basePrompt
+                }
 
                 self.processVisionRequest(prompt: finalPrompt, imagePath: imagePath)
             }
@@ -384,8 +408,10 @@ final class SessionCoordinator: ObservableObject {
 
         Task { @MainActor [weak self] in
             guard let self = self else { return }
-            // Always clean up the temp capture file when done, regardless of outcome.
-            defer { try? FileManager.default.removeItem(atPath: imagePath) }
+            
+            let userTurn = ConversationTurn(id: userSeg.id, source: .microphone, type: .question, text: "[Image Analyzed]", timestamp: Date())
+            await self.contextManager.addTurn(userTurn)
+
             do {
                 while self.isLoadingModels {
                     try await Task.sleep(nanoseconds: 200_000_000) // Wait 200ms
@@ -393,20 +419,19 @@ final class SessionCoordinator: ObservableObject {
 
                 try await self.llmEngine.generateVisionStreaming(prompt: prompt, imagePath: imagePath) { [weak self] token in
                     Task { @MainActor in
-                        guard let self, let lastIdx = self.transcripts.indices.last else { return }
-                        self.transcripts[lastIdx].text += token
+                        guard let self else { return }
+                        if let idx = self.transcripts.firstIndex(where: { $0.id == aiSegId }) {
+                            self.transcripts[idx].text += token
+                        }
                     }
                 }
 
-                if let lastIdx = self.transcripts.indices.last {
-                    self.transcripts[lastIdx].isFinal = true
-                    let finalAnswer = self.transcripts[lastIdx].text
+                if let idx = self.transcripts.firstIndex(where: { $0.id == aiSegId }) {
+                    self.transcripts[idx].isFinal = true
+                    let finalAnswer = self.transcripts[idx].text
                     logger.info("Vision LLM Answer: \(finalAnswer)")
-                    Task { [weak self] in
-                        guard let self = self else { return }
-                        let turn = ConversationTurn(id: UUID(), source: .assistant, type: .answer, text: finalAnswer, timestamp: Date())
-                        await self.contextManager.addTurn(turn)
-                    }
+                    let aiTurn = ConversationTurn(id: aiSegId, source: .assistant, type: .answer, text: finalAnswer, timestamp: Date())
+                    await self.contextManager.addTurn(aiTurn)
                 }
                 self.state = .listening
             } catch {
