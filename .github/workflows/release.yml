@@ -35,9 +35,10 @@ jobs:
         
     - name: Build AI Engines
       run: |
-        chmod +x Scripts/build_whisper.sh Scripts/build_llama.sh
+        chmod +x Scripts/build_whisper.sh Scripts/build_llama.sh Scripts/package_frameworks.sh
         ./Scripts/build_whisper.sh
         ./Scripts/build_llama.sh
+        ./Scripts/package_frameworks.sh
         
     - name: Generate Xcode Project
       run: xcodegen generate
